@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 interface AvatarCropperProps {
@@ -9,8 +9,37 @@ interface AvatarCropperProps {
 
 export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, onCancel }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // Lock body scroll while cropper is open
+  // Use refs for gesture state to avoid re-renders during drag
+  const scaleRef = useRef(1);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const sliderRef = useRef<HTMLInputElement>(null);
+
+  // Gesture tracking
+  const gestureRef = useRef<{
+    active: boolean;
+    pointers: Map<number, { x: number; y: number }>;
+    startDist: number;
+    startScale: number;
+    startMid: { x: number; y: number };
+    startOffset: { x: number; y: number };
+    lastSinglePos: { x: number; y: number };
+  }>({
+    active: false,
+    pointers: new Map(),
+    startDist: 0,
+    startScale: 1,
+    startMid: { x: 0, y: 0 },
+    startOffset: { x: 0, y: 0 },
+    lastSinglePos: { x: 0, y: 0 },
+  });
+
+  const CANVAS_SIZE = 280;
+  const CIRCLE_R = 120;
+  const rafRef = useRef(0);
+
+  // Lock body scroll
   useEffect(() => {
     const scrollY = window.scrollY;
     document.body.style.overflow = 'hidden';
@@ -25,33 +54,7 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
       window.scrollTo(0, scrollY);
     };
   }, []);
-  const imgRef = useRef<HTMLImageElement | null>(null);
 
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
-
-  const CANVAS_SIZE = 280;
-  const CIRCLE_R = 120;
-
-  // Load image
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      imgRef.current = img;
-      // Fit image so shortest side fills the circle
-      const minDim = Math.min(img.width, img.height);
-      const initialScale = (CIRCLE_R * 2) / minDim;
-      setScale(initialScale);
-      setImgSize({ w: img.width, h: img.height });
-      setOffset({ x: 0, y: 0 });
-    };
-    img.src = imageUrl;
-  }, [imageUrl]);
-
-  // Draw
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgRef.current;
@@ -59,17 +62,18 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     const ctx = canvas.getContext('2d')!;
     const cx = CANVAS_SIZE / 2;
     const cy = CANVAS_SIZE / 2;
+    const scale = scaleRef.current;
+    const offset = offsetRef.current;
 
     ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-    // Draw image centered + offset + scaled
     const dw = img.width * scale;
     const dh = img.height * scale;
     const dx = cx - dw / 2 + offset.x;
     const dy = cy - dh / 2 + offset.y;
     ctx.drawImage(img, dx, dy, dw, dh);
 
-    // Dark overlay outside circle (punch hole — image untouched inside)
+    // Dark overlay outside circle
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
@@ -78,62 +82,150 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     ctx.fill();
     ctx.restore();
 
-    // Circle border — visible on both dark and light images
+    // Circle border
     ctx.beginPath();
     ctx.arc(cx, cy, CIRCLE_R, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.lineWidth = 2.5;
     ctx.stroke();
-  }, [scale, offset, imgSize]);
+  }, []);
 
-  useEffect(() => {
-    draw();
+  const requestDraw = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(draw);
   }, [draw]);
 
-  // Pointer drag
-  const handlePointerDown = (e: React.PointerEvent) => {
-    setDragging(true);
-    setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
+  // Load image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      imgRef.current = img;
+      const minDim = Math.min(img.width, img.height);
+      scaleRef.current = (CIRCLE_R * 2) / minDim;
+      offsetRef.current = { x: 0, y: 0 };
+      if (sliderRef.current) sliderRef.current.value = String(scaleRef.current);
+      requestDraw();
+    };
+    img.src = imageUrl;
+  }, [imageUrl, requestDraw]);
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragging) return;
-    setOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-  };
+  // --- Gesture handlers (all via native events for better mobile perf) ---
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const handlePointerUp = () => setDragging(false);
+    const g = gestureRef.current;
 
-  // Pinch zoom via wheel / gesture
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.02 : 0.02;
-    setScale(s => Math.max(0.1, Math.min(5, s + delta)));
-  };
+    const getMid = () => {
+      const pts = Array.from(g.pointers.values());
+      if (pts.length < 2) return pts[0] || { x: 0, y: 0 };
+      return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    };
 
-  // Touch pinch
-  const lastDist = useRef(0);
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      lastDist.current = Math.hypot(dx, dy);
-    }
-  };
+    const getDist = () => {
+      const pts = Array.from(g.pointers.values());
+      if (pts.length < 2) return 0;
+      return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
+    const onPointerDown = (e: PointerEvent) => {
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      const diff = dist - lastDist.current;
-      setScale(s => Math.max(0.1, Math.min(5, s + diff * 0.005)));
-      lastDist.current = dist;
-    }
+      canvas.setPointerCapture(e.pointerId);
+      g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (g.pointers.size === 1) {
+        g.lastSinglePos = { x: e.clientX, y: e.clientY };
+      }
+      if (g.pointers.size === 2) {
+        g.startDist = getDist();
+        g.startScale = scaleRef.current;
+        g.startMid = getMid();
+        g.startOffset = { ...offsetRef.current };
+      }
+      g.active = true;
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!g.active) return;
+      g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (g.pointers.size === 1) {
+        // Single finger pan
+        const dx = e.clientX - g.lastSinglePos.x;
+        const dy = e.clientY - g.lastSinglePos.y;
+        offsetRef.current = {
+          x: offsetRef.current.x + dx,
+          y: offsetRef.current.y + dy,
+        };
+        g.lastSinglePos = { x: e.clientX, y: e.clientY };
+      } else if (g.pointers.size === 2) {
+        // Pinch zoom + pan
+        const dist = getDist();
+        const mid = getMid();
+        const ratio = dist / g.startDist;
+        const newScale = Math.max(0.1, Math.min(5, g.startScale * ratio));
+
+        // Pan from midpoint movement
+        const panX = mid.x - g.startMid.x;
+        const panY = mid.y - g.startMid.y;
+
+        scaleRef.current = newScale;
+        offsetRef.current = {
+          x: g.startOffset.x + panX,
+          y: g.startOffset.y + panY,
+        };
+
+        if (sliderRef.current) sliderRef.current.value = String(newScale);
+      }
+      requestDraw();
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      g.pointers.delete(e.pointerId);
+      if (g.pointers.size === 0) {
+        g.active = false;
+      } else if (g.pointers.size === 1) {
+        // Transition from pinch to single-finger pan
+        const remaining = Array.from(g.pointers.values())[0];
+        g.lastSinglePos = { x: remaining.x, y: remaining.y };
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.95 : 1.05;
+      scaleRef.current = Math.max(0.1, Math.min(5, scaleRef.current * delta));
+      if (sliderRef.current) sliderRef.current.value = String(scaleRef.current);
+      requestDraw();
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+
+    // Prevent default touch behaviors on canvas
+    const preventTouch = (e: TouchEvent) => e.preventDefault();
+    canvas.addEventListener('touchstart', preventTouch, { passive: false });
+    canvas.addEventListener('touchmove', preventTouch, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+      canvas.removeEventListener('wheel', onWheel);
+      canvas.removeEventListener('touchstart', preventTouch);
+      canvas.removeEventListener('touchmove', preventTouch);
+    };
+  }, [requestDraw]);
+
+  const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
+    scaleRef.current = parseFloat(e.target.value);
+    requestDraw();
   };
 
-  // Export cropped circle
   const handleConfirm = () => {
     const img = imgRef.current;
     if (!img) return;
@@ -143,13 +235,13 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     out.height = size;
     const ctx = out.getContext('2d')!;
 
-    // Clip to circle
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
     ctx.clip();
 
-    // Scale factor from preview to output
     const sf = size / (CIRCLE_R * 2);
+    const scale = scaleRef.current;
+    const offset = offsetRef.current;
     const dw = img.width * scale * sf;
     const dh = img.height * scale * sf;
     const dx = size / 2 - dw / 2 + offset.x * sf;
@@ -169,23 +261,18 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
             width={CANVAS_SIZE}
             height={CANVAS_SIZE}
             className="crop-canvas"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onWheel={handleWheel}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
             style={{ touchAction: 'none' }}
           />
         </div>
         <input
+          ref={sliderRef}
           type="range"
           className="crop-slider"
           min="0.1"
           max="3"
           step="0.01"
-          value={scale}
-          onChange={e => setScale(parseFloat(e.target.value))}
+          defaultValue="1"
+          onChange={handleSlider}
         />
         <div className="crop-actions">
           <button className="crop-btn crop-btn-cancel" onClick={onCancel}>Cancelar</button>
