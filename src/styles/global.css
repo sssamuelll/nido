@@ -1497,8 +1497,8 @@ h1, h2, h3, .font-display {
 }
 
 .profile-avatar {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius-full);
   background: var(--bg-secondary);
   border: 2px solid var(--glass-border);
