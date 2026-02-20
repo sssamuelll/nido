@@ -1309,25 +1309,6 @@ h1, h2, h3, .font-display {
   opacity: 0.2;
 }
 
-.add-desc-input {
-  font-family: inherit;
-  font-size: 0.9375rem;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  outline: none;
-  text-align: center;
-  width: 100%;
-  max-width: 260px;
-  padding: var(--space-sm) 0;
-  margin-top: var(--space-xs);
-}
-
-.add-desc-input::placeholder {
-  color: var(--text-muted);
-  opacity: 0.5;
-}
-
 .add-section-label {
   font-size: 0.75rem;
   font-weight: 600;
@@ -1375,51 +1356,27 @@ h1, h2, h3, .font-display {
   letter-spacing: 0.02em;
 }
 
-.add-chips-row {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.add-chip {
-  flex: 1;
-  padding: 0.625rem 0.75rem;
-  border-radius: var(--radius-lg);
+.add-note-input {
+  width: 100%;
+  padding: var(--space-md);
   background: var(--bg-secondary);
   border: 1.5px solid transparent;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-base);
-  font-family: inherit;
-  text-align: center;
-}
-
-.add-chip.active {
-  background: var(--bg-tertiary);
-  border-color: var(--text-secondary);
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
-}
-
-.add-chip:active { transform: scale(0.95); }
-
-.add-date-btn {
-  display: block;
-  width: 100%;
-  padding: var(--space-md) 0;
-  margin-top: var(--space-lg);
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  cursor: pointer;
-  text-align: center;
+  font-size: 0.9375rem;
   font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-base);
 }
 
-.add-date-btn:hover { color: var(--text-secondary); }
+.add-note-input:focus {
+  border-color: var(--accent);
+}
 
-.add-date-picker { margin-top: var(--space-lg); }
+.add-note-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
 
 .add-error {
   color: var(--error);

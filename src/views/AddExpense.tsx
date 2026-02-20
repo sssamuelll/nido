@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { CATEGORIES } from '../components/CategoryIcon';
@@ -8,17 +8,17 @@ import { format } from 'date-fns';
 export const AddExpense: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Context from navigation: shared (default) or personal
+  const expenseType = (location.state as any)?.type === 'personal' ? 'personal' : 'shared';
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [paidBy, setPaidBy] = useState(user?.username || 'samuel');
-  const [type, setType] = useState<'shared' | 'personal'>('shared');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [showDate, setShowDate] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
@@ -37,9 +37,9 @@ export const AddExpense: React.FC = () => {
         amount: num,
         description: description.trim() || category,
         category,
-        date,
-        paid_by: paidBy,
-        type,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        paid_by: user?.username || 'samuel',
+        type: expenseType,
       });
       setSuccess(true);
       setTimeout(() => navigate('/', { replace: true }), 600);
@@ -78,11 +78,13 @@ export const AddExpense: React.FC = () => {
       {/* Header */}
       <div className="add-header">
         <button className="add-back" onClick={() => navigate(-1)}>←</button>
-        <h1 className="add-title">Nuevo gasto</h1>
+        <h1 className="add-title">
+          {expenseType === 'personal' ? 'Gasto personal' : 'Gasto compartido'}
+        </h1>
         <div style={{ width: 40 }} />
       </div>
 
-      {/* Scrollable content */}
+      {/* Content */}
       <div className="add-content">
         {/* Amount */}
         <div className="add-amount-area">
@@ -100,17 +102,9 @@ export const AddExpense: React.FC = () => {
               autoFocus
             />
           </div>
-          <input
-            type="text"
-            className="add-desc-input"
-            placeholder="Añadir nota..."
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
         </div>
 
-        {/* Categories grid */}
+        {/* Categories */}
         <div className="add-section-label">Categoría</div>
         <div className="add-categories">
           {CATEGORIES.map(cat => (
@@ -125,68 +119,28 @@ export const AddExpense: React.FC = () => {
           ))}
         </div>
 
-        {/* Who paid */}
-        <div className="add-section-label">Pagó</div>
-        <div className="add-chips-row">
-          <button
-            className={`add-chip ${paidBy === 'samuel' ? 'active' : ''}`}
-            onClick={() => setPaidBy('samuel')}
-          >
-            👨‍💻 Samuel
-          </button>
-          <button
-            className={`add-chip ${paidBy === 'maria' ? 'active' : ''}`}
-            onClick={() => setPaidBy('maria')}
-          >
-            👩‍🎨 María
-          </button>
-        </div>
+        {/* Description */}
+        <div className="add-section-label">Nota</div>
+        <input
+          type="text"
+          className="add-note-input"
+          placeholder="¿En qué fue?"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
 
-        {/* Type */}
-        <div className="add-section-label">Tipo</div>
-        <div className="add-chips-row">
-          <button
-            className={`add-chip ${type === 'shared' ? 'active' : ''}`}
-            onClick={() => setType('shared')}
-          >
-            Compartido
-          </button>
-          <button
-            className={`add-chip ${type === 'personal' ? 'active' : ''}`}
-            onClick={() => setType('personal')}
-          >
-            Personal
-          </button>
-        </div>
-
-        {/* Date */}
-        {showDate ? (
-          <div className="add-date-picker">
-            <input
-              type="date"
-              className="form-input"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-            />
-          </div>
-        ) : (
-          <button className="add-date-btn" onClick={() => setShowDate(true)}>
-            📅 {date === format(new Date(), 'yyyy-MM-dd') ? 'Hoy' : date} · Cambiar
-          </button>
-        )}
-
-        {/* Error */}
         {error && <div className="add-error">{error}</div>}
       </div>
 
-      {/* Fixed bottom submit */}
+      {/* Submit */}
       <div className="add-footer">
         <button
           className="btn btn-primary add-submit"
           onClick={handleSubmit}
           disabled={saving || !amount}
         >
-          {saving ? 'Guardando...' : 'Guardar gasto'}
+          {saving ? 'Guardando...' : 'Guardar'}
         </button>
       </div>
     </div>

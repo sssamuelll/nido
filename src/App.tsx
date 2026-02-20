@@ -51,7 +51,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/add" element={<AddExpense />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!isAddView && <BottomNav onAddClick={() => navigate('/add')} />}
+      {!isAddView && <BottomNav onAddClick={() => navigate('/add', { state: { type: 'shared' } })} />}
     </div>
   );
 };
