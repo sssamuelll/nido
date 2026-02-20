@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface AvatarCropperProps {
   imageUrl: string;
@@ -159,7 +160,7 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     onCrop(out.toDataURL('image/jpeg', 0.85));
   };
 
-  return (
+  return createPortal(
     <div className="crop-overlay" onClick={onCancel}>
       <div className="crop-modal" onClick={e => e.stopPropagation()}>
         <div className="crop-title">Ajustar foto</div>
@@ -192,6 +193,7 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
           <button className="crop-btn crop-btn-confirm" onClick={handleConfirm}>Guardar</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
