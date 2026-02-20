@@ -13,6 +13,7 @@ interface AddExpenseSheetProps {
 export const AddExpenseSheet: React.FC<AddExpenseSheetProps> = ({ isOpen, onClose, onSaved }) => {
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -24,6 +25,27 @@ export const AddExpenseSheet: React.FC<AddExpenseSheetProps> = ({ isOpen, onClos
   const [error, setError] = useState('');
   const [showExtra, setShowExtra] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Adjust sheet position when virtual keyboard opens
+  useEffect(() => {
+    if (!isOpen) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const onResize = () => {
+      const offset = window.innerHeight - vv.height;
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = offset > 50 ? `translateY(-${offset}px)` : '';
+      }
+    };
+
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -85,7 +107,7 @@ export const AddExpenseSheet: React.FC<AddExpenseSheetProps> = ({ isOpen, onClos
 
   return (
     <div className="sheet-overlay" onClick={onClose}>
-      <div className={`sheet ${success ? 'sheet-success' : ''}`} onClick={e => e.stopPropagation()}>
+      <div ref={sheetRef} className={`sheet ${success ? 'sheet-success' : ''}`} onClick={e => e.stopPropagation()}>
         {/* Handle */}
         <div className="sheet-handle"><div className="sheet-handle-bar" /></div>
 

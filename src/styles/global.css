@@ -968,6 +968,7 @@ h1, h2, h3, .font-display {
   border-bottom: none;
   box-shadow: 0 -8px 48px rgba(0, 0, 0, 0.4);
   animation: sheetSlideUp 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 150ms ease-out;
   padding: 0 var(--space-xl) var(--space-2xl);
   overflow-y: auto;
   max-height: 92vh;
