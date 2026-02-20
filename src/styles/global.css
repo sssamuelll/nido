@@ -1478,41 +1478,60 @@ h1, h2, h3, .font-display {
 /* ============================================
    Dashboard — Visual
    ============================================ */
-.dashboard-header {
+/* Dashboard — Header */
+.dash-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: var(--space-xl);
 }
 
-.dashboard-greeting {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
-}
-
-.dashboard-subtitle {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.month-nav {
+.dash-header-left {
   display: flex;
-  gap: var(--space-xs);
   align-items: center;
+  gap: var(--space-sm);
+}
+
+.dash-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+}
+
+.dash-header-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+}
+
+.dash-month-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.dash-month-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .month-nav-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1528,51 +1547,146 @@ h1, h2, h3, .font-display {
 
 .month-nav-btn:active { transform: scale(0.9); }
 
-/* Hero Card */
-.hero-card {
-  text-align: center;
+/* Dashboard — Hero Card */
+.dash-hero {
+  background: var(--accent-gradient);
+  border-radius: var(--radius-xl);
   padding: var(--space-xl) var(--space-xl) var(--space-lg);
-  background: linear-gradient(180deg, rgba(255, 140, 107, 0.06) 0%, var(--glass-bg) 100%);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px var(--accent-glow);
 }
 
-.hero-spent-label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  margin-bottom: var(--space-xs);
+.dash-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.15) 0%, transparent 50%);
+  pointer-events: none;
 }
 
-.hero-spent-amount {
+.dash-hero-avatars {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  position: relative;
+}
+
+.dash-hero-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.dash-hero-amount {
   font-family: 'DM Sans', sans-serif;
   font-size: 2.75rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #1a1714;
   letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+.dash-hero-subtitle {
+  font-size: 0.8125rem;
+  color: rgba(26, 23, 20, 0.6);
+  font-weight: 500;
   margin-bottom: var(--space-lg);
+  position: relative;
+}
+
+.dash-hero-bar {
+  height: 6px;
+  background: rgba(0,0,0,0.15);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.dash-hero-bar-fill {
+  height: 100%;
+  background: rgba(26, 23, 20, 0.35);
+  border-radius: var(--radius-full);
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dash-hero-warning {
+  font-size: 0.75rem;
+  color: rgba(26, 23, 20, 0.7);
+  font-weight: 600;
+  margin-top: var(--space-sm);
+  position: relative;
+}
+
+/* Dashboard — Stat Cards */
+.dash-stats-row {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dash-stats-row::-webkit-scrollbar { display: none; }
+
+.dash-stat-card {
+  flex: 1;
+  min-width: 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  text-align: center;
+  transition: all var(--transition-base);
+}
+
+.dash-stat-card:hover {
+  border-color: rgba(255, 140, 107, 0.15);
+}
+
+.dash-stat-icon {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-xs);
+}
+
+.dash-stat-amount {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
-.hero-of-total {
-  font-size: 0.875rem;
+.dash-stat-label {
+  font-size: 0.6875rem;
   color: var(--text-muted);
-  margin-bottom: var(--space-lg);
+  font-weight: 500;
+  margin-top: 2px;
 }
 
-.hero-remaining {
-  text-align: center;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  margin-top: var(--space-md);
+/* Dashboard — Trend Summary */
+.dash-trend-summary {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  margin-top: calc(-1 * var(--space-sm));
 }
 
-/* Donut Chart */
-.donut-section {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xl);
-}
 
 .donut-chart { flex-shrink: 0; }
 

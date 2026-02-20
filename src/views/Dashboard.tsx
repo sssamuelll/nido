@@ -66,7 +66,6 @@ export const Dashboard: React.FC = () => {
       ]);
       setData(summary);
 
-      // Compute daily spending (shared only)
       const [year, month] = currentMonth.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       const daily: { day: number; amount: number }[] = [];
@@ -141,69 +140,83 @@ export const Dashboard: React.FC = () => {
     ? Math.round((data.spending.totalSharedSpent / data.budget.availableShared) * 100)
     : 0;
 
+  const personalSpent = data.personal[user?.username === 'maria' ? 'maria' : 'samuel'].spent;
+  const savingsAmount = data.budget.savings;
+  const totalTransactions = data.recentTransactions.length;
+  const totalDailySpent = dailyData.reduce((s, d) => s + d.amount, 0);
+
   return (
     <div className="page-container fade-in">
       <div className="main-content">
         {/* Header */}
-        <div className="dashboard-header">
-          <div>
-            <div className="dashboard-greeting">
-              {getGreeting()}, {user?.username === 'samuel' ? 'Samuel' : 'María'}
-            </div>
-            <div className="dashboard-subtitle">{formatMonthName(currentMonth)}</div>
+        <div className="dash-header">
+          <div className="dash-header-left">
+            <div className="dash-header-avatar">🏠</div>
+            <span className="dash-header-title">Nido</span>
           </div>
-          <div className="month-nav">
+          <div className="dash-month-nav">
             <button className="month-nav-btn" onClick={() => navigateMonth(-1)}>‹</button>
+            <span className="dash-month-label">{formatMonthName(currentMonth)}</span>
             <button className="month-nav-btn" onClick={() => navigateMonth(1)}>›</button>
           </div>
         </div>
 
-        {/* Hero — Shared budget is the star */}
-        <div className="card hero-card">
-          <div className="hero-spent-label">Gastos compartidos</div>
-          <div className="hero-spent-amount">
-            <AnimatedNumber value={data.spending.totalSharedSpent} />
+        {/* Hero Card */}
+        <div className="dash-hero">
+          <div className="dash-hero-avatars">
+            <span className="dash-hero-avatar">👨‍💻</span>
+            <span className="dash-hero-avatar">👩‍🎨</span>
           </div>
-          <div className="hero-of-total">
-            de <AnimatedNumber value={data.budget.availableShared} /> · {pctUsed}% usado
+          <div className="dash-hero-amount">
+            <AnimatedNumber value={remaining} />
           </div>
-          <BudgetBar
-            title=""
-            spent={data.spending.totalSharedSpent}
-            budget={data.budget.availableShared}
-            showRemaining={false}
-          />
-          <div className="hero-remaining">
-            {remaining >= 0 ? (
-              <span className="text-success">
-                Quedan <AnimatedNumber value={remaining} />
-              </span>
-            ) : (
-              <span className="text-error">
-                Excedido en <AnimatedNumber value={Math.abs(remaining)} />
-              </span>
-            )}
+          <div className="dash-hero-subtitle">
+            de <AnimatedNumber value={data.budget.availableShared} /> presupuesto · {pctUsed}% usado
+          </div>
+          <div className="dash-hero-bar">
+            <div
+              className="dash-hero-bar-fill"
+              style={{ width: `${Math.min(pctUsed, 100)}%` }}
+            />
+          </div>
+          {remaining < 0 && (
+            <div className="dash-hero-warning">⚠️ Presupuesto excedido</div>
+          )}
+        </div>
+
+        {/* Stat Cards Row */}
+        <div className="dash-stats-row">
+          <div className="dash-stat-card">
+            <div className="dash-stat-icon">🤝</div>
+            <div className="dash-stat-amount">€{data.spending.totalSharedSpent.toFixed(0)}</div>
+            <div className="dash-stat-label">Compartido</div>
+          </div>
+          <div className="dash-stat-card">
+            <div className="dash-stat-icon">👤</div>
+            <div className="dash-stat-amount">€{personalSpent.toFixed(0)}</div>
+            <div className="dash-stat-label">Personal</div>
+          </div>
+          <div className="dash-stat-card">
+            <div className="dash-stat-icon">🐷</div>
+            <div className="dash-stat-amount">€{savingsAmount.toFixed(0)}</div>
+            <div className="dash-stat-label">Ahorro</div>
           </div>
         </div>
 
-        {/* Daily Trend */}
+        {/* Daily Spending Chart */}
         {dailyData.length > 0 && (
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">Tendencia diaria</h2>
             </div>
+            <div className="dash-trend-summary">
+              €{totalDailySpent.toFixed(0)} gastados en {totalTransactions} transacciones
+            </div>
             <SpendingTrend data={dailyData} />
           </div>
         )}
 
-        {/* Personal Space */}
-        <PersonalCard
-          currentUser={user?.username || 'samuel'}
-          spent={data.personal[user?.username === 'maria' ? 'maria' : 'samuel'].spent}
-          budget={data.personal[user?.username === 'maria' ? 'maria' : 'samuel'].budget}
-        />
-
-        {/* Category Breakdown — donut */}
+        {/* Category Breakdown */}
         {donutSegments.length > 0 && (
           <div className="card">
             <div className="card-header">
@@ -219,42 +232,6 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Fixed costs — collapsible, low priority */}
-        <details className="card budget-details">
-          <summary className="card-header" style={{ cursor: 'pointer', marginBottom: 0 }}>
-            <h2 className="card-title">Costes fijos</h2>
-            <span className="text-sm text-secondary">
-              <AnimatedNumber value={data.budget.rent + data.budget.savings} />
-            </span>
-          </summary>
-          <div className="budget-breakdown">
-            <div className="budget-line">
-              <span>Ingresos mensuales</span>
-              <span className="font-semibold">€{data.budget.total.toFixed(2)}</span>
-            </div>
-            <div className="budget-line">
-              <span>Alquiler</span>
-              <span>−€{data.budget.rent.toFixed(2)}</span>
-            </div>
-            <div className="budget-line">
-              <span>Ahorros</span>
-              <span>−€{data.budget.savings.toFixed(2)}</span>
-            </div>
-            <div className="budget-line">
-              <span>Personal Samuel</span>
-              <span>−€{data.budget.personalSamuel.toFixed(2)}</span>
-            </div>
-            <div className="budget-line">
-              <span>Personal María</span>
-              <span>−€{data.budget.personalMaria.toFixed(2)}</span>
-            </div>
-            <div className="budget-line budget-line-highlight">
-              <span>→ Compartido</span>
-              <span>€{data.budget.availableShared.toFixed(2)}</span>
-            </div>
-          </div>
-        </details>
 
         {/* Recent Transactions */}
         <div className="card">
@@ -278,11 +255,3 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 6) return 'Buenas noches';
-  if (h < 12) return 'Buenos días';
-  if (h < 19) return 'Buenas tardes';
-  return 'Buenas noches';
-}
