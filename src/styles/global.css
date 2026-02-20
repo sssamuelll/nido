@@ -1483,7 +1483,7 @@ h1, h2, h3, .font-display {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-md);
 }
 
 .dash-header-left {
@@ -1627,8 +1627,27 @@ h1, h2, h3, .font-display {
 .dash-month-label {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   white-space: nowrap;
+}
+
+.dash-balance {
+  margin-bottom: var(--space-xl);
+}
+
+.dash-balance-label {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.dash-balance-amount {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .month-nav-btn {

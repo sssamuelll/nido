@@ -153,36 +153,20 @@ export const Dashboard: React.FC = () => {
         <div className="dash-header">
           <div className="dash-header-left">
             <ProfileAvatar />
-            <span className="dash-header-title">Nido</span>
-          </div>
-          <div className="dash-month-nav">
-            <button className="month-nav-btn" onClick={() => navigateMonth(-1)}>‹</button>
-            <span className="dash-month-label">{formatMonthName(currentMonth)}</span>
-            <button className="month-nav-btn" onClick={() => navigateMonth(1)}>›</button>
+            <div className="dash-month-nav">
+              <button className="month-nav-btn" onClick={() => navigateMonth(-1)}>‹</button>
+              <span className="dash-month-label">{formatMonthName(currentMonth)}</span>
+              <button className="month-nav-btn" onClick={() => navigateMonth(1)}>›</button>
+            </div>
           </div>
         </div>
 
-        {/* Hero Card */}
-        <div className="dash-hero">
-          <div className="dash-hero-avatars">
-            <span className="dash-hero-avatar">👨‍💻</span>
-            <span className="dash-hero-avatar">👩‍🎨</span>
+        {/* Balance */}
+        <div className="dash-balance">
+          <div className="dash-balance-label">Saldo total</div>
+          <div className="dash-balance-amount">
+            {remaining.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
           </div>
-          <div className="dash-hero-amount">
-            <AnimatedNumber value={remaining} />
-          </div>
-          <div className="dash-hero-subtitle">
-            de <AnimatedNumber value={data.budget.availableShared} /> presupuesto · {pctUsed}% usado
-          </div>
-          <div className="dash-hero-bar">
-            <div
-              className="dash-hero-bar-fill"
-              style={{ width: `${Math.min(pctUsed, 100)}%` }}
-            />
-          </div>
-          {remaining < 0 && (
-            <div className="dash-hero-warning">⚠️ Presupuesto excedido</div>
-          )}
         </div>
 
         {/* Stat Cards Row */}
