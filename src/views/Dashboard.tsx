@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { BudgetBar } from '../components/BudgetBar';
@@ -47,6 +48,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [data, setData] = useState<DashboardData | null>(null);
   const [dailyData, setDailyData] = useState<{ day: number; amount: number }[]>([]);
@@ -152,6 +154,9 @@ export const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="dash-header">
           <ProfileAvatar />
+          <button className="dash-register-btn" onClick={() => navigate('/add', { state: { type: 'shared' } })}>
+            Registrar pago
+          </button>
         </div>
 
         {/* Balance */}

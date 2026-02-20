@@ -1486,6 +1486,24 @@ h1, h2, h3, .font-display {
   margin-bottom: var(--space-3xl);
 }
 
+.dash-register-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  border: none;
+  color: #1a1714;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.dash-register-btn:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
 .dash-header-left {
   display: flex;
   align-items: center;
