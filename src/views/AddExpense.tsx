@@ -150,9 +150,7 @@ export const AddExpense: React.FC = () => {
         />
 
         {error && <div className="add-error">{error}</div>}
-      </div>
 
-      <div className="add-footer">
         <button
           className="btn btn-primary add-submit"
           onClick={handleSubmit}
