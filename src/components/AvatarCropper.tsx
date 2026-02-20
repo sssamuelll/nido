@@ -34,7 +34,7 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
 
   const CANVAS_SIZE = 280;
-  const CIRCLE_R = 120;
+  const CIRCLE_R = CANVAS_SIZE / 2;
 
   // Load image
   useEffect(() => {
