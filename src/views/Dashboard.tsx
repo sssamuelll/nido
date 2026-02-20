@@ -7,6 +7,7 @@ import { ExpenseCard } from '../components/ExpenseCard';
 import { DonutChart, DonutLegend, getColorForCategory } from '../components/DonutChart';
 import { SpendingTrend } from '../components/SpendingTrend';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { format } from 'date-fns';
 
 interface DashboardData {
@@ -86,8 +87,8 @@ export const Dashboard: React.FC = () => {
 
   const formatMonthName = (monthStr: string) => {
     const [year, month] = monthStr.split('-');
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     return `${months[parseInt(month) - 1]} ${year}`;
   };
 
@@ -151,7 +152,7 @@ export const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="dash-header">
           <div className="dash-header-left">
-            <div className="dash-header-avatar">🏠</div>
+            <ProfileAvatar />
             <span className="dash-header-title">Nido</span>
           </div>
           <div className="dash-month-nav">
