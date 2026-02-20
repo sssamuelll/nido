@@ -59,20 +59,20 @@ body {
   /* Borders */
   --border: rgba(255, 255, 255, 0.07);
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-focus: #ff8c6b;
+  --border-focus: #8bdc6b;
 
   /* Text — warm whites */
   --text-primary: #f2ebe4;
   --text-secondary: #a89e94;
   --text-muted: #6d635a;
-  --text-accent: #ffb199;
+  --text-accent: #a8e890;
 
   /* Accents */
-  --accent: #ff8c6b;
-  --accent-hover: #ff9f82;
-  --accent-glow: rgba(255, 140, 107, 0.25);
-  --accent-subtle: rgba(255, 140, 107, 0.10);
-  --accent-gradient: linear-gradient(135deg, #ff8c6b, #ff6b8a);
+  --accent: #8bdc6b;
+  --accent-hover: #9de382;
+  --accent-glow: rgba(139, 220, 107, 0.25);
+  --accent-subtle: rgba(139, 220, 107, 0.10);
+  --accent-gradient: linear-gradient(135deg, #8bdc6b, #6bc98b);
 
   /* Semantic */
   --success: #a6c79c;
@@ -1608,7 +1608,7 @@ h1, h2, h3, .font-display {
 
 .crop-btn-confirm {
   background: var(--accent-gradient);
-  color: white;
+  color: #1a1714;
 }
 
 .dash-header-title {
