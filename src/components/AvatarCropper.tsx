@@ -69,22 +69,20 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     const dy = cy - dh / 2 + offset.y;
     ctx.drawImage(img, dx, dy, dw, dh);
 
-    // Dark overlay outside circle (punch hole approach)
+    // Dark overlay outside circle (punch hole — image untouched inside)
     ctx.save();
     ctx.beginPath();
-    // Outer rect (clockwise)
     ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-    // Inner circle (counter-clockwise to punch hole)
     ctx.arc(cx, cy, CIRCLE_R, 0, Math.PI * 2, true);
-    ctx.fillStyle = 'rgba(26, 23, 20, 0.65)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
     ctx.fill();
     ctx.restore();
 
-    // Circle border
+    // Circle border — visible on both dark and light images
     ctx.beginPath();
     ctx.arc(cx, cy, CIRCLE_R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 2.5;
     ctx.stroke();
   }, [scale, offset, imgSize]);
 
