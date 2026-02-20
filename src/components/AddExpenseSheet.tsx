@@ -12,259 +12,190 @@ interface AddExpenseSheetProps {
 
 export const AddExpenseSheet: React.FC<AddExpenseSheetProps> = ({ isOpen, onClose, onSaved }) => {
   const { user } = useAuth();
-  const amountRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    amount: '',
-    description: '',
-    category: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
-    paid_by: user?.username || 'samuel',
-    type: 'shared' as 'shared' | 'personal',
-  });
-
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [paidBy, setPaidBy] = useState(user?.username || 'samuel');
+  const [type, setType] = useState<'shared' | 'personal'>('shared');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState<'amount' | 'details'>('amount');
+  const [showExtra, setShowExtra] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  // Reset form when opened
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        amount: '',
-        description: '',
-        category: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        paid_by: user?.username || 'samuel',
-        type: 'shared',
-      });
-      setStep('amount');
+      setAmount('');
+      setDescription('');
+      setCategory('');
+      setDate(format(new Date(), 'yyyy-MM-dd'));
+      setPaidBy(user?.username || 'samuel');
+      setType('shared');
       setError('');
       setSaving(false);
-      setTimeout(() => amountRef.current?.focus(), 300);
+      setShowExtra(false);
+      setSuccess(false);
+      setTimeout(() => inputRef.current?.focus(), 350);
     }
   }, [isOpen, user]);
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
-      setFormData({ ...formData, amount: value });
-    }
-  };
-
-  const handleAmountNext = () => {
-    const amount = parseFloat(formData.amount);
-    if (!amount || amount <= 0) {
-      setError('Ingresa una cantidad');
-      return;
-    }
-    setError('');
-    setStep('details');
-  };
-
-  const handleAmountKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAmountNext();
-    }
-  };
-
   const handleSubmit = async () => {
-    const amount = parseFloat(formData.amount);
-    if (!amount || amount <= 0) {
-      setError('Cantidad inválida');
-      return;
-    }
-    if (!formData.category) {
-      setError('Selecciona una categoría');
-      return;
-    }
+    const num = parseFloat(amount);
+    if (!num || num <= 0) { setError('Ingresa una cantidad'); return; }
+    if (!category) { setError('Elige una categoría'); return; }
 
     try {
       setSaving(true);
       setError('');
       await Api.createExpense({
-        ...formData,
-        amount,
-        description: formData.description.trim() || formData.category,
+        amount: num,
+        description: description.trim() || category,
+        category,
+        date,
+        paid_by: paidBy,
+        type,
       });
-      onSaved();
-      onClose();
-    } catch (err: any) {
+      setSuccess(true);
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 600);
+    } catch {
       setError('Error al guardar');
-      console.error(err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setAmount(v);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && amount && category) {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="bottom-sheet-overlay" onClick={onClose}>
-      <div className="bottom-sheet bottom-sheet-tall" onClick={(e) => e.stopPropagation()}>
-        {/* Drag Handle */}
-        <div className="bottom-sheet-handle">
-          <div className="bottom-sheet-handle-bar" />
-        </div>
+    <div className="sheet-overlay" onClick={onClose}>
+      <div className={`sheet ${success ? 'sheet-success' : ''}`} onClick={e => e.stopPropagation()}>
+        {/* Handle */}
+        <div className="sheet-handle"><div className="sheet-handle-bar" /></div>
 
-        <div className="bottom-sheet-header">
-          <h2 className="bottom-sheet-title">
-            {step === 'amount' ? 'Nuevo gasto' : ''}
-          </h2>
-          <button className="btn-ghost bottom-sheet-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="bottom-sheet-content">
-          {step === 'amount' ? (
-            /* Step 1: Amount */
-            <div className="add-expense-amount-step">
-              <div className="amount-display">
-                <span className="amount-currency">€</span>
+        {success ? (
+          <div className="sheet-success-msg">
+            <div className="sheet-success-icon">✓</div>
+            <div>Guardado</div>
+          </div>
+        ) : (
+          <>
+            {/* Amount — big and central */}
+            <div className="sheet-amount-area">
+              <div className="sheet-amount-row">
+                <span className="sheet-currency">€</span>
                 <input
-                  ref={amountRef}
+                  ref={inputRef}
                   type="text"
                   inputMode="decimal"
-                  className="amount-input-clean"
+                  className="sheet-amount-input"
                   placeholder="0"
-                  value={formData.amount}
+                  value={amount}
                   onChange={handleAmountChange}
-                  onKeyDown={handleAmountKeyDown}
+                  onKeyDown={handleKeyDown}
                   autoFocus
                 />
               </div>
+              {/* Description inline */}
+              <input
+                type="text"
+                className="sheet-desc-input"
+                placeholder="Añadir nota..."
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
 
-              {/* Quick amounts */}
-              <div className="quick-amounts">
-                {[5, 10, 20, 50].map((val) => (
-                  <button
-                    key={val}
-                    type="button"
-                    className="quick-amount-chip"
-                    onClick={() => setFormData({ ...formData, amount: val.toString() })}
-                  >
-                    €{val}
-                  </button>
-                ))}
-              </div>
+            {/* Categories — horizontal scroll */}
+            <div className="sheet-categories">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`sheet-cat ${category === cat.id ? 'active' : ''}`}
+                  onClick={() => setCategory(cat.id)}
+                >
+                  <span className="sheet-cat-icon">{cat.icon}</span>
+                  <span className="sheet-cat-name">{cat.name}</span>
+                </button>
+              ))}
+            </div>
 
-              {/* Paid by toggle */}
-              <div className="sheet-section">
-                <div className="toggle-group">
-                  <button
-                    type="button"
-                    className={`toggle-option ${formData.paid_by === 'samuel' ? 'active' : ''}`}
-                    onClick={() => setFormData({ ...formData, paid_by: 'samuel' })}
-                  >
-                    👨‍💻 Samuel
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-option ${formData.paid_by === 'maria' ? 'active' : ''}`}
-                    onClick={() => setFormData({ ...formData, paid_by: 'maria' })}
-                  >
-                    👩‍🎨 María
-                  </button>
-                </div>
-              </div>
-
-              {/* Type toggle */}
-              <div className="sheet-section">
-                <div className="toggle-group">
-                  <button
-                    type="button"
-                    className={`toggle-option ${formData.type === 'shared' ? 'active' : ''}`}
-                    onClick={() => setFormData({ ...formData, type: 'shared' })}
-                  >
-                    💑 Compartido
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-option ${formData.type === 'personal' ? 'active' : ''}`}
-                    onClick={() => setFormData({ ...formData, type: 'personal' })}
-                  >
-                    👤 Personal
-                  </button>
-                </div>
-              </div>
-
-              {error && <div className="sheet-error">{error}</div>}
-
+            {/* Who paid — compact toggle, only shows if not default */}
+            <div className="sheet-meta-row">
               <button
-                type="button"
-                className="btn btn-primary sheet-btn-full"
-                onClick={handleAmountNext}
+                className={`sheet-meta-chip ${paidBy === 'samuel' ? 'active' : ''}`}
+                onClick={() => setPaidBy('samuel')}
               >
-                Siguiente →
+                👨‍💻 Samuel
+              </button>
+              <button
+                className={`sheet-meta-chip ${paidBy === 'maria' ? 'active' : ''}`}
+                onClick={() => setPaidBy('maria')}
+              >
+                👩‍🎨 María
+              </button>
+              <div className="sheet-meta-spacer" />
+              <button
+                className={`sheet-meta-chip ${type === 'shared' ? 'active' : ''}`}
+                onClick={() => setType('shared')}
+              >
+                Compartido
+              </button>
+              <button
+                className={`sheet-meta-chip ${type === 'personal' ? 'active' : ''}`}
+                onClick={() => setType('personal')}
+              >
+                Personal
               </button>
             </div>
-          ) : (
-            /* Step 2: Category + Description */
-            <div className="add-expense-details-step">
-              {/* Amount summary */}
-              <div className="amount-summary">
-                <button className="amount-summary-edit" onClick={() => setStep('amount')}>
-                  <span className="amount-summary-value">€{parseFloat(formData.amount).toFixed(2)}</span>
-                  <span className="amount-summary-label">
-                    {formData.paid_by === 'samuel' ? '👨‍💻' : '👩‍🎨'} · {formData.type === 'shared' ? 'Compartido' : 'Personal'}
-                  </span>
-                </button>
-              </div>
 
-              {/* Category chips */}
-              <div className="sheet-section">
-                <label className="form-label">Categoría</label>
-                <div className="category-chips">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      className={`category-chip ${formData.category === cat.id ? 'active' : ''}`}
-                      onClick={() => setFormData({ ...formData, category: cat.id })}
-                    >
-                      <span>{cat.icon}</span>
-                      <span>{cat.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="sheet-section">
-                <label className="form-label">Descripción (opcional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="¿En qué gastaste?"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-
-              {/* Date */}
-              <div className="sheet-section">
-                <label className="form-label">Fecha</label>
+            {/* Extra — date (tap to show) */}
+            {showExtra ? (
+              <div className="sheet-extra">
                 <input
                   type="date"
                   className="form-input"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  style={{ fontSize: '0.875rem' }}
                 />
               </div>
-
-              {error && <div className="sheet-error">{error}</div>}
-
-              <button
-                type="button"
-                className="btn btn-primary sheet-btn-full"
-                onClick={handleSubmit}
-                disabled={saving}
-              >
-                {saving ? 'Guardando...' : '✓ Guardar gasto'}
+            ) : (
+              <button className="sheet-date-btn" onClick={() => setShowExtra(true)}>
+                {date === format(new Date(), 'yyyy-MM-dd') ? 'Hoy' : date} · Cambiar fecha
               </button>
-            </div>
-          )}
-        </div>
+            )}
+
+            {/* Error */}
+            {error && <div className="sheet-error">{error}</div>}
+
+            {/* Submit */}
+            <button
+              className="btn btn-primary sheet-submit"
+              onClick={handleSubmit}
+              disabled={saving || !amount}
+            >
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
