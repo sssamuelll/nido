@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Api } from '../api';
@@ -54,6 +54,15 @@ export const Dashboard: React.FC = () => {
   const [dailyData, setDailyData] = useState<{ day: number; amount: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeCard, setActiveCard] = useState(0);
+  const accountsRef = useRef<HTMLDivElement>(null);
+
+  const handleAccountScroll = useCallback(() => {
+    const el = accountsRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollLeft / (el.scrollWidth / 2));
+    setActiveCard(idx);
+  }, []);
 
   useEffect(() => {
     loadDashboardData();
@@ -180,7 +189,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Account Cards — horizontal scroll */}
-        <div className="dash-accounts">
+        <div className="dash-accounts" ref={accountsRef} onScroll={handleAccountScroll}>
           {/* Shared account */}
           <div className="dash-account-card dash-account-green">
             <div className="dash-account-header">
@@ -203,16 +212,8 @@ export const Dashboard: React.FC = () => {
                   <span>Gastado</span>
                   <span>{data.spending.totalSharedSpent.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
                 </div>
-                <div className="dash-account-line">
-                  <span>Ahorro</span>
-                  <span>{savingsAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
-                </div>
               </div>
-              <div className="dash-account-month">
-                <button className="month-nav-btn-sm" onClick={() => navigateMonth(-1)}>‹</button>
-                <span>{formatMonthName(currentMonth)}</span>
-                <button className="month-nav-btn-sm" onClick={() => navigateMonth(1)}>›</button>
-              </div>
+              <button className="dash-account-data-btn">🏦 Datos de cuenta</button>
             </div>
           </div>
 
@@ -239,8 +240,14 @@ export const Dashboard: React.FC = () => {
                   <span>{personalSpent.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
                 </div>
               </div>
+              <button className="dash-account-data-btn">🏦 Datos de cuenta</button>
             </div>
           </div>
+        </div>
+        {/* Dots indicator */}
+        <div className="dash-accounts-dots">
+          <span className={`dash-dot ${activeCard === 0 ? 'active' : ''}`} />
+          <span className={`dash-dot ${activeCard === 1 ? 'active' : ''}`} />
         </div>
 
         {/* Daily Spending Chart */}

@@ -1822,7 +1822,8 @@ h1, h2, h3, .font-display {
   -webkit-overflow-scrolling: touch;
   margin: 0 calc(-1 * var(--space-xl));
   padding: 0 var(--space-xl);
-  margin-bottom: var(--space-xl);
+  padding-left: var(--space-xl);
+  margin-bottom: var(--space-sm);
 }
 
 .dash-accounts::-webkit-scrollbar { display: none; }
@@ -1909,15 +1910,7 @@ h1, h2, h3, .font-display {
   color: var(--text-primary);
 }
 
-.dash-account-month {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--glass-border);
-}
+/* (month nav removed from cards) */
 
 .month-nav-btn-sm {
   width: 28px;
@@ -1936,6 +1929,51 @@ h1, h2, h3, .font-display {
 }
 
 .month-nav-btn-sm:active { transform: scale(0.9); }
+
+/* Dots indicator */
+.dash-accounts-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: var(--space-xl);
+}
+
+.dash-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--text-muted);
+  opacity: 0.3;
+  transition: all var(--transition-base);
+}
+
+.dash-dot.active {
+  background: var(--accent);
+  opacity: 1;
+}
+
+/* Data button */
+.dash-account-data-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-primary);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  margin-top: var(--space-sm);
+}
+
+.dash-account-data-btn:active {
+  transform: scale(0.95);
+  background: var(--bg-tertiary);
+}
 
 /* Dashboard — Trend Summary */
 .dash-trend-summary {
