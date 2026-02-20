@@ -11,8 +11,8 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // Use refs for gesture state to avoid re-renders during drag
   const scaleRef = useRef(1);
+  const minScaleRef = useRef(0.1);
   const offsetRef = useRef({ x: 0, y: 0 });
   const sliderRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +38,20 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
   const CANVAS_SIZE = 280;
   const CIRCLE_R = 120;
   const rafRef = useRef(0);
+
+  // Clamp scale so image always fills the circle, and offset so it can't escape
+  const clamp = (s: number, ox: number, oy: number) => {
+    const img = imgRef.current;
+    if (!img) return { s, ox, oy };
+    s = Math.max(minScaleRef.current, Math.min(5, s));
+    const halfW = (img.width * s) / 2;
+    const halfH = (img.height * s) / 2;
+    const maxOx = Math.max(0, halfW - CIRCLE_R);
+    const maxOy = Math.max(0, halfH - CIRCLE_R);
+    ox = Math.max(-maxOx, Math.min(maxOx, ox));
+    oy = Math.max(-maxOy, Math.min(maxOy, oy));
+    return { s, ox, oy };
+  };
 
   // Lock body scroll
   useEffect(() => {
@@ -101,9 +115,14 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     img.onload = () => {
       imgRef.current = img;
       const minDim = Math.min(img.width, img.height);
-      scaleRef.current = (CIRCLE_R * 2) / minDim;
+      const initScale = (CIRCLE_R * 2) / minDim;
+      minScaleRef.current = initScale;
+      scaleRef.current = initScale;
       offsetRef.current = { x: 0, y: 0 };
-      if (sliderRef.current) sliderRef.current.value = String(scaleRef.current);
+      if (sliderRef.current) {
+        sliderRef.current.min = String(initScale);
+        sliderRef.current.value = String(initScale);
+      }
       requestDraw();
     };
     img.src = imageUrl;
@@ -150,32 +169,21 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
       g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
       if (g.pointers.size === 1) {
-        // Single finger pan
         const dx = e.clientX - g.lastSinglePos.x;
         const dy = e.clientY - g.lastSinglePos.y;
-        offsetRef.current = {
-          x: offsetRef.current.x + dx,
-          y: offsetRef.current.y + dy,
-        };
+        const c = clamp(scaleRef.current, offsetRef.current.x + dx, offsetRef.current.y + dy);
+        offsetRef.current = { x: c.ox, y: c.oy };
         g.lastSinglePos = { x: e.clientX, y: e.clientY };
       } else if (g.pointers.size === 2) {
-        // Pinch zoom + pan
         const dist = getDist();
         const mid = getMid();
         const ratio = dist / g.startDist;
-        const newScale = Math.max(0.1, Math.min(5, g.startScale * ratio));
-
-        // Pan from midpoint movement
         const panX = mid.x - g.startMid.x;
         const panY = mid.y - g.startMid.y;
-
-        scaleRef.current = newScale;
-        offsetRef.current = {
-          x: g.startOffset.x + panX,
-          y: g.startOffset.y + panY,
-        };
-
-        if (sliderRef.current) sliderRef.current.value = String(newScale);
+        const c = clamp(g.startScale * ratio, g.startOffset.x + panX, g.startOffset.y + panY);
+        scaleRef.current = c.s;
+        offsetRef.current = { x: c.ox, y: c.oy };
+        if (sliderRef.current) sliderRef.current.value = String(c.s);
       }
       requestDraw();
     };
@@ -194,8 +202,10 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? 0.95 : 1.05;
-      scaleRef.current = Math.max(0.1, Math.min(5, scaleRef.current * delta));
-      if (sliderRef.current) sliderRef.current.value = String(scaleRef.current);
+      const c = clamp(scaleRef.current * delta, offsetRef.current.x, offsetRef.current.y);
+      scaleRef.current = c.s;
+      offsetRef.current = { x: c.ox, y: c.oy };
+      if (sliderRef.current) sliderRef.current.value = String(c.s);
       requestDraw();
     };
 
@@ -222,7 +232,9 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
   }, [requestDraw]);
 
   const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
-    scaleRef.current = parseFloat(e.target.value);
+    const c = clamp(parseFloat(e.target.value), offsetRef.current.x, offsetRef.current.y);
+    scaleRef.current = c.s;
+    offsetRef.current = { x: c.ox, y: c.oy };
     requestDraw();
   };
 
@@ -268,8 +280,8 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
           ref={sliderRef}
           type="range"
           className="crop-slider"
-          min="0.1"
-          max="3"
+          min="0.01"
+          max="4"
           step="0.01"
           defaultValue="1"
           onChange={handleSlider}
