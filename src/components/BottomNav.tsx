@@ -1,13 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-interface BottomNavProps {
-  onAddClick: () => void;
-}
-
-export const BottomNav: React.FC<BottomNavProps> = ({ onAddClick }) => {
+export const BottomNav: React.FC = () => {
   const location = useLocation();
-
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -17,10 +12,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onAddClick }) => {
           <div className="nav-icon">🏠</div>
           <div className="nav-label">Inicio</div>
         </Link>
-
-        <button className="nav-item add-btn" onClick={onAddClick}>
-          <div className="nav-icon">+</div>
-        </button>
 
         <Link to="/history" className={`nav-item ${isActive('/history') ? 'active' : ''}`}>
           <div className="nav-icon">📋</div>

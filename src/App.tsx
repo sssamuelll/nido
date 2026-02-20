@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth, LoginPage } from './auth';
 import { BottomNav } from './components/BottomNav';
 import { Dashboard } from './views/Dashboard';
@@ -10,7 +10,6 @@ import './styles/global.css';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -51,7 +50,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/add" element={<AddExpense />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!isAddView && <BottomNav onAddClick={() => navigate('/add', { state: { type: 'shared' } })} />}
+      {!isAddView && <BottomNav />}
     </div>
   );
 };

@@ -155,7 +155,7 @@ export const Dashboard: React.FC = () => {
         <div className="dash-header">
           <ProfileAvatar />
           <button className="dash-register-btn" onClick={() => navigate('/add', { state: { type: 'shared' } })}>
-            Registrar pago
+            Registrar gasto
           </button>
         </div>
 
