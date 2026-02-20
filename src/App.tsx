@@ -1,21 +1,27 @@
 import React, { useState, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth, LoginPage } from './auth';
 import { BottomNav } from './components/BottomNav';
-import { AddExpenseSheet } from './components/AddExpenseSheet';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
+import { AddExpense } from './views/AddExpense';
 import './styles/global.css';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [showAddSheet, setShowAddSheet] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleExpenseSaved = useCallback(() => {
-    setRefreshKey((k) => k + 1);
-  }, []);
+  // Refresh dashboard when navigating back from /add
+  const prevPath = React.useRef(location.pathname);
+  React.useEffect(() => {
+    if (prevPath.current === '/add' && location.pathname === '/') {
+      setRefreshKey(k => k + 1);
+    }
+    prevPath.current = location.pathname;
+  }, [location.pathname]);
 
   if (isLoading) {
     return (
@@ -34,21 +40,18 @@ const AppRoutes: React.FC = () => {
     return <LoginPage />;
   }
 
+  const isAddView = location.pathname === '/add';
+
   return (
     <div className="app">
       <Routes>
         <Route path="/" element={<Dashboard key={refreshKey} />} />
         <Route path="/history" element={<History key={refreshKey} />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/add" element={<Navigate to="/" replace />} />
+        <Route path="/add" element={<AddExpense />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <BottomNav onAddClick={() => setShowAddSheet(true)} />
-      <AddExpenseSheet
-        isOpen={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
-        onSaved={handleExpenseSaved}
-      />
+      {!isAddView && <BottomNav onAddClick={() => navigate('/add')} />}
     </div>
   );
 };
