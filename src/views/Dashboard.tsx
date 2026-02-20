@@ -151,14 +151,7 @@ export const Dashboard: React.FC = () => {
       <div className="main-content">
         {/* Header */}
         <div className="dash-header">
-          <div className="dash-header-left">
-            <ProfileAvatar />
-            <div className="dash-month-nav">
-              <button className="month-nav-btn" onClick={() => navigateMonth(-1)}>‹</button>
-              <span className="dash-month-label">{formatMonthName(currentMonth)}</span>
-              <button className="month-nav-btn" onClick={() => navigateMonth(1)}>›</button>
-            </div>
-          </div>
+          <ProfileAvatar />
         </div>
 
         {/* Balance */}

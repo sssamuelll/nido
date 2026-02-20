@@ -1483,7 +1483,7 @@ h1, h2, h3, .font-display {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-3xl);
 }
 
 .dash-header-left {
@@ -1651,7 +1651,7 @@ h1, h2, h3, .font-display {
 
 .dash-balance-amount {
   font-family: 'DM Sans', sans-serif;
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
