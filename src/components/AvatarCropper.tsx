@@ -8,6 +8,22 @@ interface AvatarCropperProps {
 
 export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, onCancel }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Lock body scroll while cropper is open
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   const [scale, setScale] = useState(1);
