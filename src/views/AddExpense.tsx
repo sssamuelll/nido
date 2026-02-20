@@ -5,18 +5,20 @@ import { Api } from '../api';
 import { CATEGORIES } from '../components/CategoryIcon';
 import { format } from 'date-fns';
 
+const QUICK_CATS = CATEGORIES.map(c => ({ id: c.id, icon: c.icon }));
+
 export const AddExpense: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Context from navigation: shared (default) or personal
   const expenseType = (location.state as any)?.type === 'personal' ? 'personal' : 'shared';
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [customCat, setCustomCat] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -25,18 +27,20 @@ export const AddExpense: React.FC = () => {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
+  const effectiveCategory = customCat.trim() || category;
+
   const handleSubmit = async () => {
     const num = parseFloat(amount);
     if (!num || num <= 0) { setError('Ingresa una cantidad'); return; }
-    if (!category) { setError('Elige una categoría'); return; }
+    if (!effectiveCategory) { setError('Elige o escribe una categoría'); return; }
 
     try {
       setSaving(true);
       setError('');
       await Api.createExpense({
         amount: num,
-        description: description.trim() || category,
-        category,
+        description: description.trim() || effectiveCategory,
+        category: effectiveCategory,
         date: format(new Date(), 'yyyy-MM-dd'),
         paid_by: user?.username || 'samuel',
         type: expenseType,
@@ -56,10 +60,15 @@ export const AddExpense: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && amount && category) {
+    if (e.key === 'Enter' && amount && effectiveCategory) {
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const selectQuickCat = (id: string) => {
+    setCategory(id);
+    setCustomCat('');
   };
 
   if (success) {
@@ -75,7 +84,6 @@ export const AddExpense: React.FC = () => {
 
   return (
     <div className="add-view">
-      {/* Header */}
       <div className="add-header">
         <button className="add-back" onClick={() => navigate(-1)}>←</button>
         <h1 className="add-title">
@@ -84,7 +92,6 @@ export const AddExpense: React.FC = () => {
         <div style={{ width: 40 }} />
       </div>
 
-      {/* Content */}
       <div className="add-content">
         {/* Amount */}
         <div className="add-amount-area">
@@ -104,36 +111,41 @@ export const AddExpense: React.FC = () => {
           </div>
         </div>
 
-        {/* Categories */}
-        <div className="add-section-label">Categoría</div>
-        <div className="add-categories">
-          {CATEGORIES.map(cat => (
+        {/* Category — quick chips + free input */}
+        <div className="add-tag-row">
+          {QUICK_CATS.map(cat => (
             <button
               key={cat.id}
-              className={`add-cat ${category === cat.id ? 'active' : ''}`}
-              onClick={() => setCategory(cat.id)}
+              className={`add-tag ${category === cat.id && !customCat ? 'active' : ''}`}
+              onClick={() => selectQuickCat(cat.id)}
             >
-              <span className="add-cat-icon">{cat.icon}</span>
-              <span className="add-cat-name">{cat.name}</span>
+              {cat.icon}
             </button>
           ))}
         </div>
-
-        {/* Description */}
-        <div className="add-section-label">Nota</div>
         <input
           type="text"
           className="add-note-input"
-          placeholder="¿En qué fue?"
+          placeholder="O escribe una categoría..."
+          value={customCat}
+          onChange={e => { setCustomCat(e.target.value); if (e.target.value) setCategory(''); }}
+          onKeyDown={handleKeyDown}
+        />
+
+        {/* Note */}
+        <input
+          type="text"
+          className="add-note-input"
+          placeholder="Nota (opcional)"
           value={description}
           onChange={e => setDescription(e.target.value)}
           onKeyDown={handleKeyDown}
+          style={{ marginTop: 'var(--space-sm)' }}
         />
 
         {error && <div className="add-error">{error}</div>}
       </div>
 
-      {/* Submit */}
       <div className="add-footer">
         <button
           className="btn btn-primary add-submit"
