@@ -161,6 +161,14 @@ router.get('/summary', async (req: AuthRequest, res) => {
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5);
 
+    // Personal spending
+    const samuelPersonal = expenses
+      .filter((exp: any) => exp.paid_by === 'samuel' && exp.type === 'personal')
+      .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+    const mariaPersonal = expenses
+      .filter((exp: any) => exp.paid_by === 'maria' && exp.type === 'personal')
+      .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+
     res.json({
       budget: {
         total: budget.total_budget,
@@ -175,12 +183,9 @@ router.get('/summary', async (req: AuthRequest, res) => {
         totalSharedSpent,
         remainingShared: availableShared - totalSharedSpent
       },
-      balance: {
-        samuel: samuelBalance,
-        maria: mariaBalance,
-        owesWho: samuelBalance > 0 ? 'María debe €' + Math.abs(samuelBalance).toFixed(2) + ' a Samuel' :
-                mariaBalance > 0 ? 'Samuel debe €' + Math.abs(mariaBalance).toFixed(2) + ' a María' :
-                'Estáis en paz 👌'
+      personal: {
+        samuel: { spent: samuelPersonal, budget: budget.personal_samuel },
+        maria: { spent: mariaPersonal, budget: budget.personal_maria }
       },
       categoryBreakdown,
       recentTransactions

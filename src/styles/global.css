@@ -702,6 +702,87 @@ h1, h2, h3, .font-display {
 }
 
 /* ============================================
+   Personal Card
+   ============================================ */
+.personal-card {
+  background: linear-gradient(135deg, rgba(255, 140, 107, 0.08), rgba(166, 199, 156, 0.06));
+  border: 1px solid rgba(255, 140, 107, 0.12);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  margin: var(--space-lg) 0;
+}
+
+.personal-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+}
+
+.personal-card-avatar {
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.personal-card-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.personal-card-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.personal-card-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.personal-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.personal-stat-value {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.personal-stat-label {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.personal-stat-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+}
+
+/* ============================================
    Login Page
    ============================================ */
 .login-container {

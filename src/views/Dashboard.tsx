@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { BudgetBar } from '../components/BudgetBar';
-import { BalanceCard } from '../components/BalanceCard';
+import { PersonalCard } from '../components/PersonalCard';
 import { ExpenseCard } from '../components/ExpenseCard';
 import { DonutChart, DonutLegend, getColorForCategory } from '../components/DonutChart';
 import { SpendingTrend } from '../components/SpendingTrend';
@@ -23,10 +23,9 @@ interface DashboardData {
     totalSharedSpent: number;
     remainingShared: number;
   };
-  balance: {
-    samuel: number;
-    maria: number;
-    owesWho: string;
+  personal: {
+    samuel: { spent: number; budget: number };
+    maria: { spent: number; budget: number };
   };
   categoryBreakdown: Array<{
     category: string;
@@ -187,11 +186,11 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Balance */}
-        <BalanceCard
-          samuelBalance={data.balance.samuel}
-          mariaBalance={data.balance.maria}
-          owesWho={data.balance.owesWho}
+        {/* Personal Space */}
+        <PersonalCard
+          currentUser={user?.username || 'samuel'}
+          spent={data.personal[user?.username === 'maria' ? 'maria' : 'samuel'].spent}
+          budget={data.personal[user?.username === 'maria' ? 'maria' : 'samuel'].budget}
         />
 
         {/* Category Breakdown — donut */}
