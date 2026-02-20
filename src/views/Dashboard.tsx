@@ -164,8 +164,18 @@ export const Dashboard: React.FC = () => {
         {/* Balance */}
         <div className="dash-balance">
           <div className="dash-balance-label">Saldo total</div>
-          <div className="dash-balance-amount">
-            {remaining.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+          <div className="dash-balance-row">
+            <div className="dash-balance-amount">
+              {remaining.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+            </div>
+            <button className="dash-chart-btn" onClick={() => {
+              const el = document.querySelector('.donut-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}>
+              <svg viewBox="0 0 24 24">
+                <path d="M18 20V10M12 20V4M6 20v-6" />
+              </svg>
+            </button>
           </div>
         </div>
 
