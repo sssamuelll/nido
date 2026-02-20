@@ -1290,11 +1290,16 @@ h1, h2, h3, .font-display {
   font-variant-numeric: tabular-nums;
 }
 
-.hero-budget-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
+.hero-of-total {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.hero-remaining {
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
   margin-top: var(--space-md);
 }
 

@@ -66,21 +66,20 @@ export const Dashboard: React.FC = () => {
       ]);
       setData(summary);
 
-      // Compute daily spending
+      // Compute daily spending (shared only)
       const [year, month] = currentMonth.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       const daily: { day: number; amount: number }[] = [];
       for (let d = 1; d <= daysInMonth; d++) {
         const dayStr = `${currentMonth}-${String(d).padStart(2, '0')}`;
         const total = expenses
-          .filter((e: any) => e.date === dayStr)
+          .filter((e: any) => e.date === dayStr && e.type === 'shared')
           .reduce((sum: number, e: any) => sum + e.amount, 0);
         daily.push({ day: d, amount: total });
       }
       setDailyData(daily);
     } catch (err: any) {
       setError('Error al cargar los datos');
-      console.error('Dashboard load error:', err);
     } finally {
       setLoading(false);
     }
@@ -120,9 +119,7 @@ export const Dashboard: React.FC = () => {
         <div className="main-content">
           <div className="text-center mt-4">
             <div className="text-error">{error || 'Error al cargar'}</div>
-            <button onClick={loadDashboardData} className="btn btn-secondary mt-2">
-              Reintentar
-            </button>
+            <button onClick={loadDashboardData} className="btn btn-secondary mt-2">Reintentar</button>
           </div>
         </div>
       </div>
@@ -139,6 +136,10 @@ export const Dashboard: React.FC = () => {
     }));
 
   const totalCategorySpent = donutSegments.reduce((s, seg) => s + seg.value, 0);
+  const remaining = data.spending.remainingShared;
+  const pctUsed = data.budget.availableShared > 0
+    ? Math.round((data.spending.totalSharedSpent / data.budget.availableShared) * 100)
+    : 0;
 
   return (
     <div className="page-container fade-in">
@@ -157,22 +158,31 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Spending Overview — hero card */}
+        {/* Hero — Shared budget is the star */}
         <div className="card hero-card">
-          <div className="hero-spent-label">Gastado este mes</div>
+          <div className="hero-spent-label">Gastos compartidos</div>
           <div className="hero-spent-amount">
-            <AnimatedNumber value={data.spending.totalSpent} />
+            <AnimatedNumber value={data.spending.totalSharedSpent} />
+          </div>
+          <div className="hero-of-total">
+            de <AnimatedNumber value={data.budget.availableShared} /> · {pctUsed}% usado
           </div>
           <BudgetBar
             title=""
             spent={data.spending.totalSharedSpent}
             budget={data.budget.availableShared}
+            showRemaining={false}
           />
-          <div className="hero-budget-meta">
-            <span>Compartido: <AnimatedNumber value={data.spending.totalSharedSpent} /></span>
-            <span className={data.spending.remainingShared >= 0 ? 'text-success' : 'text-error'}>
-              {data.spending.remainingShared >= 0 ? 'Quedan' : 'Excedido'} <AnimatedNumber value={Math.abs(data.spending.remainingShared)} />
-            </span>
+          <div className="hero-remaining">
+            {remaining >= 0 ? (
+              <span className="text-success">
+                Quedan <AnimatedNumber value={remaining} />
+              </span>
+            ) : (
+              <span className="text-error">
+                Excedido en <AnimatedNumber value={Math.abs(remaining)} />
+              </span>
+            )}
           </div>
         </div>
 
@@ -210,33 +220,37 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Budget Breakdown — collapsible */}
+        {/* Fixed costs — collapsible, low priority */}
         <details className="card budget-details">
           <summary className="card-header" style={{ cursor: 'pointer', marginBottom: 0 }}>
-            <h2 className="card-title">Presupuesto</h2>
+            <h2 className="card-title">Costes fijos</h2>
             <span className="text-sm text-secondary">
-              <AnimatedNumber value={data.budget.total} />
+              <AnimatedNumber value={data.budget.rent + data.budget.savings} />
             </span>
           </summary>
           <div className="budget-breakdown">
             <div className="budget-line">
+              <span>Ingresos mensuales</span>
+              <span className="font-semibold">€{data.budget.total.toFixed(2)}</span>
+            </div>
+            <div className="budget-line">
               <span>Alquiler</span>
-              <span>€{data.budget.rent.toFixed(2)}</span>
+              <span>−€{data.budget.rent.toFixed(2)}</span>
             </div>
             <div className="budget-line">
               <span>Ahorros</span>
-              <span>€{data.budget.savings.toFixed(2)}</span>
+              <span>−€{data.budget.savings.toFixed(2)}</span>
             </div>
             <div className="budget-line">
               <span>Personal Samuel</span>
-              <span>€{data.budget.personalSamuel.toFixed(2)}</span>
+              <span>−€{data.budget.personalSamuel.toFixed(2)}</span>
             </div>
             <div className="budget-line">
               <span>Personal María</span>
-              <span>€{data.budget.personalMaria.toFixed(2)}</span>
+              <span>−€{data.budget.personalMaria.toFixed(2)}</span>
             </div>
             <div className="budget-line budget-line-highlight">
-              <span>Disponible compartido</span>
+              <span>→ Compartido</span>
               <span>€{data.budget.availableShared.toFixed(2)}</span>
             </div>
           </div>
