@@ -1812,53 +1812,130 @@ h1, h2, h3, .font-display {
 }
 
 /* Dashboard — Stat Cards */
-.dash-stats-row {
+/* Account Cards — horizontal scroll */
+.dash-accounts {
   display: flex;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
+  gap: var(--space-md);
   overflow-x: auto;
+  scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  margin: 0 calc(-1 * var(--space-xl));
+  padding: 0 var(--space-xl);
+  margin-bottom: var(--space-xl);
 }
 
-.dash-stats-row::-webkit-scrollbar { display: none; }
+.dash-accounts::-webkit-scrollbar { display: none; }
 
-.dash-stat-card {
-  flex: 1;
-  min-width: 0;
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
+.dash-account-card {
+  flex-shrink: 0;
+  width: 85%;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  scroll-snap-align: start;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
-  text-align: center;
-  transition: all var(--transition-base);
 }
 
-.dash-stat-card:hover {
-  border-color: rgba(255, 140, 107, 0.15);
+.dash-account-header {
+  height: 56px;
+  background: linear-gradient(135deg, #8bdc6b, #6bc98b);
+  position: relative;
 }
 
-.dash-stat-icon {
-  font-size: 1.25rem;
+.dash-account-header-orange {
+  background: linear-gradient(135deg, #f5a623, #e8913a);
+}
+
+.dash-account-wave {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: var(--bg-secondary);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+
+.dash-account-body {
+  background: var(--bg-secondary);
+  padding: var(--space-lg);
+  padding-top: var(--space-sm);
+}
+
+.dash-account-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: var(--space-xs);
 }
 
-.dash-stat-amount {
+.dash-account-name {
   font-family: 'DM Sans', sans-serif;
   font-size: 1.125rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
 }
 
-.dash-stat-label {
-  font-size: 0.6875rem;
+.dash-account-arrow {
+  font-size: 1.25rem;
   color: var(--text-muted);
-  font-weight: 500;
-  margin-top: 2px;
 }
+
+.dash-account-amount {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+}
+
+.dash-account-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.dash-account-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.dash-account-line span:last-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dash-account-month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--glass-border);
+}
+
+.month-nav-btn-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+  font-family: inherit;
+}
+
+.month-nav-btn-sm:active { transform: scale(0.9); }
 
 /* Dashboard — Trend Summary */
 .dash-trend-summary {

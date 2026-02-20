@@ -143,7 +143,9 @@ export const Dashboard: React.FC = () => {
     ? Math.round((data.spending.totalSharedSpent / data.budget.availableShared) * 100)
     : 0;
 
-  const personalSpent = data.personal[user?.username === 'maria' ? 'maria' : 'samuel'].spent;
+  const personalKey = user?.username === 'maria' ? 'maria' : 'samuel';
+  const personalSpent = data.personal[personalKey].spent;
+  const personalBudget = data.personal[personalKey].budget;
   const savingsAmount = data.budget.savings;
   const totalTransactions = data.recentTransactions.length;
   const totalDailySpent = dailyData.reduce((s, d) => s + d.amount, 0);
@@ -177,22 +179,67 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Stat Cards Row */}
-        <div className="dash-stats-row">
-          <div className="dash-stat-card">
-            <div className="dash-stat-icon">🤝</div>
-            <div className="dash-stat-amount">€{data.spending.totalSharedSpent.toFixed(0)}</div>
-            <div className="dash-stat-label">Compartido</div>
+        {/* Account Cards — horizontal scroll */}
+        <div className="dash-accounts">
+          {/* Shared account */}
+          <div className="dash-account-card dash-account-green">
+            <div className="dash-account-header">
+              <div className="dash-account-wave" />
+            </div>
+            <div className="dash-account-body">
+              <div className="dash-account-title-row">
+                <div className="dash-account-name">Cuenta compartida</div>
+                <span className="dash-account-arrow">›</span>
+              </div>
+              <div className="dash-account-amount">
+                {data.spending.remainingShared.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+              </div>
+              <div className="dash-account-details">
+                <div className="dash-account-line">
+                  <span>Presupuesto</span>
+                  <span>{data.budget.availableShared.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                </div>
+                <div className="dash-account-line">
+                  <span>Gastado</span>
+                  <span>{data.spending.totalSharedSpent.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                </div>
+                <div className="dash-account-line">
+                  <span>Ahorro</span>
+                  <span>{savingsAmount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                </div>
+              </div>
+              <div className="dash-account-month">
+                <button className="month-nav-btn-sm" onClick={() => navigateMonth(-1)}>‹</button>
+                <span>{formatMonthName(currentMonth)}</span>
+                <button className="month-nav-btn-sm" onClick={() => navigateMonth(1)}>›</button>
+              </div>
+            </div>
           </div>
-          <div className="dash-stat-card">
-            <div className="dash-stat-icon">👤</div>
-            <div className="dash-stat-amount">€{personalSpent.toFixed(0)}</div>
-            <div className="dash-stat-label">Personal</div>
-          </div>
-          <div className="dash-stat-card">
-            <div className="dash-stat-icon">🐷</div>
-            <div className="dash-stat-amount">€{savingsAmount.toFixed(0)}</div>
-            <div className="dash-stat-label">Ahorro</div>
+
+          {/* Personal account */}
+          <div className="dash-account-card dash-account-orange">
+            <div className="dash-account-header dash-account-header-orange">
+              <div className="dash-account-wave" />
+            </div>
+            <div className="dash-account-body">
+              <div className="dash-account-title-row">
+                <div className="dash-account-name">Cuenta personal</div>
+                <span className="dash-account-arrow">›</span>
+              </div>
+              <div className="dash-account-amount">
+                {(personalBudget - personalSpent).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+              </div>
+              <div className="dash-account-details">
+                <div className="dash-account-line">
+                  <span>Presupuesto</span>
+                  <span>{personalBudget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                </div>
+                <div className="dash-account-line">
+                  <span>Gastado</span>
+                  <span>{personalSpent.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
