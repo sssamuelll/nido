@@ -200,9 +200,9 @@ router.get('/summary', async (req: AuthRequest, res) => {
 router.get('/categories', async (_req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const rows = db.prepare(
+    const rows = await db.all<{ category: string }[]>(
       `SELECT DISTINCT category FROM expenses ORDER BY category`
-    ).all() as { category: string }[];
+    );
     res.json(rows.map(r => r.category));
   } catch (error) {
     console.error('Error fetching categories:', error);
