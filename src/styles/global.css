@@ -1487,7 +1487,8 @@ h1, h2, h3, .font-display {
 }
 
 .dash-register-btn {
-  padding: 0.5rem 1rem;
+  height: 42px;
+  padding: 0 1.5rem;
   border-radius: var(--radius-full);
   background: var(--accent);
   border: none;
