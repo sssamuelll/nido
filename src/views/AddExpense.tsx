@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Api } from '../api';
-import { CATEGORIES } from '../components/CategoryIcon';
 import { format } from 'date-fns';
-
-const QUICK_CATS = CATEGORIES.map(c => ({ id: c.id, icon: c.icon }));
 
 export const AddExpense: React.FC = () => {
   const { user } = useAuth();
@@ -74,11 +71,6 @@ export const AddExpense: React.FC = () => {
     }
   };
 
-  const pickQuick = (id: string) => {
-    setCategory(id);
-    setShowHints(false);
-  };
-
   const pickHint = (cat: string) => {
     setCategory(cat);
     setShowHints(false);
@@ -122,19 +114,6 @@ export const AddExpense: React.FC = () => {
               autoFocus
             />
           </div>
-        </div>
-
-        {/* Quick emoji row */}
-        <div className="add-tag-row">
-          {QUICK_CATS.map(cat => (
-            <button
-              key={cat.id}
-              className={`add-tag ${category === cat.id ? 'active' : ''}`}
-              onClick={() => pickQuick(cat.id)}
-            >
-              {cat.icon}
-            </button>
-          ))}
         </div>
 
         {/* Category input with autocomplete */}
