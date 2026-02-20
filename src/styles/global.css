@@ -1562,7 +1562,7 @@ h1, h2, h3, .font-display {
 }
 
 .crop-canvas-wrap {
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   line-height: 0;
 }
@@ -1570,7 +1570,6 @@ h1, h2, h3, .font-display {
 .crop-canvas {
   display: block;
   cursor: grab;
-  border-radius: var(--radius-full);
 }
 
 .crop-canvas:active { cursor: grabbing; }
