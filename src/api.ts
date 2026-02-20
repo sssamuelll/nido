@@ -95,6 +95,10 @@ export class Api {
     return this.request(`/expenses/summary?month=${month}`);
   }
 
+  static async getCategories(): Promise<string[]> {
+    return this.request('/expenses/categories');
+  }
+
   // Budgets
   static async getBudget(month: string) {
     return this.request(`/budgets?month=${month}`);

@@ -1342,6 +1342,47 @@ h1, h2, h3, .font-display {
   border-color: var(--accent);
 }
 
+.add-autocomplete {
+  position: relative;
+  margin-bottom: var(--space-sm);
+}
+
+.add-hints {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  margin-top: 4px;
+  z-index: 20;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.add-hint {
+  display: block;
+  width: 100%;
+  padding: 0.625rem var(--space-md);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.add-hint:last-child { border-bottom: none; }
+.add-hint:active { background: var(--accent-subtle); }
+
+.add-note-secondary {
+  margin-top: var(--space-sm);
+}
+
 .add-note-input {
   width: 100%;
   padding: var(--space-md);
