@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth, LoginPage } from './auth';
 import { BottomNav } from './components/BottomNav';
+import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -42,14 +43,17 @@ const AppRoutes: React.FC = () => {
   const isAddView = location.pathname === '/add';
 
   return (
-    <div className="app">
-      <Routes>
-        <Route path="/" element={<Dashboard key={refreshKey} />} />
-        <Route path="/history" element={<History key={refreshKey} />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/add" element={<AddExpense />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+    <div className="app-layout">
+      <Sidebar />
+      <div className="content-area">
+        <Routes>
+          <Route path="/" element={<Dashboard key={refreshKey} />} />
+          <Route path="/history" element={<History key={refreshKey} />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/add" element={<AddExpense />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
       {!isAddView && <BottomNav />}
     </div>
   );
