@@ -165,6 +165,103 @@ h1, h2, h3, .font-display {
   width: 100%;
 }
 
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   Responsive Layout
+   ============================================ */
+
+/* Tablet (≥768px) */
+@media (min-width: 768px) {
+  .container,
+  .main-content {
+    max-width: 680px;
+  }
+  
+  .bottom-nav {
+    /* Adjust padding for larger screens */
+    padding-left: var(--space-xl);
+    padding-right: var(--space-xl);
+  }
+
+  /* Dashboard adjustments for tablet */
+  .dashboard .dash-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Desktop (≥1024px) */
+@media (min-width: 1024px) {
+  .container,
+  .main-content {
+    max-width: 960px;
+  }
+  
+  .app-layout {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: var(--space-xl);
+  }
+  
+  .content-area {
+    flex: 1;
+    padding: var(--space-xl);
+  }
+  
+  .bottom-nav {
+    display: none; /* replaced by sidebar */
+  }
+  
+  .page-container {
+    padding-bottom: 0;
+  }
+
+  /* Dashboard grid layout for desktop */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "header header"
+      "accounts stats"
+      "chart chart"
+      "recent recent";
+    gap: var(--space-lg);
+  }
+
+  .dashboard .dash-header {
+    grid-area: header;
+  }
+
+  .dashboard .dash-accounts {
+    grid-area: accounts;
+  }
+
+  .dashboard .dash-stats {
+    grid-area: stats;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard .dash-chart {
+    grid-area: chart;
+  }
+
+  .dashboard .dash-recent {
+    grid-area: recent;
+  }
+}
+
 /* ============================================
    Glass Cards
    ============================================ */
@@ -606,6 +703,80 @@ h1, h2, h3, .font-display {
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.02em;
+}
+
+/* ============================================
+   Sidebar Navigation (Desktop)
+   ============================================ */
+.sidebar {
+  display: none; /* hidden on mobile */
+}
+
+.sidebar-header {
+  padding: var(--space-xl) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-lg);
+}
+
+.sidebar-logo {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--text-accent);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: 0 var(--space-lg);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+
+.sidebar-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-item.active {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+}
+
+.sidebar-icon {
+  font-size: 1.25rem;
+  width: 24px;
+  text-align: center;
+}
+
+.sidebar-label {
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: var(--space-xl) var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+/* Desktop: show sidebar, hide bottom-nav */
+@media (min-width: 1024px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 /* ============================================

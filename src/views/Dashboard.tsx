@@ -160,7 +160,7 @@ export const Dashboard: React.FC = () => {
   const totalDailySpent = dailyData.reduce((s, d) => s + d.amount, 0);
 
   return (
-    <div className="page-container fade-in">
+    <div className="page-container dashboard fade-in">
       <div className="main-content">
         {/* Header */}
         <div className="dash-header">
