@@ -11,14 +11,16 @@ This file tracks bugs, improvements, and feature requests for the Nido expense t
 ### [SEC-001] Hardcoded JWT Secret
 - **Description:** Default JWT secret is embedded in source code (`auth.ts`).
 - **Risk:** Low in production if env var is set, but default could be exploited.
-- **Fix:** Ensure `JWT_SECRET` is always set via environment variable; remove default or use a secure fallback.
+- **Fix:** Ensure `JWT_SECRET` is always set via environment variable; remove default or use a secure fallback. **Implemented** – Added config.ts with Zod validation, removed hardcoded default, env var now required (≥32 chars).
 - **Priority:** High
+- **Status:** Implemented (2026‑02‑27)
 
 ### [SEC-002] Default Password
 - **Description:** Default password is `changeme` (or from `DEFAULT_PASSWORD` env).
 - **Risk:** Users may not change it, leading to weak authentication.
-- **Fix:** Force password change on first login, or require strong password during initial setup.
+- **Fix:** Force password change on first login, or require strong password during initial setup. **Implemented** – Updated db.ts to generate random password in development, log warning, remove hardcoded `changeme`. Added validation in config.ts (≥8 chars, not default example).
 - **Priority:** Medium
+- **Status:** Implemented (2026‑02‑27)
 
 ### [SEC-003] SQL Injection Protection
 - **Description:** Queries use parameterized queries (good), but some dynamic parts (category filtering) could be risky if extended.
@@ -178,8 +180,9 @@ This file tracks bugs, improvements, and feature requests for the Nido expense t
 ### [UI-005] Tablet & Desktop Views
 - **Description:** Current mobile‑first design lacks optimized layouts for tablet (≥768px) and desktop (≥1024px). Need to adapt components (Dashboard, History, AddExpense) and navigation for larger screens.
 - **Impact:** Poor user experience on tablets and desktops; wasted screen space.
-- **Fix:** Define breakpoints, create responsive layouts (grids, sidebars, multi‑column), adapt BottomNav for tablet/desktop (maybe top nav or sidebar), test across viewports.
+- **Fix:** Define breakpoints, create responsive layouts (grids, sidebars, multi‑column), adapt BottomNav for tablet/desktop (maybe top nav or sidebar), test across viewports. **Implemented** – Added tablet (≥768px) and desktop (≥1024px) media queries in global.css, created Sidebar component, updated App.tsx layout, adjusted dashboard grid, preserved mobile‑first approach.
 - **Priority:** High (for user engagement on non‑mobile devices)
+- **Status:** Implemented (2026‑02‑27)
 
 ---
 
