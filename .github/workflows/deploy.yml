@@ -21,8 +21,11 @@ jobs:
       - name: Build client
         run: npx vite build
 
+      - name: Run tests
+        run: npm test
+        
       - name: Build server
-        run: npx tsc -p tsconfig.server.json
+        run: npx tsc -p server/tsconfig.json
 
       - name: Deploy via SSH
         env:
