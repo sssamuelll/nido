@@ -119,8 +119,9 @@ This file tracks bugs, improvements, and feature requests for the Nido expense t
 ### [TECH-003] No Unit/Integration Tests
 - **Description:** No test suite exists.
 - **Impact:** Regression risk, hard to refactor.
-- **Fix:** Add Jest/Vitest, test critical paths (auth, expenses).
+- **Fix:** Add Jest/Vitest, test critical paths (auth, expenses). **Implemented** – Installed Vitest + dependencies, configured vitest.config.ts, added tests for config validation (14 tests) and auth module (8 tests), all passing. Frontend component tests pending.
 - **Priority:** High
+- **Status:** Implemented (2026‑02‑27)
 
 ### [TECH-004] CI/CD Improvements
 - **Description:** GitHub Actions workflow could use caching, separate build/test stages.
