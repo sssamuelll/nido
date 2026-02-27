@@ -1,17 +1,19 @@
 import { Router } from 'express';
 import { getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { 
+  expenseCreateSchema, 
+  expenseUpdateSchema, 
+  validate, 
+  validateMonthParam 
+} from '../validation.js';
 
 const router = Router();
 
 // Get expenses for a specific month
-router.get('/', async (req: AuthRequest, res) => {
-  const { month } = req.query;
+router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
+  const month = req.validatedMonth as string;
   
-  if (!month) {
-    return res.status(400).json({ error: 'Month parameter is required' });
-  }
-
   try {
     const db = getDatabase();
     const expenses = await db.all(`
@@ -28,20 +30,8 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // Create new expense
-router.post('/', async (req: AuthRequest, res) => {
-  const { description, amount, category, date, paid_by, type, status = 'paid' } = req.body;
-
-  if (!description || !amount || !category || !date || !paid_by || !type) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  if (!['samuel', 'maria'].includes(paid_by)) {
-    return res.status(400).json({ error: 'Invalid paid_by value' });
-  }
-
-  if (!['shared', 'personal'].includes(type)) {
-    return res.status(400).json({ error: 'Invalid type value' });
-  }
+router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
+  const { description, amount, category, date, paid_by, type, status = 'paid' } = req.validatedData;
 
   try {
     const db = getDatabase();
@@ -59,9 +49,9 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // Update expense
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { description, amount, category, date, paid_by, type, status } = req.body;
+  const { description, amount, category, date, paid_by, type, status } = req.validatedData;
 
   try {
     const db = getDatabase();
@@ -103,13 +93,9 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 // Get dashboard summary
-router.get('/summary', async (req: AuthRequest, res) => {
-  const { month } = req.query;
+router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
+  const month = req.validatedMonth as string;
   
-  if (!month) {
-    return res.status(400).json({ error: 'Month parameter is required' });
-  }
-
   try {
     const db = getDatabase();
     
