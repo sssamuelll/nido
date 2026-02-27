@@ -2,8 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
 import { getDatabase } from './db.js';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'nido-secret-key-2026';
+import { jwtSecret } from './config.js';
 
 export interface AuthUser {
   id: number;
@@ -26,7 +25,7 @@ export const login = async (username: string, password: string): Promise<{ token
 
     const token = jwt.sign(
       { id: user.id, username: user.username },
-      JWT_SECRET,
+      jwtSecret,
       { expiresIn: '7d' }
     );
 
@@ -49,7 +48,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     return res.sendStatus(401);
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, jwtSecret, (err, decoded) => {
     if (err) {
       return res.sendStatus(403);
     }
