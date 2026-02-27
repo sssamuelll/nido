@@ -16,7 +16,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:ci": "vitest run --exclude=src/components/**"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
