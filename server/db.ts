@@ -1,8 +1,10 @@
 import sqlite3 from 'sqlite3';
 import { Database, open } from 'sqlite';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { defaultPassword as envDefaultPassword, isProduction } from './config.js';
 
 const format = (d: Date, fmt: string) => {
   const y = d.getFullYear();
@@ -63,11 +65,28 @@ const initDatabase = async () => {
   `);
 
   // Seed users
-  const defaultPassword = process.env.DEFAULT_PASSWORD || 'changeme';
-  const saltedPassword = bcrypt.hashSync(defaultPassword, 10);
+  let defaultPassword = envDefaultPassword;
+  let passwordSource = 'env';
+  
+  if (!defaultPassword && !isProduction) {
+    // Generate a random password for development
+    defaultPassword = randomBytes(12).toString('hex');
+    passwordSource = 'generated';
+    console.warn(`⚠️  DEFAULT_PASSWORD not set in development. Generated random password: ${defaultPassword}`);
+    console.warn('   Please set DEFAULT_PASSWORD in .env for consistency.');
+  }
 
-  await db.run('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ['samuel', saltedPassword]);
-  await db.run('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ['maria', saltedPassword]);
+  if (defaultPassword) {
+    const saltedPassword = bcrypt.hashSync(defaultPassword, 10);
+    await db.run('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ['samuel', saltedPassword]);
+    await db.run('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ['maria', saltedPassword]);
+    console.log(`Seeded default users (password from ${passwordSource})`);
+  } else if (isProduction) {
+    console.log('Skipping user seeding in production - DEFAULT_PASSWORD not set (assuming existing users)');
+  } else {
+    // Should not happen: development but defaultPassword empty (only if envDefaultPassword empty and randomBytes fails?)
+    console.warn('⚠️  No DEFAULT_PASSWORD set and unable to generate one. Skipping user seeding.');
+  }
 
   // Seed default budget if none exists
   await db.run(`

@@ -3,16 +3,17 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import './config.js'; // Validate environment first
 import './db.js'; // Initialize database
 import { login, authenticateToken, AuthRequest } from './auth.js';
 import expensesRouter from './routes/expenses.js';
 import budgetsRouter from './routes/budgets.js';
+import { port } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3100;
 
 // Middleware
 app.use(cors());
@@ -61,8 +62,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Nido server running on port ${PORT}`);
-  console.log(`📱 App: http://localhost:${PORT}`);
-  console.log(`🔌 API: http://localhost:${PORT}/api`);
+app.listen(port, () => {
+  console.log(`🚀 Nido server running on port ${port}`);
+  console.log(`📱 App: http://localhost:${port}`);
+  console.log(`🔌 API: http://localhost:${port}/api`);
 });
