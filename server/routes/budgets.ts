@@ -1,17 +1,14 @@
 import { Router } from 'express';
 import { getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { budgetUpdateSchema, validate, validateMonthParam } from '../validation.js';
 
 const router = Router();
 
 // Get budget for a specific month
-router.get('/', async (req: AuthRequest, res) => {
-  const { month } = req.query;
+router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
+  const month = req.validatedMonth as string;
   
-  if (!month) {
-    return res.status(400).json({ error: 'Month parameter is required' });
-  }
-
   try {
     const db = getDatabase();
     const budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
@@ -36,13 +33,8 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // Update or create budget
-router.put('/', async (req: AuthRequest, res) => {
-  const { month, total_budget, rent, savings, personal_samuel, personal_maria } = req.body;
-
-  if (!month || total_budget === undefined || rent === undefined || savings === undefined || 
-      personal_samuel === undefined || personal_maria === undefined) {
-    return res.status(400).json({ error: 'All budget fields are required' });
-  }
+router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
+  const { month, total_budget, rent, savings, personal_samuel, personal_maria } = req.validatedData;
 
   try {
     const db = getDatabase();

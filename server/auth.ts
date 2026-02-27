@@ -11,6 +11,8 @@ export interface AuthUser {
 
 export interface AuthRequest extends Request {
   user?: AuthUser;
+  validatedData?: any;
+  validatedMonth?: string;
 }
 
 // Login function

@@ -35,8 +35,9 @@ This file tracks bugs, improvements, and feature requests for the Nido expense t
 ### [BUG-001] Missing Input Validation
 - **Description:** Some endpoints lack validation (e.g., `amount` can be negative, `date` format not checked).
 - **Impact:** Data corruption, incorrect calculations.
-- **Fix:** Add validation middleware (e.g., Zod) or manual checks.
+- **Fix:** Add validation middleware (e.g., Zod) or manual checks. **Implemented** – Created `validation.ts` with Zod schemas for expenses and budgets; added middleware to all relevant endpoints (POST/PUT expenses, PUT budgets, month query param); validates amount positivity, date/month formats, enum values, budget sum constraints.
 - **Priority:** Medium
+- **Status:** Implemented (2026‑02‑27)
 
 ### [BUG-002] Error Messages Expose Stack Traces
 - **Description:** In development, errors may leak stack traces to API responses.
