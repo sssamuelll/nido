@@ -41,7 +41,7 @@ describe('Auth module', () => {
     mockDb = { get: vi.fn() };
     getDatabase.mockReturnValue(mockDb);
 
-    mockRequest = { headers: {} };
+    mockRequest = { cookies: {} }; // Updated to expect cookies
     mockResponse = { sendStatus: vi.fn() };
     mockNext = vi.fn();
   });
@@ -60,7 +60,7 @@ describe('Auth module', () => {
       expect(jwt.sign).toHaveBeenCalledWith(
         { id: 1, username: 'samuel' },
         'test-secret-1234567890-1234567890-123456',
-        { expiresIn: '7d' }
+        { expiresIn: '365d' } // Updated to 365d
       );
       expect(result).toEqual({
         token: 'fake-jwt-token',
@@ -101,7 +101,7 @@ describe('Auth module', () => {
 
   describe('authenticateToken middleware', () => {
     it('should call next() with valid token', () => {
-      mockRequest.headers = { authorization: 'Bearer valid-token' };
+      mockRequest.cookies = { token: 'valid-token' }; // Updated to cookies
       (jwt.verify as any).mockImplementation((token: string, secret: string, callback: any) => {
         callback(null, { id: 1, username: 'samuel' });
       });
@@ -118,15 +118,7 @@ describe('Auth module', () => {
       expect(mockResponse.sendStatus).not.toHaveBeenCalled();
     });
 
-    it('should return 401 if no authorization header', () => {
-      authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
-
-      expect(mockResponse.sendStatus).toHaveBeenCalledWith(401);
-      expect(mockNext).not.toHaveBeenCalled();
-    });
-
-    it('should return 401 if token missing (only "Bearer")', () => {
-      mockRequest.headers = { authorization: 'Bearer ' };
+    it('should return 401 if no token cookie', () => { // Updated test case name
       authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.sendStatus).toHaveBeenCalledWith(401);
@@ -134,7 +126,7 @@ describe('Auth module', () => {
     });
 
     it('should return 403 if token verification fails', () => {
-      mockRequest.headers = { authorization: 'Bearer invalid-token' };
+      mockRequest.cookies = { token: 'invalid-token' }; // Updated to cookies
       (jwt.verify as any).mockImplementation((token: string, secret: string, callback: any) => {
         callback(new Error('Invalid token'), undefined);
       });

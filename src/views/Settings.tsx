@@ -10,6 +10,7 @@ interface BudgetData {
   savings: number;
   personal_samuel: number;
   personal_maria: number;
+  categories: Record<string, number>;
 }
 
 export const Settings: React.FC = () => {
@@ -22,9 +23,12 @@ export const Settings: React.FC = () => {
     savings: 300,
     personal_samuel: 500,
     personal_maria: 500,
+    categories: {}
   });
 
   const [saving, setSaving] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -50,14 +54,14 @@ export const Settings: React.FC = () => {
   };
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (budget.total_budget <= 0) {
       setToast({ type: 'error', msg: 'Total debe ser mayor a 0' });
       return;
     }
     try {
       setSaving(true);
-      await Api.updateBudget({ ...budget, month: currentMonth });
+      await Api.updateBudget(budget);
       setToast({ type: 'success', msg: '✓ Presupuesto guardado' });
     } catch {
       setToast({ type: 'error', msg: 'Error al guardar' });
@@ -66,8 +70,38 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handlePinSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPin.length !== 4 || !/^\d+$/.test(newPin)) {
+      setToast({ type: 'error', msg: 'El PIN debe ser de 4 dígitos' });
+      return;
+    }
+
+    try {
+      setPinLoading(true);
+      await Api.updatePin(newPin);
+      setToast({ type: 'success', msg: '✓ PIN actualizado' });
+      setNewPin('');
+    } catch {
+      setToast({ type: 'error', msg: 'Error al actualizar PIN' });
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
   const updateField = (field: keyof BudgetData, value: string) => {
+    if (field === 'categories') return;
     setBudget({ ...budget, [field]: parseFloat(value) || 0 });
+  };
+
+  const updateCategoryBudget = (category: string, value: string) => {
+    setBudget({
+      ...budget,
+      categories: {
+        ...budget.categories,
+        [category]: parseFloat(value) || 0
+      }
+    });
   };
 
   const available = budget.total_budget - budget.rent - budget.savings - budget.personal_samuel - budget.personal_maria;
@@ -133,10 +167,10 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/* Budget */}
+        {/* General Budget */}
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">Presupuesto</h2>
+            <h2 className="card-title">Presupuesto General</h2>
             <div className="month-nav" style={{ gap: '0.25rem' }}>
               <button className="month-nav-btn" onClick={() => navigateMonth(-1)} style={{ width: 28, height: 28, fontSize: '1rem' }}>‹</button>
               <span className="text-sm text-secondary" style={{ padding: '0 0.25rem' }}>{formatMonthName(currentMonth)}</span>
@@ -188,7 +222,6 @@ export const Settings: React.FC = () => {
               </div>
             </div>
 
-            {/* Available */}
             <div className="settings-available">
               <span>Disponible compartido</span>
               <span className={`font-bold ${available >= 0 ? 'text-success' : 'text-error'}`}>
@@ -197,7 +230,64 @@ export const Settings: React.FC = () => {
             </div>
 
             <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: '100%' }}>
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? 'Guardando...' : 'Guardar presupuesto'}
+            </button>
+          </form>
+        </div>
+
+        {/* Category Budgets */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Límites por Categoría</h2>
+          </div>
+          <div className="settings-grid">
+            {['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'].map(cat => (
+              <div key={cat} className="settings-field">
+                <label className="settings-label">{cat}</label>
+                <div className="settings-input-wrap">
+                  <span className="settings-input-prefix">€</span>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    className="settings-input" 
+                    value={budget.categories[cat] || 0}
+                    onChange={(e) => updateCategoryBudget(cat, e.target.value)}
+                    disabled={saving} 
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => handleSave(null as any)} className="btn btn-secondary mt-4" disabled={saving} style={{ width: '100%' }}>
+            {saving ? 'Guardando...' : 'Guardar límites'}
+          </button>
+        </div>
+
+        {/* Security / PIN */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Seguridad</h2>
+          </div>
+          <form onSubmit={handlePinSave}>
+            <div className="settings-field">
+              <label className="settings-label">Nuevo PIN de acceso</label>
+              <div className="settings-input-wrap">
+                <span className="settings-input-prefix">🔢</span>
+                <input 
+                  type="password" 
+                  maxLength={4} 
+                  inputMode="numeric"
+                  className="settings-input" 
+                  placeholder="****"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  disabled={pinLoading}
+                />
+              </div>
+              <p className="text-xs text-secondary mt-1">PIN de 4 dígitos para acceso rápido</p>
+            </div>
+            <button type="submit" className="btn btn-secondary" disabled={pinLoading || newPin.length !== 4} style={{ width: '100%', marginTop: '0.5rem' }}>
+              {pinLoading ? 'Cambiando...' : 'Cambiar PIN'}
             </button>
           </form>
         </div>
@@ -208,7 +298,7 @@ export const Settings: React.FC = () => {
             <span>📥</span>
             <span>Exportar CSV</span>
           </button>
-          <button onClick={logout} className="settings-action-btn settings-action-danger">
+          <button onClick={() => logout()} className="settings-action-btn settings-action-danger">
             <span>👋</span>
             <span>Cerrar sesión</span>
           </button>

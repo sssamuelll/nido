@@ -32,6 +32,7 @@ interface DashboardData {
   categoryBreakdown: Array<{
     category: string;
     total: number;
+    budget: number;
     count: number;
   }>;
   recentTransactions: any[];
@@ -248,6 +249,24 @@ export const Dashboard: React.FC = () => {
         <div className="dash-accounts-dots">
           <span className={`dash-dot ${activeCard === 0 ? 'active' : ''}`} />
           <span className={`dash-dot ${activeCard === 1 ? 'active' : ''}`} />
+        </div>
+
+        {/* Category Budget Bars — Maria's requested feature */}
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Presupuesto por categoría</h2>
+          </div>
+          <div className="expense-list" style={{ padding: '0 var(--space-md) var(--space-md)' }}>
+            {data.categoryBreakdown.map((cat) => (
+              <BudgetBar
+                key={cat.category}
+                title={cat.category}
+                spent={cat.total}
+                budget={cat.budget}
+                className="mb-4"
+              />
+            ))}
+          </div>
         </div>
 
         {/* Daily Spending Chart */}

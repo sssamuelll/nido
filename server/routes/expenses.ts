@@ -31,7 +31,9 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
-  const { description, amount, category, date, paid_by, type, status = 'paid' } = req.validatedData;
+  const { description, amount, category, date, type, status = 'paid' } = req.validatedData;
+  // Security: Force paid_by to be the current authenticated user
+  const paid_by = req.user!.username;
 
   try {
     const db = getDatabase();
@@ -51,19 +53,32 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 // Update expense
 router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { description, amount, category, date, paid_by, type, status } = req.validatedData;
+  const validatedData = req.validatedData;
 
   try {
     const db = getDatabase();
-    const result = await db.run(`
+    const existing = await db.get('SELECT * FROM expenses WHERE id = ?', id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+
+    // Security check: Only allow editing if it's a shared expense OR if the user is the owner
+    const isOwner = existing.paid_by === req.user!.username;
+    const isShared = existing.type === 'shared';
+
+    if (!isShared && !isOwner) {
+      return res.status(403).json({ error: 'Forbidden: You can only edit your own personal expenses' });
+    }
+
+    // Security: Do not allow changing the 'paid_by' field once created
+    const { paid_by: _, ...safeData } = validatedData;
+    const updated = { ...existing, ...safeData };
+
+    await db.run(`
       UPDATE expenses 
       SET description = ?, amount = ?, category = ?, date = ?, paid_by = ?, type = ?, status = ?
       WHERE id = ?
-    `, description, amount, category, date, paid_by, type, status, id);
-
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Expense not found' });
-    }
+    `, updated.description, updated.amount, updated.category, updated.date, updated.paid_by, updated.type, updated.status, id);
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);
     res.json(updatedExpense);
@@ -79,12 +94,21 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
   try {
     const db = getDatabase();
-    const result = await db.run('DELETE FROM expenses WHERE id = ?', id);
+    const existing = await db.get('SELECT * FROM expenses WHERE id = ?', id);
     
-    if (result.changes === 0) {
+    if (!existing) {
       return res.status(404).json({ error: 'Expense not found' });
     }
 
+    // Security check: Only allow deleting if it's a shared expense OR if the user is the owner
+    const isOwner = existing.paid_by === req.user!.username;
+    const isShared = existing.type === 'shared';
+
+    if (!isShared && !isOwner) {
+      return res.status(403).json({ error: 'Forbidden: You can only delete your own personal expenses' });
+    }
+
+    await db.run('DELETE FROM expenses WHERE id = ?', id);
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting expense:', error);
@@ -130,14 +154,19 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const samuelBalance = samuelPaid - halfShared;
     const mariaBalance = mariaPaid - halfShared;
 
-    // Category breakdown
+    // Category breakdown with budgets
     const categories = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+    const categoryBudgets = await db.all('SELECT * FROM category_budgets WHERE month = ?', month);
+    
     const categoryBreakdown = categories.map(category => {
       const categoryExpenses = expenses.filter((exp: any) => exp.category === category);
       const categoryTotal = categoryExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+      const budgetEntry = categoryBudgets.find(b => b.category === category);
+      
       return {
         category,
         total: categoryTotal,
+        budget: budgetEntry ? budgetEntry.amount : 0,
         count: categoryExpenses.length
       };
     });
