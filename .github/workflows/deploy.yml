@@ -38,7 +38,7 @@ jobs:
 
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key" \
-            dist/server/ ubuntu@${HOST}:/var/www/nido/server/
+            server/dist/server/ ubuntu@${HOST}:/var/www/nido/server/
 
           rsync -avz \
             -e "ssh -i ~/.ssh/deploy_key" \
