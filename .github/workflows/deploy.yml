@@ -25,7 +25,7 @@ jobs:
         run: npm run test:ci
         
       - name: Build server
-        run: npx tsc -p server/tsconfig.json
+        run: npx tsc -p server
 
       - name: Deploy via SSH
         env:
