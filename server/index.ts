@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import './config.js'; // Validate environment first
 import './db.js'; // Initialize database
+import { getDatabase } from './db.js';
 import { login, authenticateToken, AuthRequest, verifyPin } from './auth.js';
 import expensesRouter from './routes/expenses.js';
 import budgetsRouter from './routes/budgets.js';
