@@ -6,7 +6,7 @@ export const BottomNav: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="bottom-nav">
+    <nav className="bottom-nav liquid-glass">
       <div className="nav-container">
         <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`}>
           <div className="nav-icon">🏠</div>

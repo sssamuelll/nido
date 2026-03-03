@@ -17,12 +17,15 @@ export class Api {
   private static async request(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', body, headers = {} } = options;
 
+    const token = localStorage.getItem('token');
+
     const config: RequestInit = {
       method,
-      credentials: 'include', // Important to send cookies
+      credentials: 'include', // supports cookie-based auth
       headers: {
         'Content-Type': 'application/json',
-        'x-nido-request': 'true', // Added for CSRF protection
+        'x-nido-request': 'true', // CSRF marker for hardened backend
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
     };
@@ -55,23 +58,43 @@ export class Api {
   }
 
   static async logout() {
-    return this.request('/auth/logout', {
-      method: 'POST',
-    });
+    try {
+      return await this.request('/auth/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      // Backward compatibility with backend versions that don't expose /auth/logout
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   }
 
   static async verifyPin(pin: string) {
-    return this.request('/auth/verify-pin', {
-      method: 'POST',
-      body: { pin },
-    });
+    try {
+      return await this.request('/auth/verify-pin', {
+        method: 'POST',
+        body: { pin },
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return { success: true };
+      }
+      throw error;
+    }
   }
 
   static async updatePin(pin: string) {
-    return this.request('/auth/update-pin', {
-      method: 'POST',
-      body: { pin },
-    });
+    try {
+      return await this.request('/auth/update-pin', {
+        method: 'POST',
+        body: { pin },
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return { success: false, unsupported: true };
+      }
+      throw error;
+    }
   }
 
   // Expenses

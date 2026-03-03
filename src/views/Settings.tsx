@@ -45,7 +45,15 @@ export const Settings: React.FC = () => {
     try {
       setLoading(true);
       const data = await Api.getBudget(currentMonth);
-      setBudget(data);
+      setBudget({
+        month: currentMonth,
+        total_budget: Number(data?.total_budget ?? 2800),
+        rent: Number(data?.rent ?? 335),
+        savings: Number(data?.savings ?? 300),
+        personal_samuel: Number(data?.personal_samuel ?? 500),
+        personal_maria: Number(data?.personal_maria ?? 500),
+        categories: (data?.categories && typeof data.categories === 'object') ? data.categories : {}
+      });
     } catch {
       setToast({ type: 'error', msg: 'Error al cargar presupuesto' });
     } finally {
@@ -168,7 +176,7 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* General Budget */}
-        <div className="card">
+        <div className="card liquid-glass">
           <div className="card-header">
             <h2 className="card-title">Presupuesto General</h2>
             <div className="month-nav" style={{ gap: '0.25rem' }}>
@@ -236,7 +244,7 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Category Budgets */}
-        <div className="card">
+        <div className="card liquid-glass">
           <div className="card-header">
             <h2 className="card-title">Límites por Categoría</h2>
           </div>
@@ -264,7 +272,7 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Security / PIN */}
-        <div className="card">
+        <div className="card liquid-glass">
           <div className="card-header">
             <h2 className="card-title">Seguridad</h2>
           </div>

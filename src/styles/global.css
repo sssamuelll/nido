@@ -24,8 +24,9 @@ html {
 
 body {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255, 140, 107, 0.06), transparent),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(166, 199, 156, 0.04), transparent),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255, 140, 107, 0.12), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(166, 199, 156, 0.10), transparent),
+    radial-gradient(circle at 50% 50%, rgba(139, 220, 107, 0.05), transparent),
     #1a1714;
   color: #e8e0d8;
   min-height: 100vh;
@@ -198,7 +199,8 @@ h1, h2, h3, .font-display {
 @media (min-width: 1024px) {
   .container,
   .main-content {
-    max-width: 960px;
+    max-width: none;
+    width: 100%;
   }
   
   .app-layout {
@@ -217,7 +219,8 @@ h1, h2, h3, .font-display {
   
   .content-area {
     flex: 1;
-    padding: var(--space-xl);
+    min-width: 0;
+    padding: 1rem 1.25rem;
   }
   
   .bottom-nav {
@@ -263,22 +266,35 @@ h1, h2, h3, .font-display {
 }
 
 /* ============================================
-   Glass Cards
+   Glass Cards (Liquid Glass Upgrade)
    ============================================ */
 .card {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-xl);
   padding: var(--space-xl);
   margin-bottom: var(--space-lg);
-  box-shadow: var(--shadow-card);
-  transition: box-shadow var(--transition-base), transform var(--transition-base);
+  box-shadow: 
+    var(--shadow-card),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: 
+    var(--shadow-card-hover),
+    inset 0 1px 2px rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Apply Liquid Refraction on Desktop or for Premium feel */
+.liquid-glass {
+  filter: url(#liquid-glass-filter);
 }
 
 .card-header {
@@ -780,6 +796,86 @@ h1, h2, h3, .font-display {
 }
 
 /* ============================================
+   Desktop Liquid Glass (static, no moving shine)
+   ============================================ */
+@media (min-width: 1024px) {
+  .main-content {
+    max-width: none;
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .card,
+  .dash-account-card,
+  .login-card,
+  .settings-action-btn,
+  .settings-available,
+  .summary-pill {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    background: rgba(255, 255, 255, 0.22);
+    box-shadow:
+      0 6px 6px rgba(0, 0, 0, 0.2),
+      0 0 20px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(3px) saturate(120%);
+    -webkit-backdrop-filter: blur(3px) saturate(120%);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 2.2);
+  }
+
+  .card::before,
+  .dash-account-card::before,
+  .login-card::before,
+  .settings-action-btn::before,
+  .settings-available::before,
+  .summary-pill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.25);
+    z-index: 0;
+  }
+
+  .card::after,
+  .dash-account-card::after,
+  .login-card::after,
+  .settings-action-btn::after,
+  .settings-available::after,
+  .summary-pill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow:
+      inset 2px 2px 1px 0 rgba(255, 255, 255, 0.5),
+      inset -1px -1px 1px 1px rgba(255, 255, 255, 0.5);
+  }
+
+  .dashboard {
+    grid-template-columns: 1.15fr 1fr;
+    grid-template-areas:
+      "header header"
+      "accounts stats"
+      "chart chart"
+      "recent recent";
+    gap: 1rem;
+  }
+
+  .dash-accounts {
+    margin-bottom: 0;
+  }
+
+  .dash-account-card {
+    width: calc(50% - 0.5rem);
+  }
+
+  .dash-accounts-dots {
+    display: none;
+  }
+}
+
+/* ============================================
    Expense List
    ============================================ */
 .expense-list {
@@ -831,7 +927,7 @@ h1, h2, h3, .font-display {
 }
 
 /* ============================================
-   Balance Card
+   Balance Card (Premium Glass)
    ============================================ */
 .balance-card {
   background: var(--accent-gradient);
@@ -842,7 +938,16 @@ h1, h2, h3, .font-display {
   margin: var(--space-lg) 0;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 32px var(--accent-glow);
+  box-shadow: 
+    0 12px 32px var(--accent-glow),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.1);
+  filter: url(#liquid-glass-filter);
+  transition: transform var(--transition-base);
+}
+
+.balance-card:hover {
+  transform: translateY(-2px) scale(1.01);
 }
 
 .balance-card::before {
@@ -2667,4 +2772,126 @@ h1, h2, h3, .font-display {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
+}
+
+/* ============================================
+   Neo Glass Theme Override (March 2026)
+   ============================================ */
+:root {
+  --bg-base: #0f1115;
+  --bg-primary: #151922;
+  --bg-secondary: #1b2130;
+  --bg-tertiary: #252f44;
+
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-blur: 14px;
+
+  --border: rgba(255, 255, 255, 0.18);
+  --border-subtle: rgba(255, 255, 255, 0.1);
+
+  --text-primary: #f5f7fb;
+  --text-secondary: #cdd5e1;
+  --text-muted: #8fa0b8;
+  --text-accent: #7dd3c7;
+
+  --accent: #ff7f66;
+  --accent-hover: #ff9b88;
+  --accent-glow: rgba(255, 127, 102, 0.28);
+  --accent-subtle: rgba(255, 127, 102, 0.14);
+  --accent-gradient: linear-gradient(135deg, #ff7f66, #ff9b88);
+
+  --success: #5ee1a0;
+  --success-dark: #31c985;
+  --success-bg: rgba(94, 225, 160, 0.14);
+  --error: #ff6b6b;
+  --warning: #ffc96b;
+  --info: #78b8ff;
+
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.22);
+  --shadow-card-hover: 0 12px 36px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.32);
+}
+
+html {
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 8%, rgba(255, 127, 102, 0.12), transparent),
+    radial-gradient(ellipse 60% 45% at 85% 85%, rgba(125, 211, 199, 0.10), transparent),
+    linear-gradient(150deg, #0f1115, #141a26 42%, #101621 100%);
+  color: var(--text-primary);
+}
+
+.card,
+.login-card,
+.settings-available,
+.summary-pill,
+.expense-item,
+.settings-action-btn,
+.settings-input-wrap,
+.sheet,
+.crop-modal {
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.btn-primary,
+.nav-item.add-btn,
+.dash-register-btn,
+.crop-btn-confirm {
+  background: linear-gradient(135deg, #ff7f66, #ff9b88);
+  color: #1a1a1a;
+  box-shadow: 0 8px 20px rgba(255, 127, 102, 0.34);
+}
+
+.btn-secondary,
+.month-nav-btn,
+.dash-chart-btn,
+.add-back,
+.filter-chip,
+.sheet-meta-chip {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+}
+
+.form-input,
+.add-note-input,
+.settings-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.form-input:focus,
+.add-note-input:focus,
+.settings-input-wrap:focus-within {
+  border-color: var(--text-accent);
+  box-shadow: 0 0 0 3px rgba(125, 211, 199, 0.28);
+}
+
+.balance-card,
+.dash-hero {
+  background: linear-gradient(145deg, rgba(255,127,102,0.94), rgba(255,154,132,0.92));
+  box-shadow: 0 14px 34px rgba(255, 127, 102, 0.34);
+}
+
+.bottom-nav {
+  background: rgba(16, 22, 33, 0.78);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.nav-item.active,
+.sidebar-item.active,
+.filter-chip.active,
+.toggle-option.active {
+  color: #1a1a1a;
+  background: linear-gradient(135deg, #7dd3c7, #9ee2d9);
+  border-color: transparent;
 }
