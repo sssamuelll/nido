@@ -61,4 +61,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "curl -sf http://localhost:3100/api/health"
+          if ! ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "curl -sf http://localhost:3100/api/health"; then
+            echo "❌ Health check failed. Fetching server logs..."
+            ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "sudo journalctl -u nido -n 50 --no-pager"
+            exit 1
+          fi
