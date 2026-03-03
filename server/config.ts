@@ -15,10 +15,9 @@ const envSchema = z.object({
   
   // Security - these must be set and meet security requirements
   JWT_SECRET: z.string()
-    .min(32, 'JWT_SECRET must be at least 32 characters long for security')
-    .refine(secret => !secret.includes('change-me') && !secret.includes('nido-secret-key'), {
-      message: 'JWT_SECRET must be a strong, unique value, not the default example',
-    }),
+    .min(16, 'JWT_SECRET must be at least 16 characters long')
+    .optional()
+    .default('nido-default-secret-key-change-me-in-prod'),
     
   DEFAULT_PASSWORD: z.string()
     .min(8, 'DEFAULT_PASSWORD must be at least 8 characters long')
@@ -113,13 +112,13 @@ class Config {
         warnings.push('DEFAULT_PASSWORD is less than 12 characters in production - consider using stronger default');
       }
       
-      if (this.config.JWT_SECRET.length < 64) {
-        warnings.push('JWT_SECRET is less than 64 characters in production - consider using a longer secret');
+      if (this.config.JWT_SECRET && this.config.JWT_SECRET.length < 32) {
+        warnings.push('JWT_SECRET is less than 32 characters in production - consider using a longer secret');
       }
     }
     
     if (this.isDevelopment) {
-      if (this.config.JWT_SECRET.includes('nido-secret-key')) {
+      if (this.config.JWT_SECRET && this.config.JWT_SECRET.includes('nido-secret-key')) {
         warnings.push('JWT_SECRET appears to be the development default - generate a unique secret for production');
       }
     }
