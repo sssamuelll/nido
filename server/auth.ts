@@ -61,7 +61,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     return res.sendStatus(401);
   }
 
-  jwt.verify(token, jwtSecret, (err, decoded) => {
+  jwt.verify(token, jwtSecret, (err: any, decoded: any) => {
     if (err) {
       return res.sendStatus(403);
     }
