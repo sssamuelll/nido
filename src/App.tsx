@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth, LoginPage } from './auth';
+import { AuthProvider, useAuth, LoginPage, PinPage } from './auth';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './views/Dashboard';
@@ -10,7 +10,7 @@ import { AddExpense } from './views/AddExpense';
 import './styles/global.css';
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLocked, isLoading } = useAuth();
   const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -38,6 +38,10 @@ const AppRoutes: React.FC = () => {
 
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  if (isLocked) {
+    return <PinPage />;
   }
 
   const isAddView = location.pathname === '/add';

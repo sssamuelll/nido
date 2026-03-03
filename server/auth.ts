@@ -28,7 +28,7 @@ export const login = async (username: string, password: string): Promise<{ token
     const token = jwt.sign(
       { id: user.id, username: user.username },
       jwtSecret,
-      { expiresIn: '7d' }
+      { expiresIn: '365d' }
     );
 
     return {
@@ -41,10 +41,21 @@ export const login = async (username: string, password: string): Promise<{ token
   }
 };
 
+// Verify PIN function
+export const verifyPin = async (username: string, pin: string): Promise<boolean> => {
+  try {
+    const db = getDatabase();
+    const user = await db.get('SELECT pin FROM users WHERE username = ?', username);
+    return user && user.pin === pin;
+  } catch (error) {
+    console.error('PIN verify error:', error);
+    return false;
+  }
+};
+
 // JWT middleware
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = req.cookies?.token;
 
   if (!token) {
     return res.sendStatus(401);

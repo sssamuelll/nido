@@ -33,6 +33,7 @@ const initDatabase = async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
+      pin TEXT DEFAULT '1234',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -59,17 +60,31 @@ const initDatabase = async () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS category_budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month TEXT NOT NULL,
+      category TEXT NOT NULL,
+      amount REAL NOT NULL,
+      UNIQUE(month, category)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
     CREATE INDEX IF NOT EXISTS idx_expenses_paid_by ON expenses(paid_by);
     CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses(type);
   `);
+
+  // Migrations: Ensure 'pin' column exists
+  try {
+    await db.exec('ALTER TABLE users ADD COLUMN pin TEXT DEFAULT "1234"');
+  } catch (e) {
+    // Column already exists
+  }
 
   // Seed users
   let defaultPassword = envDefaultPassword;
   let passwordSource = 'env';
   
   if (!defaultPassword && !isProduction) {
-    // Generate a random password for development
     defaultPassword = randomBytes(12).toString('hex');
     passwordSource = 'generated';
     console.warn(`⚠️  DEFAULT_PASSWORD not set in development. Generated random password: ${defaultPassword}`);
@@ -78,14 +93,11 @@ const initDatabase = async () => {
 
   if (defaultPassword) {
     const saltedPassword = bcrypt.hashSync(defaultPassword, 10);
-    await db.run('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ['samuel', saltedPassword]);
-    await db.run('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ['maria', saltedPassword]);
+    await db.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', saltedPassword, '1234']);
+    await db.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', saltedPassword, '1234']);
     console.log(`Seeded default users (password from ${passwordSource})`);
   } else if (isProduction) {
     console.log('Skipping user seeding in production - DEFAULT_PASSWORD not set (assuming existing users)');
-  } else {
-    // Should not happen: development but defaultPassword empty (only if envDefaultPassword empty and randomBytes fails?)
-    console.warn('⚠️  No DEFAULT_PASSWORD set and unable to generate one. Skipping user seeding.');
   }
 
   // Seed default budget if none exists
@@ -93,6 +105,24 @@ const initDatabase = async () => {
     INSERT OR IGNORE INTO budgets (month, total_budget, rent, savings, personal_samuel, personal_maria)
     VALUES (?, ?, ?, ?, ?, ?)
   `, [format(new Date(), 'yyyy-MM'), 2800, 335, 300, 500, 500]);
+
+  // Seed default category budgets
+  const categories = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+  const defaultCategoryAmounts: Record<string, number> = {
+    'Restaurant': 200,
+    'Gastos': 400,
+    'Servicios': 150,
+    'Ocio': 200,
+    'Inversión': 100,
+    'Otros': 115
+  };
+
+  for (const cat of categories) {
+    await db.run(`
+      INSERT OR IGNORE INTO category_budgets (month, category, amount)
+      VALUES (?, ?, ?)
+    `, [format(new Date(), 'yyyy-MM'), cat, defaultCategoryAmounts[cat] || 0]);
+  }
 
   console.log('Database initialized');
 };

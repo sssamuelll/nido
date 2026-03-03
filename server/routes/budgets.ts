@@ -12,20 +12,24 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
+    const categoryBudgets = await db.all('SELECT * FROM category_budgets WHERE month = ?', month);
     
-    if (!budget) {
-      // Return default budget structure if not found
-      return res.json({
-        month,
-        total_budget: 2800,
-        rent: 335,
-        savings: 300,
-        personal_samuel: 500,
-        personal_maria: 500
-      });
-    }
+    const response = budget || {
+      month,
+      total_budget: 2800,
+      rent: 335,
+      savings: 300,
+      personal_samuel: 500,
+      personal_maria: 500
+    };
 
-    res.json(budget);
+    res.json({
+      ...response,
+      categories: categoryBudgets.reduce((acc: any, b: any) => {
+        acc[b.category] = b.amount;
+        return acc;
+      }, {})
+    });
   } catch (error) {
     console.error('Error fetching budget:', error);
     res.status(500).json({ error: 'Failed to fetch budget' });
@@ -34,12 +38,12 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 
 // Update or create budget
 router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
-  const { month, total_budget, rent, savings, personal_samuel, personal_maria } = req.validatedData;
+  const { month, total_budget, rent, savings, personal_samuel, personal_maria, categories } = req.validatedData;
 
   try {
     const db = getDatabase();
     
-    // Try to update first
+    // Update main budget
     const updateResult = await db.run(`
       UPDATE budgets 
       SET total_budget = ?, rent = ?, savings = ?, personal_samuel = ?, personal_maria = ?
@@ -47,15 +51,24 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
     `, total_budget, rent, savings, personal_samuel, personal_maria, month);
 
     if (updateResult.changes === 0) {
-      // Insert if no existing budget
       await db.run(`
         INSERT INTO budgets (month, total_budget, rent, savings, personal_samuel, personal_maria)
         VALUES (?, ?, ?, ?, ?, ?)
       `, month, total_budget, rent, savings, personal_samuel, personal_maria);
     }
 
-    const updatedBudget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
-    res.json(updatedBudget);
+    // Update category budgets if provided
+    if (categories && typeof categories === 'object') {
+      for (const [category, amount] of Object.entries(categories)) {
+        await db.run(`
+          INSERT INTO category_budgets (month, category, amount)
+          VALUES (?, ?, ?)
+          ON CONFLICT(month, category) DO UPDATE SET amount = excluded.amount
+        `, month, category, amount);
+      }
+    }
+
+    res.json({ success: true });
   } catch (error) {
     console.error('Error updating budget:', error);
     res.status(500).json({ error: 'Failed to update budget' });

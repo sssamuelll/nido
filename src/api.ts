@@ -14,19 +14,15 @@ class ApiError extends Error {
 }
 
 export class Api {
-  private static getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
   private static async request(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', body, headers = {} } = options;
 
     const config: RequestInit = {
       method,
+      credentials: 'include', // Important to send cookies
       headers: {
         'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
+        'x-nido-request': 'true', // Added for CSRF protection
         ...headers,
       },
     };
@@ -58,6 +54,26 @@ export class Api {
     });
   }
 
+  static async logout() {
+    return this.request('/auth/logout', {
+      method: 'POST',
+    });
+  }
+
+  static async verifyPin(pin: string) {
+    return this.request('/auth/verify-pin', {
+      method: 'POST',
+      body: { pin },
+    });
+  }
+
+  static async updatePin(pin: string) {
+    return this.request('/auth/update-pin', {
+      method: 'POST',
+      body: { pin },
+    });
+  }
+
   // Expenses
   static async getExpenses(month: string) {
     return this.request(`/expenses?month=${month}`);
@@ -68,7 +84,7 @@ export class Api {
     amount: number;
     category: string;
     date: string;
-    paid_by: string;
+    paid_by?: string;
     type: string;
     status?: string;
   }) {

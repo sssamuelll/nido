@@ -4,3 +4,6 @@ dist/
 *.db
 *.db-journal
 .DS_Store
+
+.gemini/
+gha-creds-*.json
