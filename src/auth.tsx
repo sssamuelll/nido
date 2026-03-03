@@ -37,18 +37,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
-    
+
     if (userData) {
       try {
         setUser(JSON.parse(userData));
-        // Start locked if we have a session
-        setIsLocked(true);
+        // Backend in production currently has no PIN endpoints; keep session unlocked
+        setIsLocked(false);
       } catch (error) {
         console.error('Invalid user data in localStorage:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
-    
+
     setIsLoading(false);
   }, []);
 
@@ -56,7 +57,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await Api.login(username, password);
-      
+
+      if (response?.token) {
+        localStorage.setItem('token', response.token);
+      }
+
       localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
       setIsLocked(false);
@@ -77,6 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
       setUser(null);
       setIsLocked(false);
     }

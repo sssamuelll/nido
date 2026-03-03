@@ -29,7 +29,7 @@ export const ProfileAvatar: React.FC = () => {
 
   return (
     <>
-      <button className="profile-avatar" onClick={() => fileRef.current?.click()}>
+      <button className="profile-avatar liquid-glass" onClick={() => fileRef.current?.click()}>
         {pic ? (
           <img src={pic} alt="perfil" className="profile-avatar-img" />
         ) : (

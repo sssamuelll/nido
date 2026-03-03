@@ -138,27 +138,31 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const donutSegments = data.categoryBreakdown
-    .filter(c => c.total > 0)
+  const toNum = (v: any, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+
+  const categoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];
+  const donutSegments = categoryBreakdown
+    .filter(c => toNum(c?.total) > 0)
     .map(c => ({
-      label: c.category,
-      value: c.total,
-      color: getColorForCategory(c.category),
-      icon: CATEGORY_ICONS[c.category] || '📦',
+      label: c?.category || 'Otros',
+      value: toNum(c?.total),
+      color: getColorForCategory(c?.category || 'Otros'),
+      icon: CATEGORY_ICONS[c?.category || 'Otros'] || '📦',
     }));
 
-  const totalCategorySpent = donutSegments.reduce((s, seg) => s + seg.value, 0);
-  const remaining = data.spending.remainingShared;
-  const pctUsed = data.budget.availableShared > 0
-    ? Math.round((data.spending.totalSharedSpent / data.budget.availableShared) * 100)
-    : 0;
+  const totalCategorySpent = donutSegments.reduce((s, seg) => s + toNum(seg.value), 0);
+  const remaining = toNum(data?.spending?.remainingShared);
+  const availableShared = toNum(data?.budget?.availableShared);
+  const totalSharedSpent = toNum(data?.spending?.totalSharedSpent);
+  const pctUsed = availableShared > 0 ? Math.round((totalSharedSpent / availableShared) * 100) : 0;
 
   const personalKey = user?.username === 'maria' ? 'maria' : 'samuel';
-  const personalSpent = data.personal[personalKey].spent;
-  const personalBudget = data.personal[personalKey].budget;
-  const savingsAmount = data.budget.savings;
-  const totalTransactions = data.recentTransactions.length;
-  const totalDailySpent = dailyData.reduce((s, d) => s + d.amount, 0);
+  const personalSpent = toNum(data?.personal?.[personalKey]?.spent);
+  const personalBudget = toNum(data?.personal?.[personalKey]?.budget);
+  const savingsAmount = toNum(data?.budget?.savings);
+  const recentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const totalTransactions = recentTransactions.length;
+  const totalDailySpent = dailyData.reduce((s, d) => s + toNum(d.amount), 0);
 
   return (
     <div className="page-container dashboard fade-in">
@@ -202,12 +206,12 @@ export const Dashboard: React.FC = () => {
                 <span className="dash-account-arrow">›</span>
               </div>
               <div className="dash-account-amount">
-                {data.spending.remainingShared.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+                {remaining.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
               </div>
               <div className="dash-account-details">
                 <div className="dash-account-line">
                   <span>Presupuesto</span>
-                  <span>{data.budget.availableShared.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                  <span>{availableShared.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
                 </div>
                 <div className="dash-account-line">
                   <span>Gastado</span>
@@ -252,12 +256,12 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Category Budget Bars — Maria's requested feature */}
-        <div className="card">
+        <div className="card liquid-glass">
           <div className="card-header">
             <h2 className="card-title">Presupuesto por categoría</h2>
           </div>
           <div className="expense-list" style={{ padding: '0 var(--space-md) var(--space-md)' }}>
-            {data.categoryBreakdown.map((cat) => (
+            {categoryBreakdown.map((cat) => (
               <BudgetBar
                 key={cat.category}
                 title={cat.category}
@@ -271,7 +275,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Daily Spending Chart */}
         {dailyData.length > 0 && (
-          <div className="card">
+          <div className="card liquid-glass">
             <div className="card-header">
               <h2 className="card-title">Tendencia diaria</h2>
             </div>
@@ -284,7 +288,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Category Breakdown */}
         {donutSegments.length > 0 && (
-          <div className="card">
+          <div className="card liquid-glass">
             <div className="card-header">
               <h2 className="card-title">Por categoría</h2>
             </div>
@@ -300,18 +304,18 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* Recent Transactions */}
-        <div className="card">
+        <div className="card liquid-glass">
           <div className="card-header">
             <h2 className="card-title">Últimos gastos</h2>
             <a href="/history" className="btn-ghost text-sm">Ver todos →</a>
           </div>
           <div className="expense-list">
-            {data.recentTransactions.length === 0 ? (
+            {recentTransactions.length === 0 ? (
               <div className="text-center text-secondary py-4">
                 No hay gastos registrados
               </div>
             ) : (
-              data.recentTransactions.map((expense) => (
+              recentTransactions.map((expense) => (
                 <ExpenseCard key={expense.id} expense={expense} />
               ))
             )}

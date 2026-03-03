@@ -107,7 +107,7 @@ export const AddExpenseSheet: React.FC<AddExpenseSheetProps> = ({ isOpen, onClos
 
   return (
     <div className="sheet-overlay" onClick={onClose}>
-      <div ref={sheetRef} className={`sheet ${success ? 'sheet-success' : ''}`} onClick={e => e.stopPropagation()}>
+      <div ref={sheetRef} className={`sheet liquid-glass ${success ? 'sheet-success' : ''}`} onClick={e => e.stopPropagation()}>
         {/* Handle */}
         <div className="sheet-handle"><div className="sheet-handle-bar" /></div>
 
