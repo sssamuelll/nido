@@ -10,10 +10,13 @@ Migrate Nido from the current "Warm Nest" dark glass-morphism design to the new 
 
 ## Constraints
 
-- **Preserve:** `api.ts`, `auth.tsx` — zero changes to backend contract and auth flow
+- **Preserve:** `api.ts` — zero changes to backend contract
+- **Preserve:** `auth.tsx` — auth context logic (login, logout, PIN verify, token management) stays intact. The embedded `LoginPage` and `PinPage` components will be extracted to `views/Login.tsx` and `views/PinPage.tsx` respectively, and `auth.tsx` will be updated to remove those component definitions. The auth *logic* (context, provider, hooks) is unchanged.
 - **Preserve:** Accent colors (Samuel=#8bdc6b, María=#ff8c6b, Compartido=#7cb5e8, category colors, semantic colors)
 - **Adopt:** Neumorphic light mode, Fraunces/Outfit/JetBrains Mono fonts, Lucide icons, all 6 pages from reference
-- **Styling:** CSS with variables (rewrite `global.css`), not inline styles. Dynamic owner colors via CSS variables inline.
+- **Styling:** CSS with variables (rewrite `global.css`), not inline styles. Dynamic owner colors via CSS variables inline. All old CSS variable names (e.g., `--bg-base`, `--space-md`, `--glass-bg`) are fully retired. No old token names persist.
+- **Currency:** Euro (€) throughout. The `$` sign in the reference design is replaced with `€`.
+- **Locale:** Spanish (`es`) locale for all date formatting via `date-fns`, consistent with current behavior.
 
 ## 1. Design Tokens (global.css rewrite)
 
@@ -55,15 +58,18 @@ Migrate Nido from the current "Warm Nest" dark glass-morphism design to the new 
 --color-danger: #e87c7c;
 --color-warning: #e8c77c;
 
-/* Sidebar */
+/* UI elements */
 --color-sidebar: #1A1A2E;
+--color-divider: #D4D7E3;  /* used for dividers, inactive toggles, borders */
 
-/* Glass */
+/* Glass (for GoalCard) */
 --color-glass-bg: rgba(255, 255, 255, 0.55);
 --color-glass-border: rgba(255, 255, 255, 0.70);
 ```
 
 ### Owner Theme Objects (TypeScript)
+
+Defined in `src/types/index.ts`:
 
 ```typescript
 export const OWNER_THEMES = {
@@ -105,10 +111,12 @@ export const OWNER_THEMES = {
 --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 ```
 
-Google Fonts loaded in `index.html`:
+Google Fonts loaded in `index.html` (replace existing Inter/DM Sans imports):
 - Fraunces: ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400
 - Outfit: wght@300;400;500;600;700
 - JetBrains Mono: wght@400;500;600
+
+Remove the existing Inter font import from `index.html`.
 
 ### Spacing
 
@@ -143,7 +151,6 @@ Google Fonts loaded in `index.html`:
 --shadow-neu: 4px 4px 10px #D4D7E3, -4px -4px 10px #FFFFFF;
 --shadow-neu-lg: 6px 6px 14px #D4D7E3, -6px -6px 14px #FFFFFF;
 --shadow-card: 0 12px 32px rgba(100, 86, 140, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
---shadow-dark: #D4D7E3;  /* used for dividers and inactive toggles */
 ```
 
 ### Transitions
@@ -162,7 +169,8 @@ src/
 │   └── global.css              # REWRITE: all tokens + component classes
 │
 ├── types/
-│   └── index.ts                # NEW: Owner, OwnerTheme, Goal, BalanceData, etc.
+│   └── index.ts                # NEW: Owner, OwnerTheme, OWNER_THEMES, CATEGORIES,
+│                               #   Goal, BalanceData, Transaction, BudgetCategory, etc.
 │
 ├── components/
 │   ├── Sidebar.tsx             # REWRITE: Lucide icons, dark bg, NavItem children
@@ -181,26 +189,29 @@ src/
 │   ├── ProfileAvatar.tsx       # RESTYLE: keep logic, new classes
 │   ├── AvatarCropper.tsx       # KEEP: canvas logic unchanged
 │   ├── BottomSheet.tsx         # RESTYLE: keep drag logic, new classes
-│   ├── AddExpenseSheet.tsx     # RESTYLE: keep keyboard logic, new classes
+│   ├── AddExpenseSheet.tsx     # KEEP: Dashboard quick-add overlay (restyled). Opens from
+│   │                           #   Dashboard FAB on mobile. Uses same API as AddExpense view.
+│   │                           #   The CATEGORIES import moves to src/types/index.ts.
 │   └── SpendingTrend.tsx       # RESTYLE: keep bar logic, new classes
 │
 ├── views/
 │   ├── Dashboard.tsx           # REWRITE UI: 3 BalanceCards, BudgetCapsules, TransactionRows
 │   ├── History.tsx             # REWRITE UI: TransactionRows, CategoryPill filters
 │   ├── Settings.tsx            # REWRITE UI: 2-col layout, toggles, danger zone
-│   ├── AddExpense.tsx          # REWRITE UI: bottom sheet, numpad, owner pills, split slider
+│   ├── AddExpense.tsx          # REWRITE UI: numpad, owner pills, amount display
 │   ├── Analytics.tsx           # NEW: SVG area chart, period selector, stats
 │   ├── Goals.tsx               # NEW: goal cards grid, summary stats
-│   └── Login.tsx               # REWRITE: split layout (hero + form)
+│   ├── Login.tsx               # NEW FILE: extracted from auth.tsx, split layout redesign
+│   └── PinPage.tsx             # NEW FILE: extracted from auth.tsx, restyled for light mode
 │
-├── App.tsx                     # UPDATE: add /analytics, /goals routes
-├── auth.tsx                    # NO CHANGES
+├── App.tsx                     # UPDATE: add /analytics, /goals routes; import Login/PinPage from views/
+├── auth.tsx                    # UPDATE: remove LoginPage/PinPage component definitions (keep auth logic)
 ├── api.ts                      # NO CHANGES
 └── main.tsx                    # UPDATE: font imports
 ```
 
 ### Files to DELETE:
-- `src/components/CategoryIcon.tsx` — replaced by emojis + CategoryPill
+- `src/components/CategoryIcon.tsx` — `CATEGORIES` constant moves to `src/types/index.ts`
 - `src/components/ExpenseCard.tsx` — replaced by TransactionRow
 - `src/components/BudgetBar.tsx` — replaced by BudgetCapsule
 - `src/components/PersonalCard.tsx` — absorbed into BalanceCard
@@ -216,18 +227,41 @@ src/
 - History accessible from Dashboard "Ver todas" button
 - Content: full-width, `padding-bottom: 6rem` for nav clearance
 - Safe area: `env(safe-area-inset-bottom)`
+- Balance cards: horizontal scroll with snap (`overflow-x: auto; scroll-snap-type: x mandatory`), min-width 280px per card
 
 ### Desktop (≥1024px)
 - Sidebar: 260px fixed width, `position: sticky`, `top: 0`, dark background `#1A1A2E`
 - BottomNav: hidden
 - Content: `flex: 1`, `overflow: auto`, `padding: 32px 36px`
 - Layout: `display: flex; height: 100vh; background: var(--color-bg);`
+- Balance cards: 3 cards in flex row, `gap: 20px`, `flex: 1` each
+
+### BottomNav FAB (Mobile AddExpense)
+- **Position:** Center of BottomNav, raised 12px above the nav bar
+- **Size:** 56x56px, circular (`border-radius: 50%`)
+- **Background:** `linear-gradient(180deg, #8bdc6b, #6bc98b)` (samuel/accent gradient)
+- **Shadow:** `0 4px 16px rgba(139, 220, 107, 0.35)`
+- **Icon:** Lucide `Plus` icon, 24px, white
+- **Behavior:** Navigates to `/add` route (full page AddExpense view)
+- **The other 4 nav items** sit at normal height, 2 on each side of the FAB
+
+### Sidebar Icon-Route Mapping
+
+| Lucide Icon | Label | Route |
+|------------|-------|-------|
+| `House` | Dashboard | `/` |
+| `CirclePlus` | Añadir Gasto | `/add` |
+| `ChartNoAxesColumn` | Analíticas | `/analytics` |
+| `Target` | Objetivos | `/goals` |
+| `ClockArrowUp` | Historial | `/history` |
+| `Settings` | Configuración | `/settings` |
 
 ### Sidebar Structure
 - Logo: 36x36 gradient box (`linear-gradient(225deg, #8bdc6b, #9de382)`) + "nido" text (Fraunces 22px)
-- Nav items (6): House, CirclePlus, ChartNoAxesColumn, Target, ClockArrowUp, Settings
-- Spacer
-- User profile: gradient avatar + name + subtitle
+- Main nav (first 4 items)
+- Spacer (`flex: 1`)
+- Secondary nav (Historial, Configuración)
+- User profile: gradient avatar (samuel→maria gradient) + name + "Pareja" subtitle
 
 ### Routes
 
@@ -269,7 +303,7 @@ src/
 
 **BudgetCapsule:** Neumorphic container, emoji (20px), category name + amounts, percentage badge, progress bar (12px height, gradient fill, neumorphic track). Warning state when >90%.
 
-**TransactionRow:** Neumorphic container, left indicator bar (3px width, owner color), emoji (20px), name + payer, amount (mono) + date. Amount color: danger for negative, success for positive.
+**TransactionRow:** Neumorphic container, left indicator bar (3px width, owner color), emoji (20px), name + payer, amount (mono) + date. Amount color: danger for negative, success for positive. Date formatted with Spanish locale (`date-fns` + `es` locale).
 
 **NumpadKey:** 72x52px, neumorphic shadow, pressed state with inset shadow + scale(0.94). Action variant uses samuel gradient. Delete uses Lucide `Delete` icon.
 
@@ -283,41 +317,60 @@ src/
 
 ### Dashboard (`/`)
 - **Header:** Greeting (Outfit 14px) + title "Resumen" (Fraunces 28px 700) | Search box (neumorphic) + notification bell
-- **Balance cards row:** 3 BalanceCards (Samuel/María/Compartido) horizontal, `gap: 20px`
+- **Balance cards row:** 3 BalanceCards (Samuel/María/Compartido). Desktop: flex row `gap: 20px`. Mobile: horizontal scroll with snap, min-width 280px per card.
 - **Content split:** Budget column (BudgetCapsules, `gap: 16px`) | Transactions column (TransactionRows, `gap: 12px`)
 - **Data source:** `Api.getSummary(month)` + `Api.getExpenses(month)` — transform to BalanceData format
 - **Month navigation:** Preserved from current
+- **Loading state:** Skeleton placeholders matching card dimensions (neumorphic pulsing)
+- **Error state:** Centered message with retry button (Button component)
+- **Empty state:** Friendly message when no data for selected month
 
 ### AddExpense (`/add`)
 - **Mobile frame style on desktop** (390px width, 40px border-radius, centered)
 - **Bottom sheet** with handle bar, slides up from below gradient overlay
 - **Sheet header:** Title (Fraunces 22px) + owner pills (3 buttons: Compartido/Samuel/María)
-- **Amount display:** Neumorphic box, `$` prefix (mono 36px) + amount (mono 44px)
+- **Owner pills control both `type` and `paid_by`:** Compartido → `{type: 'shared', paid_by: 'samuel'}` (default). Samuel → `{type: 'personal', paid_by: 'samuel'}`. María → `{type: 'personal', paid_by: 'maria'}`.
+- **Amount display:** Neumorphic box, `€` prefix (mono 36px) + amount (mono 44px)
 - **Category scroll:** Horizontal CategoryPills
-- **Description:** InputField with search icon
-- **Split slider:** Samuel pill (% + emoji) | range input | María pill (only visible when owner=shared)
-- **Numpad:** 4 rows x 3 keys, last row has confirm button (action variant)
+- **Description:** InputField with Lucide `Pencil` icon
+- **Split slider:** Visual-only informational display. Shows the 50/50 split ratio when owner=shared. Does NOT create separate expense records — the API does not support splits. The slider is non-functional in v1; it is a visual placeholder for a future feature. When owner is Samuel or María (personal), the slider is hidden.
+- **Numpad:** 4 rows x 3 keys. Row 4: ".", "0", confirm (action variant)
 - **CTA:** Full-width Button (owner variant)
-- **Logic preserved:** Amount validation, `Api.createExpense()`, autocomplete, success animation
+- **Logic preserved:** Amount validation (>0, 2 decimal max), category required, `Api.createExpense()`, autocomplete from `Api.getCategories()`, success animation (600ms)
+- **Relationship with AddExpenseSheet:** `AddExpense.tsx` is the full-page view at `/add` with the numpad. `AddExpenseSheet.tsx` remains as the Dashboard quick-add bottom sheet overlay (legacy behavior). Both call `Api.createExpense()`. They are independent components.
 
 ### History (`/history`)
 - **Header:** Subtitle + title "Historial" | Month navigation
 - **Summary pills:** Count, total, average (neumorphic)
 - **Filters:** CategoryPills row + paid-by chips + type chips
 - **Transaction list:** Date pills (centered) + TransactionRows grouped by date
-- **Logic preserved:** Client-side filtering, date grouping, delete with confirmation
+- **Logic preserved:** Client-side filtering, date grouping (Spanish locale: "Hoy", "Ayer", day name), delete with confirmation
+- **Loading state:** Skeleton rows
+- **Empty state:** 📭 icon when no expenses, 🔍 when filters return nothing
 
 ### Settings (`/settings`)
-- **Two columns** (`flex: 1` left | 420px right)
-- **Left:** Profile card (avatar gradient + name) | General settings (currency select, theme) | Notifications (toggles)
-- **Right:** Partner card (Samuel + María with status badges) | Data export (CSV + JSON buttons) | Danger zone (red bg, delete buttons)
+- **Two columns** (`flex: 1` left | 420px right). On mobile: single column, stacked.
+- **Left:** Profile card (avatar gradient + name) | General settings (currency display) | Notifications (toggles)
+- **Right:** Partner card (Samuel + María with status badges) | Data export (CSV button, same logic as current) | Danger zone (red bg, delete/logout buttons)
 - **Logic preserved:** Budget editing, PIN management, CSV export, logout
+- **Currency select:** Display-only for now (€ EUR hardcoded). Placeholder for future multi-currency support.
 
 ### Login (`/login`)
-- **Split layout:** Hero (flex: 1, dark gradient) | Form (520px, light bg)
-- **Hero:** Decorative blur orbs, logo (gradient box + "nido"), tagline (Fraunces 44px), subtitle, feature badges
-- **Form:** Title (Fraunces 28px), InputFields (username + password), remember me + forgot, login Button, divider, social buttons, sign up link
-- **Logic preserved:** `Api.login()`, token + user storage, auth context
+- **Extracted from auth.tsx** to `views/Login.tsx`
+- **Split layout:** Hero (flex: 1, dark gradient `#1A1A2E → #2A2850`) | Form (520px, light bg)
+- **Hero:** Decorative blur orbs (3, positioned absolute), logo (gradient box + "nido"), tagline (Fraunces 44px), subtitle, feature badges
+- **Form:** Title (Fraunces 28px), InputFields (username + password), remember me + forgot password, login Button (samuel variant), divider, sign up link
+- **Logic preserved:** `Api.login()`, token + user storage, auth context. User selection (Samuel/María) is now handled by typing the username.
+- **Mobile:** Hero hidden, form full-width
+- **Loading state:** Button shows spinner during login request
+- **Error state:** Red text below form on invalid credentials
+
+### PinPage (`/pin`)
+- **Extracted from auth.tsx** to `views/PinPage.tsx`
+- **Centered layout** on light background
+- **4-digit PIN display** with neumorphic dot indicators
+- **NumpadKey grid** for input
+- **Logic preserved:** `Api.verifyPin()`, unlock state in auth context
 
 ### Analytics (`/analytics`) — NEW
 - **Header:** Subtitle + title "Analíticas" | Period selector pills (7D/1M/3M/6M/1A, neumorphic)
@@ -325,28 +378,143 @@ src/
 - **Chart:** SVG with gradient fills per owner, line strokes, month labels (mono 11px)
 - **Stats:** 2 cards (Gasto promedio, Total mes) with delta indicators
 - **Categories:** Progress bars with category colors
-- **Data:** Mock data until backend endpoint exists
+- **Data:** Mock data inline in component until backend endpoint exists. Uses `AnalyticsData` type from `src/types/index.ts`.
+- **Loading state:** Skeleton chart area + skeleton stat cards
+- **Empty state:** "No hay datos suficientes" message
 
 ### Goals (`/goals`) — NEW
 - **Header:** Subtitle + title "Objetivos" | Add goal Button
 - **Summary grid:** 4 stat cards (total saved, active goals, streak, next milestone)
 - **Goals grid:** 2 columns, GoalCards + "add goal" placeholder (dashed border)
-- **Data:** Mock data until backend endpoint exists
+- **Data:** Mock data inline in component until backend endpoint exists. Uses `Goal` type from `src/types/index.ts`.
+- **Loading state:** Skeleton goal cards
+- **Empty state:** Centered illustration-style message encouraging adding first goal
 
-## 6. Migration Checklist
+## 6. Type Definitions (`src/types/index.ts`)
+
+```typescript
+export type Owner = 'samuel' | 'maria' | 'shared';
+
+export interface OwnerTheme {
+  base: string;
+  light: string;
+  deep: string;
+  gradient: string;
+  gradientDiag: string;
+  glow: string;
+  dot: string;
+}
+
+export interface User {
+  id: number;
+  name: string;
+  avatar: string;
+  owner: Owner;
+}
+
+export interface Transaction {
+  id: number;
+  name: string;
+  payer: string;
+  amount: number;
+  date: string;
+  category: string;
+  emoji: string;
+}
+
+export interface BudgetCategory {
+  id: string;
+  name: string;
+  emoji: string;
+  current: number;
+  max: number;
+  owner: Owner;
+  gradientColors?: [string, string];
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  emoji: string;
+  current: number;
+  target: number;
+  deadline: string;
+  owner: Owner;
+}
+
+export interface BalanceData {
+  owner: Owner;
+  name: string;
+  avatar: string;
+  balance: number;
+  monthChange: number;
+  progress: number;
+  sparkline: number[];
+}
+
+export interface AnalyticsData {
+  periods: string[];
+  chartData: Record<Owner, number[]>;
+  months: string[];
+  topCategories: Array<{
+    emoji: string;
+    name: string;
+    amount: number;
+    pct: number;
+    color: string;
+  }>;
+  stats: Array<{
+    label: string;
+    value: string;
+    delta: string;
+    up: boolean;
+  }>;
+}
+
+// CATEGORIES constant (migrated from CategoryIcon.tsx)
+export const CATEGORIES = [
+  { id: 'restaurant', name: 'Restaurant', emoji: '🍽️', color: '#ff8c6b' },
+  { id: 'gastos', name: 'Gastos', emoji: '🛒', color: '#7cb5e8' },
+  { id: 'servicios', name: 'Servicios', emoji: '💡', color: '#c4a0e8' },
+  { id: 'ocio', name: 'Ocio', emoji: '🎉', color: '#e87ca0' },
+  { id: 'inversion', name: 'Inversión', emoji: '📈', color: '#a6c79c' },
+  { id: 'otros', name: 'Otros', emoji: '🦋', color: '#a89e94' },
+];
+
+export const NEU_SHADOW = {
+  xs: '2px 2px 5px #D4D7E3, -2px -2px 5px #FFFFFF',
+  sm: '2px 2px 6px #D4D7E3, -2px -2px 6px #FFFFFF',
+  md: '4px 4px 10px #D4D7E3, -4px -4px 10px #FFFFFF',
+  lg: '6px 6px 14px #D4D7E3, -6px -6px 14px #FFFFFF',
+};
+
+// OWNER_THEMES defined here (see Section 1)
+```
+
+## 7. HTML & PWA Updates (`index.html`)
+
+- **Remove:** Inter / DM Sans Google Font imports
+- **Add:** Fraunces, Outfit, JetBrains Mono Google Font imports
+- **Remove:** Inline SVG `<filter id="liquid-glass-filter">` block and all `liquid-glass` class references
+- **Update:** `<meta name="theme-color" content="#F0F1F7">` (match new light background)
+- **Service Worker:** Vite PWA plugin handles cache busting via content hashing. No special SW changes needed, but verify after migration that the SW update triggers correctly with new assets.
+
+## 8. Migration Checklist
 
 1. Install `lucide-react`
-2. Add Google Fonts to `index.html`
-3. Create `src/types/index.ts` with Owner, OwnerTheme, OWNER_THEMES, interfaces
-4. Rewrite `src/styles/global.css` with all new tokens and component classes
+2. Update `index.html`: new fonts, remove old fonts, remove liquid-glass SVG filter, update theme-color
+3. Create `src/types/index.ts` with all types, OWNER_THEMES, CATEGORIES, NEU_SHADOW
+4. Rewrite `src/styles/global.css` with all new tokens and component classes (retire all old variable names)
 5. Create new components: Button, InputField, NavItem, NumpadKey, CategoryPill, BalanceCard, BudgetCapsule, TransactionRow, GoalCard
 6. Rewrite Sidebar with Lucide icons and NavItem
-7. Rewrite BottomNav with 5 items and neumorphic style
+7. Rewrite BottomNav with 5 items, FAB center, neumorphic style
 8. Restyle existing components: DonutChart, SpendingTrend, ProfileAvatar, BottomSheet, AddExpenseSheet
-9. Rewrite views: Login, Dashboard, AddExpense, History, Settings
-10. Create new views: Analytics, Goals
-11. Update App.tsx routes
-12. Update main.tsx / index.html
-13. Delete deprecated components: CategoryIcon, ExpenseCard, BudgetBar, PersonalCard
-14. Run e2e tests to verify functionality
-15. Visual review of all pages
+9. Extract LoginPage and PinPage from `auth.tsx` into `views/Login.tsx` and `views/PinPage.tsx`
+10. Rewrite views: Dashboard, AddExpense, History, Settings
+11. Create new views: Analytics, Goals
+12. Update App.tsx routes (add /analytics, /goals; update Login/PinPage imports)
+13. Update main.tsx
+14. Delete deprecated components: CategoryIcon, ExpenseCard, BudgetBar, PersonalCard
+15. Update or rewrite `Sidebar.test.tsx` and any other broken tests
+16. Run e2e tests to verify functionality
+17. Visual review of all pages (desktop + mobile)
