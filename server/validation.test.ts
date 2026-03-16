@@ -116,8 +116,7 @@ describe('Validation Schemas', () => {
       total_budget: 2800,
       rent: 335,
       savings: 300,
-      personal_samuel: 500,
-      personal_maria: 500
+      personal_budget: 500
     };
 
     it('should validate correct budget', () => {
@@ -149,9 +148,8 @@ describe('Validation Schemas', () => {
         ...validBudget, 
         rent: 1000,
         savings: 1000,
-        personal_samuel: 500,
-        personal_maria: 500 
-      }; // Sum = 3000 > 2800
+        personal_budget: 900 
+      }; // Sum = 2900 > 2800
       expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
     });
 
@@ -160,8 +158,7 @@ describe('Validation Schemas', () => {
         ...validBudget, 
         rent: 800,
         savings: 800,
-        personal_samuel: 600,
-        personal_maria: 600 
+        personal_budget: 1200 
       }; // Sum = 2800
       expect(budgetUpdateSchema.safeParse(valid).success).toBe(true);
     });
@@ -172,14 +169,26 @@ describe('Validation Schemas', () => {
         total_budget: '2800',
         rent: '335',
         savings: '300',
-        personal_samuel: '500',
-        personal_maria: '500'
+        personal_budget: '500'
       };
       const result = budgetUpdateSchema.safeParse(withStrings);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.total_budget).toBe(2800);
       }
+    });
+
+    it('should accept the legacy full personal budget payload', () => {
+      const legacyBudget = {
+        month: '2024-12',
+        total_budget: 2800,
+        rent: 335,
+        savings: 300,
+        personal_samuel: 500,
+        personal_maria: 500,
+      };
+
+      expect(budgetUpdateSchema.safeParse(legacyBudget).success).toBe(true);
     });
   });
 });

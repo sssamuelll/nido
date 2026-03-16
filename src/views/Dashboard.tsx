@@ -7,15 +7,15 @@ import { BalanceCard } from '../components/BalanceCard';
 import { BudgetCapsule } from '../components/BudgetCapsule';
 import { TransactionRow } from '../components/TransactionRow';
 import { format } from 'date-fns';
-import { CATEGORIES, INDICATOR_COLORS, type Owner } from '../types';
+import { CATEGORIES, INDICATOR_COLORS } from '../types';
+import { getPersonalBalanceCardModel } from './privacy';
 
 interface DashboardData {
   budget: {
     total: number;
     rent: number;
     savings: number;
-    personalSamuel: number;
-    personalMaria: number;
+    personal: number;
     availableShared: number;
   };
   spending: {
@@ -24,8 +24,9 @@ interface DashboardData {
     remainingShared: number;
   };
   personal: {
-    samuel: { spent: number; budget: number };
-    maria: { spent: number; budget: number };
+    owner: 'samuel' | 'maria';
+    spent: number;
+    budget: number;
   };
   categoryBreakdown: Array<{
     category: string;
@@ -134,15 +135,7 @@ export const Dashboard: React.FC = () => {
     ? Math.round((totalSharedSpent / availableShared) * 100)
     : 0;
 
-  const samuelSpent = toNum(data?.personal?.samuel?.spent);
-  const samuelBudget = toNum(data?.personal?.samuel?.budget);
-  const samuelBalance = samuelBudget - samuelSpent;
-  const samuelProgress = samuelBudget > 0 ? Math.round((samuelSpent / samuelBudget) * 100) : 0;
-
-  const mariaSpent = toNum(data?.personal?.maria?.spent);
-  const mariaBudget = toNum(data?.personal?.maria?.budget);
-  const mariaBalance = mariaBudget - mariaSpent;
-  const mariaProgress = mariaBudget > 0 ? Math.round((mariaSpent / mariaBudget) * 100) : 0;
+  const personalCard = getPersonalBalanceCardModel(data);
 
   const userName = user?.username === 'maria' ? 'María' : 'Samuel';
   const greeting = `Hola, ${userName} 👋`;
@@ -196,22 +189,13 @@ export const Dashboard: React.FC = () => {
         {/* Balance Cards */}
         <div className="dashboard__balances">
           <BalanceCard
-            owner="samuel"
-            name="Samuel"
-            avatar="👨‍💻"
-            balance={samuelBalance}
-            monthChange={-samuelSpent}
-            progress={samuelProgress}
-            sparkline={[samuelBudget * 0.3, samuelBudget * 0.5, samuelBudget * 0.4, samuelBudget * 0.6, samuelBudget * 0.7, samuelSpent]}
-          />
-          <BalanceCard
-            owner="maria"
-            name="María"
-            avatar="👩‍🎨"
-            balance={mariaBalance}
-            monthChange={-mariaSpent}
-            progress={mariaProgress}
-            sparkline={[mariaBudget * 0.3, mariaBudget * 0.5, mariaBudget * 0.4, mariaBudget * 0.6, mariaBudget * 0.7, mariaSpent]}
+            owner={personalCard.owner}
+            name={personalCard.name}
+            avatar={personalCard.avatar}
+            balance={personalCard.balance}
+            monthChange={personalCard.monthChange}
+            progress={personalCard.progress}
+            sparkline={personalCard.sparkline}
           />
           <BalanceCard
             owner="shared"
