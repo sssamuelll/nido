@@ -9,6 +9,8 @@ import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
 import { AddExpense } from './views/AddExpense';
+import { Analytics } from './views/Analytics';
+import { Goals } from './views/Goals';
 import './styles/global.css';
 
 const AppRoutes: React.FC = () => {
@@ -53,6 +55,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/history" element={<History key={refreshKey} />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/add" element={<AddExpense />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/goals" element={<Goals />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
