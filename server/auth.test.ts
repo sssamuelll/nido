@@ -156,6 +156,42 @@ describe('Auth module', () => {
       });
       expect(options.body).not.toContain('create_user');
     });
+
+    it('surfaces Supabase rate limits explicitly', async () => {
+      (fetch as any).mockResolvedValue({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        json: vi.fn().mockResolvedValue({ code: 'over_email_send_rate_limit', msg: 'Rate limit hit' }),
+      });
+
+      const result = await sendMagicLink('samuel@example.com');
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'rate_limited',
+        status: 429,
+        error: 'Supabase rate limit reached. Please try again shortly.',
+      });
+    });
+
+    it('surfaces Supabase auth errors instead of a generic upstream failure', async () => {
+      (fetch as any).mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: vi.fn().mockResolvedValue({ msg: 'Email provider is disabled' }),
+      });
+
+      const result = await sendMagicLink('samuel@example.com');
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'auth',
+        status: 400,
+        error: 'Email provider is disabled',
+      });
+    });
   });
 
   describe('findOrCreateAppUserFromSupabase', () => {
@@ -167,8 +203,26 @@ describe('Auth module', () => {
 
       const result = await findOrCreateAppUserFromSupabase('access-token');
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ success: false, reason: 'forbidden' });
       expect(mockDb.get).not.toHaveBeenCalled();
+    });
+
+    it('surfaces invalid Supabase access tokens as auth errors', async () => {
+      (fetch as any).mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: vi.fn().mockResolvedValue({ msg: 'Invalid JWT' }),
+      });
+
+      const result = await findOrCreateAppUserFromSupabase('bad-access-token');
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'auth',
+        status: 401,
+        error: 'Invalid JWT',
+      });
     });
   });
 
