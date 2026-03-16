@@ -7,8 +7,7 @@ import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import './config.js'; // Validate environment first
-import './db.js'; // Initialize database
-import { getDatabase } from './db.js';
+import { getDatabase, initDatabase } from './db.js';
 import { login, authenticateToken, AuthRequest, verifyPin } from './auth.js';
 import expensesRouter from './routes/expenses.js';
 import budgetsRouter from './routes/budgets.js';
@@ -164,8 +163,19 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Nido server running on port ${port}`);
-  console.log(`📱 App: http://localhost:${port}`);
-  console.log(`🔌 API: http://localhost:${port}/api`);
-});
+const startServer = async () => {
+  try {
+    await initDatabase();
+
+    app.listen(port, () => {
+      console.log(`🚀 Nido server running on port ${port}`);
+      console.log(`📱 App: http://localhost:${port}`);
+      console.log(`🔌 API: http://localhost:${port}/api`);
+    });
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    process.exit(1);
+  }
+};
+
+void startServer();
