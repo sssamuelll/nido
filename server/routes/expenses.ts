@@ -9,6 +9,17 @@ import {
 } from '../validation.js';
 
 const router = Router();
+const visibleExpensesWhere = `
+  date LIKE ?
+  AND (
+    type = 'shared'
+    OR paid_by_user_id = ?
+    OR (paid_by_user_id IS NULL AND paid_by = ?)
+  )
+`;
+
+const getPersonalBudgetForUser = (budget: any, username: string) =>
+  username === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 // Get expenses for a specific month
 router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
@@ -18,9 +29,9 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
     const db = getDatabase();
     const expenses = await db.all(`
       SELECT * FROM expenses 
-      WHERE date LIKE ? 
+      WHERE ${visibleExpensesWhere}
       ORDER BY date DESC, created_at DESC
-    `, `${month}%`);
+    `, `${month}%`, req.user!.id, req.user!.username);
 
     res.json(expenses);
   } catch (error) {
@@ -134,8 +145,13 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     // Calculate available for shared expenses
     const availableShared = budget.total_budget - budget.rent - budget.savings - budget.personal_samuel - budget.personal_maria;
 
-    // Get expenses for the month
-    const expenses = await db.all('SELECT * FROM expenses WHERE date LIKE ?', `${month}%`);
+    // Get expenses visible to the current user for the month
+    const expenses = await db.all(
+      `SELECT * FROM expenses WHERE ${visibleExpensesWhere}`,
+      `${month}%`,
+      req.user!.id,
+      req.user!.username
+    );
 
     // Calculate totals
     const totalSpent = expenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
@@ -177,21 +193,18 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5);
 
-    // Personal spending
-    const samuelPersonal = expenses
-      .filter((exp: any) => exp.paid_by === 'samuel' && exp.type === 'personal')
+    // Personal spending visible to the current user
+    const personalSpent = expenses
+      .filter((exp: any) => exp.paid_by === req.user!.username && exp.type === 'personal')
       .reduce((sum: number, exp: any) => sum + exp.amount, 0);
-    const mariaPersonal = expenses
-      .filter((exp: any) => exp.paid_by === 'maria' && exp.type === 'personal')
-      .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+    const personalBudget = getPersonalBudgetForUser(budget, req.user!.username);
 
     res.json({
       budget: {
         total: budget.total_budget,
         rent: budget.rent,
         savings: budget.savings,
-        personalSamuel: budget.personal_samuel,
-        personalMaria: budget.personal_maria,
+        personal: personalBudget,
         availableShared
       },
       spending: {
@@ -200,8 +213,9 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
         remainingShared: availableShared - totalSharedSpent
       },
       personal: {
-        samuel: { spent: samuelPersonal, budget: budget.personal_samuel },
-        maria: { spent: mariaPersonal, budget: budget.personal_maria }
+        owner: req.user!.username,
+        spent: personalSpent,
+        budget: personalBudget
       },
       categoryBreakdown,
       recentTransactions

@@ -3,14 +3,14 @@ import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { CATEGORIES } from '../types';
+import { toVisibleBudgetFormData } from './privacy';
 
 interface BudgetData {
   month: string;
   total_budget: number;
   rent: number;
   savings: number;
-  personal_samuel: number;
-  personal_maria: number;
+  personal_budget: number;
   categories: Record<string, number>;
 }
 
@@ -22,8 +22,7 @@ export const Settings: React.FC = () => {
     total_budget: 2800,
     rent: 335,
     savings: 300,
-    personal_samuel: 500,
-    personal_maria: 500,
+    personal_budget: 500,
     categories: {}
   });
 
@@ -48,15 +47,7 @@ export const Settings: React.FC = () => {
     try {
       setLoading(true);
       const data = await Api.getBudget(currentMonth);
-      setBudget({
-        month: currentMonth,
-        total_budget: Number(data?.total_budget ?? 2800),
-        rent: Number(data?.rent ?? 335),
-        savings: Number(data?.savings ?? 300),
-        personal_samuel: Number(data?.personal_samuel ?? 500),
-        personal_maria: Number(data?.personal_maria ?? 500),
-        categories: (data?.categories && typeof data.categories === 'object') ? data.categories : {}
-      });
+      setBudget(toVisibleBudgetFormData(data, currentMonth));
     } catch {
       setToast({ type: 'error', msg: 'Error al cargar presupuesto' });
     } finally {
@@ -114,7 +105,7 @@ export const Settings: React.FC = () => {
     });
   };
 
-  const available = budget.total_budget - budget.rent - budget.savings - budget.personal_samuel - budget.personal_maria;
+  const available = budget.total_budget - budget.rent - budget.savings - budget.personal_budget;
 
   const navigateMonth = (dir: -1 | 1) => {
     const [y, m] = currentMonth.split('-').map(Number);
@@ -257,8 +248,7 @@ export const Settings: React.FC = () => {
                   { key: 'total_budget', label: 'Total', desc: 'Presupuesto mensual total' },
                   { key: 'rent', label: 'Alquiler', desc: 'Gasto fijo mensual' },
                   { key: 'savings', label: 'Ahorros', desc: 'Meta de ahorro mensual' },
-                  { key: 'personal_samuel', label: 'Samuel personal', desc: 'Gastos personales Samuel' },
-                  { key: 'personal_maria', label: 'María personal', desc: 'Gastos personales María' },
+                  { key: 'personal_budget', label: `${userName} personal`, desc: 'Tu presupuesto personal mensual' },
                 ].map(({ key, label, desc }) => (
                   <div key={key} className="settings__row">
                     <div>
