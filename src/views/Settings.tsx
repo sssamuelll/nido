@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
+import { CATEGORIES } from '../types';
 
 interface BudgetData {
   month: string;
@@ -31,6 +32,8 @@ export const Settings: React.FC = () => {
   const [pinLoading, setPinLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [notifEnabled, setNotifEnabled] = useState(true);
+  const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(false);
 
   useEffect(() => { loadBudget(); }, [currentMonth]);
 
@@ -61,7 +64,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (budget.total_budget <= 0) {
       setToast({ type: 'error', msg: 'Total debe ser mayor a 0' });
@@ -84,7 +87,6 @@ export const Settings: React.FC = () => {
       setToast({ type: 'error', msg: 'El PIN debe ser de 4 dígitos' });
       return;
     }
-
     try {
       setPinLoading(true);
       await Api.updatePin(newPin);
@@ -148,174 +150,384 @@ export const Settings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="main-content">
-          <div className="skeleton-loader">
-            <div className="skeleton-block skeleton-header" />
-            <div className="skeleton-block skeleton-card" />
+      <div className="app-layout">
+        <div className="content-area">
+          <div className="skeleton" style={{ height: 60 }} />
+          <div style={{ display: 'flex', gap: 36 }}>
+            <div className="skeleton" style={{ flex: 1, height: 400 }} />
+            <div className="skeleton" style={{ width: 420, height: 400 }} />
           </div>
         </div>
       </div>
     );
   }
 
+  const userName = user?.username === 'maria' ? 'María' : 'Samuel';
+  const userInitials = user?.username === 'maria' ? 'MA' : 'SD';
+  const userColor = user?.username === 'maria' ? 'var(--color-maria)' : 'var(--color-samuel)';
+
   return (
-    <div className="page-container fade-in">
-      <div className="main-content">
+    <div className="app-layout">
+      <div className="content-area">
         {/* Toast */}
         {toast && (
-          <div className={`toast toast-${toast.type}`}>
+          <div style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            zIndex: 1000,
+            background: toast.type === 'success' ? 'var(--color-samuel)' : 'var(--color-danger)',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: 'var(--radius-md)',
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+            fontWeight: 500,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          }}>
             {toast.msg}
           </div>
         )}
 
-        <div className="dashboard-header">
-          <div>
-            <div className="dashboard-greeting" style={{ fontSize: '1.25rem' }}>Configuración</div>
-          </div>
+        {/* Header */}
+        <div className="settings__header">
+          <div className="settings__subtitle">Gestión</div>
+          <div className="settings__title">Configuración</div>
         </div>
 
-        {/* General Budget */}
-        <div className="card liquid-glass">
-          <div className="card-header">
-            <h2 className="card-title">Presupuesto General</h2>
-            <div className="month-nav" style={{ gap: '0.25rem' }}>
-              <button className="month-nav-btn" onClick={() => navigateMonth(-1)} style={{ width: 28, height: 28, fontSize: '1rem' }}>‹</button>
-              <span className="text-sm text-secondary" style={{ padding: '0 0.25rem' }}>{formatMonthName(currentMonth)}</span>
-              <button className="month-nav-btn" onClick={() => navigateMonth(1)} style={{ width: 28, height: 28, fontSize: '1rem' }}>›</button>
-            </div>
-          </div>
+        <div className="settings__columns">
+          {/* Left column */}
+          <div className="settings__col-left">
 
-          <form onSubmit={handleSave}>
-            <div className="settings-grid">
-              <div className="settings-field">
-                <label className="settings-label">Total</label>
-                <div className="settings-input-wrap">
-                  <span className="settings-input-prefix">€</span>
-                  <input type="number" step="0.01" className="settings-input" value={budget.total_budget}
-                    onChange={(e) => updateField('total_budget', e.target.value)} disabled={saving} />
+            {/* Profile card */}
+            <div className="settings__card">
+              <div className="settings__card-title">Perfil</div>
+              <div className="settings__row">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: `linear-gradient(225deg, ${userColor}, ${userColor}80)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
+                      {userInitials}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="settings__row-label">{userName}</div>
+                    <div className="settings__row-desc">{user?.username}@nido.app</div>
+                  </div>
                 </div>
               </div>
-              <div className="settings-field">
-                <label className="settings-label">Alquiler</label>
-                <div className="settings-input-wrap">
-                  <span className="settings-input-prefix">€</span>
-                  <input type="number" step="0.01" className="settings-input" value={budget.rent}
-                    onChange={(e) => updateField('rent', e.target.value)} disabled={saving} />
+              <div className="settings__row" style={{ borderBottom: 'none' }}>
+                <div>
+                  <div className="settings__row-label">Idioma</div>
+                  <div className="settings__row-desc">Español</div>
                 </div>
-              </div>
-              <div className="settings-field">
-                <label className="settings-label">Ahorros</label>
-                <div className="settings-input-wrap">
-                  <span className="settings-input-prefix">€</span>
-                  <input type="number" step="0.01" className="settings-input" value={budget.savings}
-                    onChange={(e) => updateField('savings', e.target.value)} disabled={saving} />
-                </div>
-              </div>
-              <div className="settings-field">
-                <label className="settings-label">Samuel</label>
-                <div className="settings-input-wrap">
-                  <span className="settings-input-prefix">€</span>
-                  <input type="number" step="0.01" className="settings-input" value={budget.personal_samuel}
-                    onChange={(e) => updateField('personal_samuel', e.target.value)} disabled={saving} />
-                </div>
-              </div>
-              <div className="settings-field">
-                <label className="settings-label">María</label>
-                <div className="settings-input-wrap">
-                  <span className="settings-input-prefix">€</span>
-                  <input type="number" step="0.01" className="settings-input" value={budget.personal_maria}
-                    onChange={(e) => updateField('personal_maria', e.target.value)} disabled={saving} />
-                </div>
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-tertiary)' }}>🇪🇸</span>
               </div>
             </div>
 
-            <div className="settings-available">
-              <span>Disponible compartido</span>
-              <span className={`font-bold ${available >= 0 ? 'text-success' : 'text-error'}`}>
-                €{available.toFixed(2)}
-              </span>
+            {/* Budget General card */}
+            <div className="settings__card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 4px' }}>
+                <span className="settings__card-title" style={{ padding: 0 }}>Presupuesto General</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={() => navigateMonth(-1)}
+                    style={{ width: 28, height: 28, background: 'var(--color-bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    ‹
+                  </button>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-secondary)', minWidth: 70, textAlign: 'center' }}>
+                    {formatMonthName(currentMonth)}
+                  </span>
+                  <button
+                    onClick={() => navigateMonth(1)}
+                    style={{ width: 28, height: 28, background: 'var(--color-bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+              <form onSubmit={handleSave}>
+                {[
+                  { key: 'total_budget', label: 'Total', desc: 'Presupuesto mensual total' },
+                  { key: 'rent', label: 'Alquiler', desc: 'Gasto fijo mensual' },
+                  { key: 'savings', label: 'Ahorros', desc: 'Meta de ahorro mensual' },
+                  { key: 'personal_samuel', label: 'Samuel personal', desc: 'Gastos personales Samuel' },
+                  { key: 'personal_maria', label: 'María personal', desc: 'Gastos personales María' },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="settings__row">
+                    <div>
+                      <div className="settings__row-label">{label}</div>
+                      <div className="settings__row-desc">{desc}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-tertiary)' }}>€</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={(budget as any)[key]}
+                        onChange={e => updateField(key as keyof BudgetData, e.target.value)}
+                        disabled={saving}
+                        style={{
+                          width: 90,
+                          padding: '6px 10px',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'var(--color-bg)',
+                          boxShadow: 'var(--shadow-neu-xs)',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 13,
+                          color: 'var(--color-text-primary)',
+                          textAlign: 'right',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div className="settings__row" style={{ borderBottom: 'none' }}>
+                  <div>
+                    <div className="settings__row-label">Disponible compartido</div>
+                    <div className="settings__row-desc">Calculado automáticamente</div>
+                  </div>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: available >= 0 ? 'var(--color-samuel)' : 'var(--color-danger)',
+                  }}>
+                    €{available.toFixed(2)}
+                  </span>
+                </div>
+                <div style={{ padding: '12px 24px 20px' }}>
+                  <button
+                    type="submit"
+                    className="btn btn--samuel btn--full"
+                    disabled={saving}
+                    style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
+                  >
+                    {saving ? 'Guardando...' : 'Guardar presupuesto'}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: '100%' }}>
-              {saving ? 'Guardando...' : 'Guardar presupuesto'}
-            </button>
-          </form>
-        </div>
+            {/* Category Budgets card */}
+            <div className="settings__card">
+              <div className="settings__card-title">Límites por Categoría</div>
+              {CATEGORIES.map(cat => (
+                <div key={cat.id} className="settings__row">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{cat.emoji}</span>
+                    <div className="settings__row-label">{cat.name}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-tertiary)' }}>€</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={budget.categories[cat.id] || 0}
+                      onChange={e => updateCategoryBudget(cat.id, e.target.value)}
+                      disabled={saving}
+                      style={{
+                        width: 90,
+                        padding: '6px 10px',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--color-bg)',
+                        boxShadow: 'var(--shadow-neu-xs)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        color: 'var(--color-text-primary)',
+                        textAlign: 'right',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              <div style={{ padding: '12px 24px 20px' }}>
+                <button
+                  onClick={() => handleSave()}
+                  className="btn btn--shared btn--full"
+                  disabled={saving}
+                  style={{ '--btn-gradient': 'linear-gradient(180deg, #7cb5e8, #5a9ecc)', '--btn-glow': 'rgba(124,181,232,0.25)' } as React.CSSProperties}
+                >
+                  {saving ? 'Guardando...' : 'Guardar límites'}
+                </button>
+              </div>
+            </div>
 
-        {/* Category Budgets */}
-        <div className="card liquid-glass">
-          <div className="card-header">
-            <h2 className="card-title">Límites por Categoría</h2>
-          </div>
-          <div className="settings-grid">
-            {['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'].map(cat => (
-              <div key={cat} className="settings-field">
-                <label className="settings-label">{cat}</label>
-                <div className="settings-input-wrap">
-                  <span className="settings-input-prefix">€</span>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    className="settings-input" 
-                    value={budget.categories[cat] || 0}
-                    onChange={(e) => updateCategoryBudget(cat, e.target.value)}
-                    disabled={saving} 
+            {/* Notifications card */}
+            <div className="settings__card">
+              <div className="settings__card-title">Notificaciones</div>
+              <div className="settings__row">
+                <div>
+                  <div className="settings__row-label">Alertas de gasto</div>
+                  <div className="settings__row-desc">Recibe alertas cuando superes el presupuesto</div>
+                </div>
+                <button
+                  className="settings__toggle"
+                  onClick={() => setNotifEnabled(!notifEnabled)}
+                  style={{ background: notifEnabled ? 'var(--color-samuel)' : 'var(--color-divider)' }}
+                >
+                  <div
+                    className="settings__toggle-knob"
+                    style={{ left: notifEnabled ? 22 : 2 }}
                   />
+                </button>
+              </div>
+              <div className="settings__row" style={{ borderBottom: 'none' }}>
+                <div>
+                  <div className="settings__row-label">Resumen semanal</div>
+                  <div className="settings__row-desc">Informe de gastos cada lunes</div>
                 </div>
+                <button
+                  className="settings__toggle"
+                  onClick={() => setWeeklyReportEnabled(!weeklyReportEnabled)}
+                  style={{ background: weeklyReportEnabled ? 'var(--color-samuel)' : 'var(--color-divider)' }}
+                >
+                  <div
+                    className="settings__toggle-knob"
+                    style={{ left: weeklyReportEnabled ? 22 : 2 }}
+                  />
+                </button>
               </div>
-            ))}
-          </div>
-          <button onClick={() => handleSave(null as any)} className="btn btn-secondary mt-4" disabled={saving} style={{ width: '100%' }}>
-            {saving ? 'Guardando...' : 'Guardar límites'}
-          </button>
-        </div>
-
-        {/* Security / PIN */}
-        <div className="card liquid-glass">
-          <div className="card-header">
-            <h2 className="card-title">Seguridad</h2>
-          </div>
-          <form onSubmit={handlePinSave}>
-            <div className="settings-field">
-              <label className="settings-label">Nuevo PIN de acceso</label>
-              <div className="settings-input-wrap">
-                <span className="settings-input-prefix">🔢</span>
-                <input 
-                  type="password" 
-                  maxLength={4} 
-                  inputMode="numeric"
-                  className="settings-input" 
-                  placeholder="****"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  disabled={pinLoading}
-                />
-              </div>
-              <p className="text-xs text-secondary mt-1">PIN de 4 dígitos para acceso rápido</p>
             </div>
-            <button type="submit" className="btn btn-secondary" disabled={pinLoading || newPin.length !== 4} style={{ width: '100%', marginTop: '0.5rem' }}>
-              {pinLoading ? 'Cambiando...' : 'Cambiar PIN'}
-            </button>
-          </form>
-        </div>
+          </div>
 
-        {/* Quick Actions */}
-        <div className="settings-actions">
-          <button onClick={exportToCSV} className="settings-action-btn">
-            <span>📥</span>
-            <span>Exportar CSV</span>
-          </button>
-          <button onClick={() => logout()} className="settings-action-btn settings-action-danger">
-            <span>👋</span>
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
+          {/* Right column */}
+          <div className="settings__col-right">
 
-        {/* About */}
-        <div className="settings-footer">
-          <div>🏠 Nido v1.0</div>
-          <div>Hecho con ❤️ para Samuel y María</div>
+            {/* Partner card */}
+            <div className="settings__card">
+              <div className="settings__card-title">Pareja</div>
+              <div className="settings__row">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: user?.username === 'maria'
+                      ? 'linear-gradient(225deg, #8bdc6b, #6bc98b)'
+                      : 'linear-gradient(225deg, #ff8c6b, #e87c7c)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
+                      {user?.username === 'maria' ? 'SD' : 'MA'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="settings__row-label">
+                      {user?.username === 'maria' ? 'Samuel' : 'María'}
+                    </div>
+                    <div className="settings__row-desc">Cuenta vinculada</div>
+                  </div>
+                </div>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-samuel)', display: 'inline-block' }} />
+              </div>
+              <div className="settings__row" style={{ borderBottom: 'none' }}>
+                <div className="settings__row-label">Estado</div>
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-samuel)', fontWeight: 500 }}>
+                  Conectado
+                </span>
+              </div>
+            </div>
+
+            {/* PIN management */}
+            <div className="settings__card">
+              <div className="settings__card-title">Seguridad</div>
+              <form onSubmit={handlePinSave}>
+                <div className="settings__row">
+                  <div>
+                    <div className="settings__row-label">Nuevo PIN de acceso</div>
+                    <div className="settings__row-desc">PIN de 4 dígitos para acceso rápido</div>
+                  </div>
+                </div>
+                <div style={{ padding: '0 24px 16px', display: 'flex', gap: 8 }}>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    inputMode="numeric"
+                    placeholder="••••"
+                    value={newPin}
+                    onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    disabled={pinLoading}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-bg)',
+                      boxShadow: 'var(--shadow-neu-sm)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 20,
+                      letterSpacing: 6,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn--samuel btn--sm"
+                    disabled={pinLoading || newPin.length !== 4}
+                    style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
+                  >
+                    {pinLoading ? '...' : 'Cambiar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Data export */}
+            <div className="settings__card">
+              <div className="settings__card-title">Datos</div>
+              <div className="settings__row" style={{ borderBottom: 'none' }}>
+                <div>
+                  <div className="settings__row-label">Exportar CSV</div>
+                  <div className="settings__row-desc">Descarga tus gastos de {formatMonthName(currentMonth)}</div>
+                </div>
+                <button
+                  onClick={exportToCSV}
+                  className="btn btn--shared btn--sm"
+                  style={{ '--btn-gradient': 'linear-gradient(180deg, #7cb5e8, #5a9ecc)', '--btn-glow': 'rgba(124,181,232,0.25)' } as React.CSSProperties}
+                >
+                  📥 Exportar
+                </button>
+              </div>
+            </div>
+
+            {/* Danger zone */}
+            <div className="settings__danger-zone">
+              <div className="settings__danger-title">Zona de peligro</div>
+              <div className="settings__danger-text">
+                Estas acciones son permanentes y no se pueden deshacer. Procede con cuidado.
+              </div>
+              <div className="settings__danger-actions">
+                <button className="settings__danger-btn settings__danger-btn--outline">
+                  Borrar datos
+                </button>
+                <button
+                  className="settings__danger-btn settings__danger-btn--solid"
+                  onClick={() => logout()}
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ textAlign: 'center', padding: '8px 0', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+              🏠 Nido v1.0 · Hecho con ❤️ para Samuel y María
+            </div>
+          </div>
         </div>
       </div>
     </div>
