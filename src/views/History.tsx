@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Api } from '../api';
-import { ExpenseCard } from '../components/ExpenseCard';
+import { CategoryPill } from '../components/CategoryPill';
+import { TransactionRow } from '../components/TransactionRow';
 import { format } from 'date-fns';
+import { CATEGORIES, INDICATOR_COLORS } from '../types';
 
 interface Expense {
   id: number;
@@ -15,15 +17,15 @@ interface Expense {
   created_at: string;
 }
 
-const FILTER_CATEGORIES = [
-  { id: '', label: 'Todas' },
-  { id: 'Restaurant', label: '🍽️' },
-  { id: 'Gastos', label: '🛒' },
-  { id: 'Servicios', label: '💡' },
-  { id: 'Ocio', label: '🎉' },
-  { id: 'Inversión', label: '📈' },
-  { id: 'Otros', label: '📦' },
+const ALL_CATEGORY_PILLS = [
+  { id: '', emoji: '✨', name: 'Todas' },
+  ...CATEGORIES,
 ];
+
+const getCategoryEmoji = (categoryId: string): string => {
+  const cat = CATEGORIES.find(c => c.id === categoryId);
+  return cat ? cat.emoji : '🦋';
+};
 
 export const History: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
@@ -61,7 +63,9 @@ export const History: React.FC = () => {
     try {
       await Api.deleteExpense(id);
       setExpenses(expenses.filter(e => e.id !== id));
-    } catch { alert('Error al eliminar'); }
+    } catch {
+      alert('Error al eliminar');
+    }
   };
 
   const navigateMonth = (dir: -1 | 1) => {
@@ -77,7 +81,21 @@ export const History: React.FC = () => {
     return `${months[parseInt(month) - 1]} ${year}`;
   };
 
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const today = new Date();
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+    if (dateStr === todayStr) return 'Hoy';
+    if (dateStr === yesterdayStr) return 'Ayer';
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return `${days[d.getDay()]} ${d.getDate()}`;
+  };
+
   const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
+  const average = filteredExpenses.length > 0 ? total / filteredExpenses.length : 0;
   const hasFilters = !!(filters.category || filters.paid_by || filters.type);
 
   // Group by date
@@ -87,26 +105,16 @@ export const History: React.FC = () => {
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr + 'T12:00:00');
-    const today = new Date();
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
-    if (dateStr === todayStr) return 'Hoy';
-    if (dateStr === yesterdayStr) return 'Ayer';
-    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    return `${days[d.getDay()]} ${d.getDate()}`;
-  };
-
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="main-content">
-          <div className="skeleton-loader">
-            <div className="skeleton-block skeleton-header" />
-            <div className="skeleton-block skeleton-card-sm" />
-            <div className="skeleton-block skeleton-card" />
+      <div className="app-layout">
+        <div className="content-area">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="skeleton" style={{ height: 60 }} />
+            <div className="skeleton" style={{ height: 48 }} />
+            <div className="skeleton" style={{ height: 56 }} />
+            <div className="skeleton" style={{ height: 56 }} />
+            <div className="skeleton" style={{ height: 56 }} />
           </div>
         </div>
       </div>
@@ -114,115 +122,155 @@ export const History: React.FC = () => {
   }
 
   return (
-    <div className="page-container fade-in">
-      <div className="main-content">
-        {/* Header */}
-        <div className="dashboard-header">
+    <div className="app-layout">
+      <div className="content-area">
+        {/* Page header */}
+        <div className="dashboard__header">
           <div>
-            <div className="dashboard-greeting" style={{ fontSize: '1.25rem' }}>Historial</div>
-            <div className="dashboard-subtitle">{formatMonthName(currentMonth)}</div>
+            <div className="page-subtitle">Finanzas</div>
+            <div className="page-title">Historial</div>
           </div>
-          <div className="month-nav">
-            <button className="month-nav-btn" onClick={() => navigateMonth(-1)}>‹</button>
-            <button className="month-nav-btn" onClick={() => navigateMonth(1)}>›</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="dashboard__notification-btn"
+              onClick={() => navigateMonth(-1)}
+              style={{ fontSize: 18, fontWeight: 600 }}
+            >
+              ‹
+            </button>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-text-secondary)', minWidth: 90, textAlign: 'center' }}>
+              {formatMonthName(currentMonth)}
+            </span>
+            <button
+              className="dashboard__notification-btn"
+              onClick={() => navigateMonth(1)}
+              style={{ fontSize: 18, fontWeight: 600 }}
+            >
+              ›
+            </button>
           </div>
         </div>
 
         {/* Summary pills */}
-        <div className="history-summary">
-          <div className="summary-pill">
-            <span className="summary-pill-value">{filteredExpenses.length}</span>
-            <span className="summary-pill-label">gastos</span>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '16px 20px', boxShadow: 'var(--shadow-neu)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-secondary)' }}>Gastos</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--color-text-primary)' }}>{filteredExpenses.length}</span>
           </div>
-          <div className="summary-pill summary-pill-accent">
-            <span className="summary-pill-value">€{total.toFixed(2)}</span>
-            <span className="summary-pill-label">total</span>
+          <div style={{ flex: 1, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '16px 20px', boxShadow: 'var(--shadow-neu)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-secondary)' }}>Total</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--color-text-primary)' }}>€{total.toFixed(2)}</span>
           </div>
           {filteredExpenses.length > 0 && (
-            <div className="summary-pill">
-              <span className="summary-pill-value">€{(total / filteredExpenses.length).toFixed(0)}</span>
-              <span className="summary-pill-label">media</span>
+            <div style={{ flex: 1, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '16px 20px', boxShadow: 'var(--shadow-neu)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-secondary)' }}>Media</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--color-text-primary)' }}>€{average.toFixed(0)}</span>
             </div>
           )}
         </div>
 
-        {/* Filter chips */}
-        <div className="filter-row">
-          <div className="filter-chips">
-            {FILTER_CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                className={`filter-chip ${filters.category === cat.id ? 'active' : ''}`}
-                onClick={() => setFilters({ ...filters, category: cat.id })}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-          <div className="filter-chips">
-            <button
-              className={`filter-chip ${filters.paid_by === '' ? 'active' : ''}`}
-              onClick={() => setFilters({ ...filters, paid_by: '' })}
-            >Ambos</button>
-            <button
-              className={`filter-chip ${filters.paid_by === 'samuel' ? 'active' : ''}`}
-              onClick={() => setFilters({ ...filters, paid_by: 'samuel' })}
-            >👨‍💻</button>
-            <button
-              className={`filter-chip ${filters.paid_by === 'maria' ? 'active' : ''}`}
-              onClick={() => setFilters({ ...filters, paid_by: 'maria' })}
-            >👩‍🎨</button>
-            <span className="filter-divider" />
-            <button
-              className={`filter-chip ${filters.type === '' ? 'active' : ''}`}
-              onClick={() => setFilters({ ...filters, type: '' })}
-            >Todo</button>
-            <button
-              className={`filter-chip ${filters.type === 'shared' ? 'active' : ''}`}
-              onClick={() => setFilters({ ...filters, type: 'shared' })}
-            >💑</button>
-            <button
-              className={`filter-chip ${filters.type === 'personal' ? 'active' : ''}`}
-              onClick={() => setFilters({ ...filters, type: 'personal' })}
-            >👤</button>
-          </div>
+        {/* Category filter pills */}
+        <div className="history__filters">
+          {ALL_CATEGORY_PILLS.map(cat => (
+            <CategoryPill
+              key={cat.id}
+              emoji={cat.emoji}
+              name={cat.name}
+              active={filters.category === cat.id}
+              onClick={() => setFilters({ ...filters, category: cat.id })}
+            />
+          ))}
         </div>
 
+        {/* Paid-by and type filters */}
+        <div className="history__filters">
+          <CategoryPill
+            emoji="👥"
+            name="Ambos"
+            active={filters.paid_by === ''}
+            onClick={() => setFilters({ ...filters, paid_by: '' })}
+          />
+          <CategoryPill
+            emoji="👨‍💻"
+            name="Samuel"
+            active={filters.paid_by === 'samuel'}
+            onClick={() => setFilters({ ...filters, paid_by: 'samuel' })}
+          />
+          <CategoryPill
+            emoji="👩‍🎨"
+            name="María"
+            active={filters.paid_by === 'maria'}
+            onClick={() => setFilters({ ...filters, paid_by: 'maria' })}
+          />
+          <div style={{ width: 1, background: 'var(--color-divider)', margin: '0 4px', alignSelf: 'stretch' }} />
+          <CategoryPill
+            emoji="🌐"
+            name="Todo"
+            active={filters.type === ''}
+            onClick={() => setFilters({ ...filters, type: '' })}
+          />
+          <CategoryPill
+            emoji="💑"
+            name="Compartido"
+            active={filters.type === 'shared'}
+            onClick={() => setFilters({ ...filters, type: 'shared' })}
+          />
+          <CategoryPill
+            emoji="👤"
+            name="Personal"
+            active={filters.type === 'personal'}
+            onClick={() => setFilters({ ...filters, type: 'personal' })}
+          />
+        </div>
+
+        {/* Error state */}
         {error && (
-          <div className="card text-center">
-            <div className="text-error">{error}</div>
-            <button onClick={loadExpenses} className="btn btn-secondary mt-2">Reintentar</button>
+          <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '20px', boxShadow: 'var(--shadow-neu)', textAlign: 'center' }}>
+            <div style={{ color: 'var(--color-danger)', marginBottom: 12 }}>{error}</div>
+            <button
+              onClick={loadExpenses}
+              className="btn btn--samuel btn--sm"
+              style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
+            >
+              Reintentar
+            </button>
           </div>
         )}
 
         {/* Grouped expenses */}
         {filteredExpenses.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">{hasFilters ? '🔍' : '📭'}</div>
-            <div className="empty-state-text">
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--color-text-tertiary)' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>{hasFilters ? '🔍' : '📭'}</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 14 }}>
               {hasFilters ? 'Sin resultados para estos filtros' : 'No hay gastos este mes'}
             </div>
           </div>
         ) : (
-          sortedDates.map(date => (
-            <div key={date} className="date-group">
-              <div className="date-group-header">
-                <span className="date-group-label">{formatDateLabel(date)}</span>
-                <span className="date-group-total">
-                  €{grouped[date].reduce((s, e) => s + e.amount, 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="expense-list">
+          <div className="history__list">
+            {sortedDates.map(date => (
+              <div key={date}>
+                <div className="history__date-group">
+                  {formatDateLabel(date)}
+                  <span style={{ float: 'right', fontWeight: 400, color: 'var(--color-text-tertiary)', letterSpacing: 0, textTransform: 'none', fontSize: 11 }}>
+                    €{grouped[date].reduce((s, e) => s + e.amount, 0).toFixed(2)}
+                  </span>
+                </div>
                 {grouped[date].map(expense => (
-                  <ExpenseCard
+                  <TransactionRow
                     key={expense.id}
-                    expense={expense}
+                    emoji={getCategoryEmoji(expense.category)}
+                    name={expense.description}
+                    payer={expense.paid_by}
+                    amount={`-€${expense.amount.toFixed(2)}`}
+                    date={expense.category}
+                    indicatorColor={INDICATOR_COLORS[expense.paid_by] ?? INDICATOR_COLORS['shared']}
+                    isPositive={false}
                     onDelete={() => handleDelete(expense.id)}
                   />
                 ))}
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
