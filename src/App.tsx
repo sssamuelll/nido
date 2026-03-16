@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth, LoginPage, PinPage } from './auth';
+import { AuthProvider, useAuth } from './auth';
+import { Login } from './views/Login';
+import { PinPage } from './views/PinPage';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
 import { AddExpense } from './views/AddExpense';
+import { Analytics } from './views/Analytics';
+import { Goals } from './views/Goals';
 import './styles/global.css';
 
 const AppRoutes: React.FC = () => {
@@ -25,19 +29,15 @@ const AppRoutes: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="login-container">
-        <div className="login-card">
-          <div className="text-center">
-            <h1 className="login-title">🏠 Nido</h1>
-            <div>Cargando...</div>
-          </div>
-        </div>
+      <div className="loading-screen">
+        <div className="loading-screen__logo"><span>N</span></div>
+        <div className="loading-screen__text">Cargando...</div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return <Login />;
   }
 
   if (isLocked) {
@@ -55,6 +55,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/history" element={<History key={refreshKey} />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/add" element={<AddExpense />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/goals" element={<Goals />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

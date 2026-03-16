@@ -30,6 +30,7 @@
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.577.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
@@ -38,6 +39,9 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.0.0",
     "@types/bcryptjs": "^2.4.2",
     "@types/better-sqlite3": "^7.6.8",
     "@types/cookie-parser": "^1.4.10",
@@ -51,9 +55,6 @@
     "@types/react-dom": "^18.0.9",
     "@types/supertest": "^2.0.12",
     "@vitejs/plugin-react": "^3.1.0",
-    "@testing-library/jest-dom": "^6.0.0",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/user-event": "^14.0.0",
     "@vitest/ui": "^1.6.0",
     "concurrently": "^7.6.0",
     "happy-dom": "^8.0.0",

@@ -1,28 +1,49 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { House, ChartNoAxesColumn, Plus, Target, Settings } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="bottom-nav liquid-glass">
-      <div className="nav-container">
-        <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`}>
-          <div className="nav-icon">🏠</div>
-          <div className="nav-label">Inicio</div>
-        </Link>
+    <nav className="bottom-nav">
+      <button
+        className={`bottom-nav__item ${isActive('/') ? 'bottom-nav__item--active' : ''}`}
+        onClick={() => navigate('/')}
+      >
+        <House size={22} />
+        <span className="bottom-nav__item-label">Inicio</span>
+      </button>
 
-        <Link to="/history" className={`nav-item ${isActive('/history') ? 'active' : ''}`}>
-          <div className="nav-icon">📋</div>
-          <div className="nav-label">Historial</div>
-        </Link>
+      <button
+        className={`bottom-nav__item ${isActive('/analytics') ? 'bottom-nav__item--active' : ''}`}
+        onClick={() => navigate('/analytics')}
+      >
+        <ChartNoAxesColumn size={22} />
+        <span className="bottom-nav__item-label">Analíticas</span>
+      </button>
 
-        <Link to="/settings" className={`nav-item ${isActive('/settings') ? 'active' : ''}`}>
-          <div className="nav-icon">⚙️</div>
-          <div className="nav-label">Config</div>
-        </Link>
-      </div>
+      <button className="bottom-nav__fab" onClick={() => navigate('/add')}>
+        <Plus size={24} color="#FFFFFF" />
+      </button>
+
+      <button
+        className={`bottom-nav__item ${isActive('/goals') ? 'bottom-nav__item--active' : ''}`}
+        onClick={() => navigate('/goals')}
+      >
+        <Target size={22} />
+        <span className="bottom-nav__item-label">Objetivos</span>
+      </button>
+
+      <button
+        className={`bottom-nav__item ${isActive('/settings') ? 'bottom-nav__item--active' : ''}`}
+        onClick={() => navigate('/settings')}
+      >
+        <Settings size={22} />
+        <span className="bottom-nav__item-label">Config</span>
+      </button>
     </nav>
   );
 };
