@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabase } from '../db.js';
+import { getDatabase, syncBudgetAllocationsForMonth } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { budgetUpdateSchema, validate, validateMonthParam } from '../validation.js';
 
@@ -67,6 +67,8 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
         `, month, category, amount);
       }
     }
+
+    await syncBudgetAllocationsForMonth(month);
 
     res.json({ success: true });
   } catch (error) {
