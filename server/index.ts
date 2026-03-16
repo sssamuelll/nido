@@ -79,11 +79,16 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
     });
 
-    res.json({ user: result.user });
+    res.json({ user: result.user, token: result.token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// Session endpoint
+app.get('/api/auth/session', authenticateToken, (req: AuthRequest, res) => {
+  res.json({ user: req.user });
 });
 
 // Verify PIN endpoint (for quick access)

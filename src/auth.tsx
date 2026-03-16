@@ -36,21 +36,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
+    const clearSession = () => {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setUser(null);
+      setIsLocked(false);
+    };
 
-    if (userData) {
+    const bootstrapSession = async () => {
       try {
-        setUser(JSON.parse(userData));
+        const response = await Api.getSession();
+        localStorage.setItem('user', JSON.stringify(response.user));
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        setUser(response.user);
         // Backend in production currently has no PIN endpoints; keep session unlocked
         setIsLocked(false);
       } catch (error) {
-        console.error('Invalid user data in localStorage:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
-    }
+        if (error instanceof ApiError && error.status === 401) {
+          clearSession();
+          return;
+        }
 
-    setIsLoading(false);
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          try {
+            setUser(JSON.parse(userData));
+            setIsLocked(false);
+          } catch (parseError) {
+            console.error('Invalid user data in localStorage:', parseError);
+            clearSession();
+          }
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    Api.setUnauthorizedHandler(clearSession);
+    void bootstrapSession();
+
+    return () => {
+      Api.setUnauthorizedHandler(null);
+    };
   }, []);
 
   const login = async (username: string, password: string) => {
