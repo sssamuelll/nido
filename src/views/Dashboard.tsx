@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, Bell } from 'lucide-react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
-import { BudgetBar } from '../components/BudgetBar';
-import { PersonalCard } from '../components/PersonalCard';
-import { ExpenseCard } from '../components/ExpenseCard';
-import { DonutChart, DonutLegend, getColorForCategory } from '../components/DonutChart';
-import { SpendingTrend } from '../components/SpendingTrend';
-import { AnimatedNumber } from '../components/AnimatedNumber';
-import { ProfileAvatar } from '../components/ProfileAvatar';
+import { BalanceCard } from '../components/BalanceCard';
+import { BudgetCapsule } from '../components/BudgetCapsule';
+import { TransactionRow } from '../components/TransactionRow';
 import { format } from 'date-fns';
+import { CATEGORIES, INDICATOR_COLORS, type Owner } from '../types';
 
 interface DashboardData {
   budget: {
@@ -38,13 +36,12 @@ interface DashboardData {
   recentTransactions: any[];
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'Restaurant': '🍽️',
-  'Gastos': '🛒',
-  'Servicios': '💡',
-  'Ocio': '🎉',
-  'Inversión': '📈',
-  'Otros': '📦',
+const toNum = (v: any, fallback = 0) =>
+  Number.isFinite(Number(v)) ? Number(v) : fallback;
+
+const getCategoryEmoji = (categoryId: string): string => {
+  const cat = CATEGORIES.find(c => c.id === categoryId);
+  return cat ? cat.emoji : '🦋';
 };
 
 export const Dashboard: React.FC = () => {
@@ -52,18 +49,8 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [data, setData] = useState<DashboardData | null>(null);
-  const [dailyData, setDailyData] = useState<{ day: number; amount: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeCard, setActiveCard] = useState(0);
-  const accountsRef = useRef<HTMLDivElement>(null);
-
-  const handleAccountScroll = useCallback(() => {
-    const el = accountsRef.current;
-    if (!el) return;
-    const idx = Math.round(el.scrollLeft / (el.scrollWidth / 2));
-    setActiveCard(idx);
-  }, []);
 
   useEffect(() => {
     loadDashboardData();
@@ -73,23 +60,11 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const [summary, expenses] = await Promise.all([
+      const [summary] = await Promise.all([
         Api.getSummary(currentMonth),
         Api.getExpenses(currentMonth),
       ]);
       setData(summary);
-
-      const [year, month] = currentMonth.split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const daily: { day: number; amount: number }[] = [];
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dayStr = `${currentMonth}-${String(d).padStart(2, '0')}`;
-        const total = expenses
-          .filter((e: any) => e.date === dayStr && e.type === 'shared')
-          .reduce((sum: number, e: any) => sum + e.amount, 0);
-        daily.push({ day: d, amount: total });
-      }
-      setDailyData(daily);
     } catch (err: any) {
       setError('Error al cargar los datos');
     } finally {
@@ -112,13 +87,22 @@ export const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="main-content">
-          <div className="skeleton-loader">
-            <div className="skeleton-block skeleton-header" />
-            <div className="skeleton-block skeleton-card" />
-            <div className="skeleton-block skeleton-card-sm" />
-            <div className="skeleton-block skeleton-card" />
+      <div className="app-layout">
+        <div className="content-area">
+          <div className="dashboard__header">
+            <div>
+              <div className="skeleton" style={{ width: 120, height: 16, marginBottom: 8 }} />
+              <div className="skeleton" style={{ width: 200, height: 32 }} />
+            </div>
+          </div>
+          <div className="dashboard__balances">
+            <div className="skeleton" style={{ flex: 1, height: 180 }} />
+            <div className="skeleton" style={{ flex: 1, height: 180 }} />
+            <div className="skeleton" style={{ flex: 1, height: 180 }} />
+          </div>
+          <div className="dashboard__bottom">
+            <div className="skeleton" style={{ flex: 1, height: 300 }} />
+            <div className="skeleton" style={{ flex: 1, height: 300 }} />
           </div>
         </div>
       </div>
@@ -127,198 +111,192 @@ export const Dashboard: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="page-container">
-        <div className="main-content">
-          <div className="text-center mt-4">
-            <div className="text-error">{error || 'Error al cargar'}</div>
-            <button onClick={loadDashboardData} className="btn btn-secondary mt-2">Reintentar</button>
+      <div className="app-layout">
+        <div className="content-area">
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <div style={{ color: 'var(--color-danger)', marginBottom: 16, fontSize: 16 }}>
+              {error || 'Error al cargar'}
+            </div>
+            <button
+              onClick={loadDashboardData}
+              className="btn btn--samuel"
+              style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
+            >
+              Reintentar
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  const toNum = (v: any, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
-
   const categoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];
-  const donutSegments = categoryBreakdown
-    .filter(c => toNum(c?.total) > 0)
-    .map(c => ({
-      label: c?.category || 'Otros',
-      value: toNum(c?.total),
-      color: getColorForCategory(c?.category || 'Otros'),
-      icon: CATEGORY_ICONS[c?.category || 'Otros'] || '📦',
-    }));
+  const recentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
 
-  const totalCategorySpent = donutSegments.reduce((s, seg) => s + toNum(seg.value), 0);
-  const remaining = toNum(data?.spending?.remainingShared);
   const availableShared = toNum(data?.budget?.availableShared);
   const totalSharedSpent = toNum(data?.spending?.totalSharedSpent);
-  const pctUsed = availableShared > 0 ? Math.round((totalSharedSpent / availableShared) * 100) : 0;
+  const remainingShared = toNum(data?.spending?.remainingShared);
+  const sharedProgress = availableShared > 0
+    ? Math.round((totalSharedSpent / availableShared) * 100)
+    : 0;
 
-  const personalKey = user?.username === 'maria' ? 'maria' : 'samuel';
-  const personalSpent = toNum(data?.personal?.[personalKey]?.spent);
-  const personalBudget = toNum(data?.personal?.[personalKey]?.budget);
-  const savingsAmount = toNum(data?.budget?.savings);
-  const recentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
-  const totalTransactions = recentTransactions.length;
-  const totalDailySpent = dailyData.reduce((s, d) => s + toNum(d.amount), 0);
+  const samuelSpent = toNum(data?.personal?.samuel?.spent);
+  const samuelBudget = toNum(data?.personal?.samuel?.budget);
+  const samuelBalance = samuelBudget - samuelSpent;
+  const samuelProgress = samuelBudget > 0 ? Math.round((samuelSpent / samuelBudget) * 100) : 0;
+
+  const mariaSpent = toNum(data?.personal?.maria?.spent);
+  const mariaBudget = toNum(data?.personal?.maria?.budget);
+  const mariaBalance = mariaBudget - mariaSpent;
+  const mariaProgress = mariaBudget > 0 ? Math.round((mariaSpent / mariaBudget) * 100) : 0;
+
+  const userName = user?.username === 'maria' ? 'María' : 'Samuel';
+  const greeting = `Hola, ${userName} 👋`;
+
+  // Group recent transactions by date for the date pill display
+  const groupedTransactions: { date: string; items: any[] }[] = [];
+  const dateMap = new Map<string, any[]>();
+  recentTransactions.slice(0, 10).forEach(tx => {
+    if (!dateMap.has(tx.date)) dateMap.set(tx.date, []);
+    dateMap.get(tx.date)!.push(tx);
+  });
+  const sortedDates = Array.from(dateMap.keys()).sort((a, b) => b.localeCompare(a));
+  sortedDates.forEach(date => {
+    groupedTransactions.push({ date, items: dateMap.get(date)! });
+  });
+
+  const formatDatePill = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const today = new Date();
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+    if (dateStr === todayStr) return 'Hoy';
+    if (dateStr === yesterdayStr) return 'Ayer';
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return `${days[d.getDay()]} ${d.getDate()}`;
+  };
 
   return (
-    <div className="page-container dashboard fade-in">
-      <div className="main-content">
+    <div className="app-layout">
+      <div className="content-area">
         {/* Header */}
-        <div className="dash-header">
-          <ProfileAvatar />
-          <button className="dash-register-btn" onClick={() => navigate('/add', { state: { type: 'shared' } })}>
-            Registrar gasto
-          </button>
-        </div>
-
-        {/* Balance */}
-        <div className="dash-balance">
-          <div className="dash-balance-label">Saldo total</div>
-          <div className="dash-balance-row">
-            <div className="dash-balance-amount">
-              {remaining.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
+        <div className="dashboard__header">
+          <div>
+            <div className="dashboard__greeting">{greeting}</div>
+            <div className="dashboard__title">
+              {formatMonthName(currentMonth)}
             </div>
-            <button className="dash-chart-btn" onClick={() => {
-              const el = document.querySelector('.donut-section');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}>
-              <svg viewBox="0 0 24 24">
-                <path d="M18 20V10M12 20V4M6 20v-6" />
-              </svg>
+          </div>
+          <div className="dashboard__actions">
+            <div className="dashboard__search">
+              <Search size={16} color="var(--color-text-tertiary)" />
+              <span className="dashboard__search-text">Buscar...</span>
+            </div>
+            <button className="dashboard__notification-btn">
+              <Bell size={18} color="var(--color-text-secondary)" />
             </button>
           </div>
         </div>
 
-        {/* Account Cards — horizontal scroll */}
-        <div className="dash-accounts" ref={accountsRef} onScroll={handleAccountScroll}>
-          {/* Shared account */}
-          <div className="dash-account-card dash-account-green">
-            <div className="dash-account-header">
-              <div className="dash-account-wave" />
-            </div>
-            <div className="dash-account-body">
-              <div className="dash-account-title-row">
-                <div className="dash-account-name">Cuenta compartida</div>
-                <span className="dash-account-arrow">›</span>
-              </div>
-              <div className="dash-account-amount">
-                {remaining.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
-              </div>
-              <div className="dash-account-details">
-                <div className="dash-account-line">
-                  <span>Presupuesto</span>
-                  <span>{availableShared.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
-                </div>
-                <div className="dash-account-line">
-                  <span>Gastado</span>
-                  <span>{data.spending.totalSharedSpent.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
-                </div>
-              </div>
-              <button className="dash-account-data-btn">🏦 Datos de cuenta</button>
-            </div>
-          </div>
-
-          {/* Personal account */}
-          <div className="dash-account-card dash-account-orange">
-            <div className="dash-account-header dash-account-header-orange">
-              <div className="dash-account-wave" />
-            </div>
-            <div className="dash-account-body">
-              <div className="dash-account-title-row">
-                <div className="dash-account-name">Cuenta personal</div>
-                <span className="dash-account-arrow">›</span>
-              </div>
-              <div className="dash-account-amount">
-                {(personalBudget - personalSpent).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
-              </div>
-              <div className="dash-account-details">
-                <div className="dash-account-line">
-                  <span>Presupuesto</span>
-                  <span>{personalBudget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
-                </div>
-                <div className="dash-account-line">
-                  <span>Gastado</span>
-                  <span>{personalSpent.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
-                </div>
-              </div>
-              <button className="dash-account-data-btn">🏦 Datos de cuenta</button>
-            </div>
-          </div>
-        </div>
-        {/* Dots indicator */}
-        <div className="dash-accounts-dots">
-          <span className={`dash-dot ${activeCard === 0 ? 'active' : ''}`} />
-          <span className={`dash-dot ${activeCard === 1 ? 'active' : ''}`} />
+        {/* Balance Cards */}
+        <div className="dashboard__balances">
+          <BalanceCard
+            owner="samuel"
+            name="Samuel"
+            avatar="👨‍💻"
+            balance={samuelBalance}
+            monthChange={-samuelSpent}
+            progress={samuelProgress}
+            sparkline={[samuelBudget * 0.3, samuelBudget * 0.5, samuelBudget * 0.4, samuelBudget * 0.6, samuelBudget * 0.7, samuelSpent]}
+          />
+          <BalanceCard
+            owner="maria"
+            name="María"
+            avatar="👩‍🎨"
+            balance={mariaBalance}
+            monthChange={-mariaSpent}
+            progress={mariaProgress}
+            sparkline={[mariaBudget * 0.3, mariaBudget * 0.5, mariaBudget * 0.4, mariaBudget * 0.6, mariaBudget * 0.7, mariaSpent]}
+          />
+          <BalanceCard
+            owner="shared"
+            name="Compartido"
+            avatar="🏠"
+            balance={remainingShared}
+            monthChange={-totalSharedSpent}
+            progress={sharedProgress}
+            sparkline={[availableShared * 0.3, availableShared * 0.5, availableShared * 0.4, availableShared * 0.6, availableShared * 0.7, totalSharedSpent]}
+          />
         </div>
 
-        {/* Category Budget Bars — Maria's requested feature */}
-        <div className="card liquid-glass">
-          <div className="card-header">
-            <h2 className="card-title">Presupuesto por categoría</h2>
-          </div>
-          <div className="expense-list" style={{ padding: '0 var(--space-md) var(--space-md)' }}>
-            {categoryBreakdown.map((cat) => (
-              <BudgetBar
-                key={cat.category}
-                title={cat.category}
-                spent={cat.total}
-                budget={cat.budget}
-                className="mb-4"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Daily Spending Chart */}
-        {dailyData.length > 0 && (
-          <div className="card liquid-glass">
-            <div className="card-header">
-              <h2 className="card-title">Tendencia diaria</h2>
+        {/* Bottom split */}
+        <div className="dashboard__bottom">
+          {/* Budget Capsules section */}
+          <div className="dashboard__section">
+            <div className="dashboard__section-header">
+              <span className="dashboard__section-title">Presupuesto por categoría</span>
+              <button className="dashboard__section-link" onClick={() => navigate('/settings')}>
+                Editar →
+              </button>
             </div>
-            <div className="dash-trend-summary">
-              €{totalDailySpent.toFixed(0)} gastados en {totalTransactions} transacciones
-            </div>
-            <SpendingTrend data={dailyData} />
-          </div>
-        )}
-
-        {/* Category Breakdown */}
-        {donutSegments.length > 0 && (
-          <div className="card liquid-glass">
-            <div className="card-header">
-              <h2 className="card-title">Por categoría</h2>
-            </div>
-            <div className="donut-section">
-              <DonutChart
-                segments={donutSegments}
-                centerValue={`€${Math.round(totalCategorySpent)}`}
-                centerLabel="total"
-              />
-              <DonutLegend segments={donutSegments} total={totalCategorySpent} />
-            </div>
-          </div>
-        )}
-
-        {/* Recent Transactions */}
-        <div className="card liquid-glass">
-          <div className="card-header">
-            <h2 className="card-title">Últimos gastos</h2>
-            <a href="/history" className="btn-ghost text-sm">Ver todos →</a>
-          </div>
-          <div className="expense-list">
-            {recentTransactions.length === 0 ? (
-              <div className="text-center text-secondary py-4">
-                No hay gastos registrados
+            {categoryBreakdown.length === 0 ? (
+              <div style={{ color: 'var(--color-text-tertiary)', fontSize: 14, padding: '20px 0' }}>
+                Sin datos de categorías
               </div>
             ) : (
-              recentTransactions.map((expense) => (
-                <ExpenseCard key={expense.id} expense={expense} />
-              ))
+              categoryBreakdown
+                .filter(cat => toNum(cat?.budget) > 0)
+                .map(cat => {
+                  const catDef = CATEGORIES.find(c => c.id === cat.category);
+                  return (
+                    <BudgetCapsule
+                      key={cat.category}
+                      emoji={catDef?.emoji ?? '🦋'}
+                      categoryName={cat.category}
+                      current={toNum(cat.total)}
+                      max={toNum(cat.budget)}
+                      gradientColors={[catDef?.color ?? '#8bdc6b', catDef?.color ?? '#6bc98b']}
+                    />
+                  );
+                })
             )}
+          </div>
+
+          {/* Recent Transactions section */}
+          <div className="dashboard__section">
+            <div className="dashboard__section-header">
+              <span className="dashboard__section-title">Últimos gastos</span>
+              <button className="dashboard__section-link" onClick={() => navigate('/history')}>
+                Ver todos →
+              </button>
+            </div>
+            <div className="dashboard__transactions">
+              {recentTransactions.length === 0 ? (
+                <div style={{ color: 'var(--color-text-tertiary)', fontSize: 14, padding: '20px 0' }}>
+                  No hay gastos registrados
+                </div>
+              ) : (
+                groupedTransactions.map(({ date, items }) => (
+                  <React.Fragment key={date}>
+                    <div className="dashboard__date-pill">{formatDatePill(date)}</div>
+                    {items.map(tx => (
+                      <TransactionRow
+                        key={tx.id}
+                        emoji={getCategoryEmoji(tx.category)}
+                        name={tx.description}
+                        payer={tx.paid_by}
+                        amount={`-€${toNum(tx.amount).toFixed(2)}`}
+                        date={tx.date}
+                        indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
+                        isPositive={false}
+                      />
+                    ))}
+                  </React.Fragment>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
