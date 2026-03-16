@@ -4,13 +4,17 @@ import { Api, ApiError } from './api';
 interface User {
   id: number;
   username: string;
+  email?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isLocked: boolean;
+  isMagicLinkEnabled: boolean;
   login: (username: string, password: string) => Promise<void>;
+  startMagicLink: (email: string) => Promise<void>;
+  finishMagicLinkLogin: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
   verifyPin: (pin: string) => Promise<boolean>;
   isAuthenticated: boolean;
@@ -34,6 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
+  const [isMagicLinkEnabled, setIsMagicLinkEnabled] = useState(false);
 
   useEffect(() => {
     const clearSession = () => {
@@ -43,11 +48,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const bootstrapSession = async () => {
       try {
-        const response = await Api.getMe();
-        setUser(response.user);
-        // Backend in production currently has no PIN lock bootstrap; keep session unlocked.
-        setIsLocked(false);
-      } catch (error) {
+        const [configResponse, authResponse] = await Promise.allSettled([
+          Api.getAuthConfig(),
+          Api.getMe(),
+        ]);
+
+        if (configResponse.status === 'fulfilled') {
+          setIsMagicLinkEnabled(Boolean(configResponse.value.magicLinkEnabled));
+        }
+
+        if (authResponse.status === 'fulfilled') {
+          setUser(authResponse.value.user);
+          setIsLocked(false);
+          return;
+        }
+
+        const error = authResponse.reason;
         if (!(error instanceof ApiError && error.status === 401)) {
           console.error('Failed to bootstrap auth session:', error);
         }
@@ -69,7 +85,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await Api.login(username, password);
-
       setUser(response.user);
       setIsLocked(false);
     } catch (error) {
@@ -77,6 +92,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Credenciales incorrectas');
       }
       throw new Error('Error al iniciar sesión');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startMagicLink = async (email: string) => {
+    try {
+      await Api.startMagicLink(email);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setIsMagicLinkEnabled(false);
+        throw new Error('Magic link no está configurado todavía. Usa el acceso clásico de momento.');
+      }
+      throw new Error('No se pudo enviar el magic link');
+    }
+  };
+
+  const finishMagicLinkLogin = async (accessToken: string) => {
+    try {
+      setIsLoading(true);
+      const response = await Api.exchangeSession(accessToken);
+      setUser(response.user);
+      setIsLocked(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setIsMagicLinkEnabled(false);
+        throw new Error('Magic link no está configurado todavía.');
+      }
+      if (error instanceof ApiError && error.status === 401) {
+        throw new Error('El enlace ha expirado o no es válido.');
+      }
+      throw new Error('No se pudo completar el acceso con magic link');
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await Api.verifyPin(pin);
       setIsLocked(false);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   };
@@ -107,7 +154,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isLoading,
     isLocked,
+    isMagicLinkEnabled,
     login,
+    startMagicLink,
+    finishMagicLinkLogin,
     logout,
     verifyPin,
     isAuthenticated: !!user,
