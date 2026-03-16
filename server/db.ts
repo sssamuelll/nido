@@ -32,6 +32,10 @@ const ensureColumn = async (database: Database, tableName: string, columnName: s
   }
 };
 
+export const ensureSessionColumns = async (database: Database) => {
+  await ensureColumn(database, 'sessions', 'user_agent', 'TEXT');
+};
+
 const ensurePrimaryHousehold = async (database: Database) => {
   await database.run(
     `INSERT OR IGNORE INTO households (slug, name) VALUES (?, ?)`,
@@ -228,6 +232,7 @@ export const initDatabase = async () => {
   // Migrations: Ensure 'pin' column exists
   await ensureColumn(database, 'users', 'pin', `TEXT DEFAULT '1234'`);
   await ensureColumn(database, 'expenses', 'paid_by_user_id', 'INTEGER REFERENCES app_users(id) ON DELETE SET NULL');
+  await ensureSessionColumns(database);
   await database.exec('CREATE INDEX IF NOT EXISTS idx_expenses_paid_by_user_id ON expenses(paid_by_user_id)');
 
   // Seed users
