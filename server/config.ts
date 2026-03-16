@@ -41,6 +41,7 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  MAGIC_LINK_ALLOWED_EMAILS: z.string().optional(),
   APP_SESSION_DAYS: z.string().regex(/^\d+$/).transform(Number).default('30'),
   APP_SESSION_COOKIE_NAME: z.string().min(1).default('nido_session'),
 });
@@ -67,6 +68,7 @@ class Config {
         SUPABASE_URL: process.env.SUPABASE_URL,
         SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        MAGIC_LINK_ALLOWED_EMAILS: process.env.MAGIC_LINK_ALLOWED_EMAILS,
         APP_SESSION_DAYS: process.env.APP_SESSION_DAYS,
         APP_SESSION_COOKIE_NAME: process.env.APP_SESSION_COOKIE_NAME,
       };
@@ -138,6 +140,13 @@ class Config {
     return this.config.SUPABASE_SERVICE_ROLE_KEY;
   }
 
+  get magicLinkAllowedEmails(): string[] {
+    return (this.config.MAGIC_LINK_ALLOWED_EMAILS ?? '')
+      .split(',')
+      .map(email => email.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
   get appSessionDays(): number {
     return this.config.APP_SESSION_DAYS;
   }
@@ -190,6 +199,7 @@ export const {
   supabaseUrl,
   supabaseAnonKey,
   supabaseServiceRoleKey,
+  magicLinkAllowedEmails,
   appSessionDays,
   appSessionCookieName,
   isSupabaseAuthConfigured,

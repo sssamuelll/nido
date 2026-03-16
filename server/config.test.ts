@@ -73,6 +73,15 @@ describe('Configuration module', () => {
     });
   });
 
+  describe('magic link allowlist', () => {
+    it('should normalize MAGIC_LINK_ALLOWED_EMAILS into a lowercase list', async () => {
+      process.env.JWT_SECRET = 'a'.repeat(32);
+      process.env.MAGIC_LINK_ALLOWED_EMAILS = ' Samuel@Example.com, maria@example.com ,';
+      const config = await importConfig();
+      expect(config.magicLinkAllowedEmails).toEqual(['samuel@example.com', 'maria@example.com']);
+    });
+  });
+
   describe('Environment detection', () => {
     it('should detect production environment', async () => {
       process.env.NODE_ENV = 'production';
