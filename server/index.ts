@@ -16,6 +16,7 @@ import {
   verifyPin,
   isMagicLinkEnabled,
   sendMagicLink,
+  confirmMagicLink,
   findOrCreateAppUserFromSupabase,
   createAppSession,
   setAppSessionCookie,
@@ -37,6 +38,10 @@ const magicLinkSchema = z.object({
 });
 const sessionExchangeSchema = z.object({
   accessToken: z.string().min(1),
+});
+const magicLinkConfirmSchema = z.object({
+  tokenHash: z.string().min(1),
+  type: z.string().min(1),
 });
 
 // Security Middleware
@@ -140,6 +145,48 @@ app.post('/api/auth/session/exchange', loginLimiter, async (req, res) => {
 
     if (result.reason === 'auth') {
       return res.status(result.status).json({ error: result.error });
+    }
+
+    if ('status' in result) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(502).json({ error: 'Supabase session exchange failed' });
+  }
+
+  const { sessionToken } = await createAppSession(result.user.id, req);
+  setAppSessionCookie(res, sessionToken);
+
+  res.json({ user: result.user });
+});
+
+app.post('/api/auth/magic-link/confirm', loginLimiter, async (req, res) => {
+  const validation = magicLinkConfirmSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: 'Parámetros de confirmación inválidos' });
+  }
+
+  if (!isMagicLinkEnabled()) {
+    return res.status(404).json({ error: 'Magic link auth is not configured' });
+  }
+
+  const confirmResult = await confirmMagicLink(validation.data.tokenHash, validation.data.type);
+  if (!confirmResult.success) {
+    if (confirmResult.reason === 'disabled') {
+      return res.status(404).json({ error: 'Magic link auth is not configured' });
+    }
+
+    return res.status(confirmResult.status).json({ error: confirmResult.error });
+  }
+
+  const result = await findOrCreateAppUserFromSupabase(confirmResult.accessToken);
+  if (!result.success) {
+    if (result.reason === 'forbidden') {
+      return res.status(403).json({ error: 'Supabase session is not allowed' });
+    }
+
+    if (result.reason === 'disabled') {
+      return res.status(404).json({ error: 'Magic link auth is not configured' });
     }
 
     if ('status' in result) {

@@ -14,6 +14,7 @@ interface AuthContextType {
   isMagicLinkEnabled: boolean;
   login: (username: string, password: string) => Promise<void>;
   startMagicLink: (email: string) => Promise<void>;
+  confirmMagicLink: (tokenHash: string, type: string) => Promise<void>;
   finishMagicLinkLogin: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
   verifyPin: (pin: string) => Promise<boolean>;
@@ -129,6 +130,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const confirmMagicLink = async (tokenHash: string, type: string) => {
+    try {
+      setIsLoading(true);
+      const response = await Api.confirmMagicLink(tokenHash, type);
+      setUser(response.user);
+      setIsLocked(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setIsMagicLinkEnabled(false);
+        throw new Error('Magic link no está configurado todavía.');
+      }
+      if (error instanceof ApiError && (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 422)) {
+        throw new Error('El enlace ha expirado, no es válido o no está permitido.');
+      }
+      throw new Error('No se pudo confirmar el magic link');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       await Api.logout();
@@ -157,6 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isMagicLinkEnabled,
     login,
     startMagicLink,
+    confirmMagicLink,
     finishMagicLinkLogin,
     logout,
     verifyPin,
