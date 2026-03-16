@@ -9,6 +9,13 @@ vi.mock('./db.js', () => ({
 
 vi.mock('./config.js', () => ({
   jwtSecret: 'test-secret-1234567890-1234567890-123456',
+  isSupabaseAuthConfigured: false,
+  supabaseUrl: undefined,
+  supabaseAnonKey: undefined,
+  supabaseServiceRoleKey: undefined,
+  appBaseUrl: 'http://localhost:3100',
+  appSessionDays: 30,
+  appSessionCookieName: 'nido_session',
 }));
 
 vi.mock('bcryptjs', () => ({

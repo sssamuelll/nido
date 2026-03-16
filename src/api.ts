@@ -47,7 +47,8 @@ export class Api {
         endpoint !== '/auth/login' &&
         endpoint !== '/auth/verify-pin' &&
         endpoint !== '/auth/me' &&
-        endpoint !== '/auth/session'
+        endpoint !== '/auth/session' &&
+        endpoint !== '/auth/session/exchange'
       ) {
         this.unauthorizedHandler?.();
       }
@@ -62,10 +63,28 @@ export class Api {
     return await response.json();
   }
 
+  static async getAuthConfig(): Promise<{ magicLinkEnabled: boolean }> {
+    return this.request('/auth/config');
+  }
+
   static async login(username: string, password: string) {
     return this.request('/auth/login', {
       method: 'POST',
       body: { username, password },
+    });
+  }
+
+  static async startMagicLink(email: string) {
+    return this.request('/auth/magic-link/start', {
+      method: 'POST',
+      body: { email },
+    });
+  }
+
+  static async exchangeSession(accessToken: string) {
+    return this.request('/auth/session/exchange', {
+      method: 'POST',
+      body: { accessToken },
     });
   }
 
@@ -103,7 +122,7 @@ export class Api {
       });
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
-        return { success: true };
+        return { success: true }; 
       }
       throw error;
     }

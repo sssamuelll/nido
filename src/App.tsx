@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import { Login } from './views/Login';
+import { AuthCallback } from './views/AuthCallback';
 import { PinPage } from './views/PinPage';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
@@ -18,7 +19,6 @@ const AppRoutes: React.FC = () => {
   const location = useLocation();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Refresh dashboard when navigating back from /add
   const prevPath = React.useRef(location.pathname);
   React.useEffect(() => {
     if (prevPath.current === '/add' && location.pathname === '/') {
@@ -34,6 +34,10 @@ const AppRoutes: React.FC = () => {
         <div className="loading-screen__text">Cargando...</div>
       </div>
     );
+  }
+
+  if (location.pathname === '/auth/callback') {
+    return <AuthCallback />;
   }
 
   if (!isAuthenticated) {
@@ -69,7 +73,10 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <AppRoutes />
+        <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="*" element={<AppRoutes />} />
+        </Routes>
       </Router>
     </AuthProvider>
   );
