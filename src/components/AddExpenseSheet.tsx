@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
-import { CATEGORIES } from './CategoryIcon';
+import { CATEGORIES } from '../types';
 import { format } from 'date-fns';
 
 interface AddExpenseSheetProps {
@@ -153,7 +153,7 @@ export const AddExpenseSheet: React.FC<AddExpenseSheetProps> = ({ isOpen, onClos
                   className={`sheet-cat ${category === cat.id ? 'active' : ''}`}
                   onClick={() => setCategory(cat.id)}
                 >
-                  <span className="sheet-cat-icon">{cat.icon}</span>
+                  <span className="sheet-cat-icon">{cat.emoji}</span>
                   <span className="sheet-cat-name">{cat.name}</span>
                 </button>
               ))}
