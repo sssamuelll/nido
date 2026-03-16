@@ -37,38 +37,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const clearSession = () => {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
       setUser(null);
       setIsLocked(false);
     };
 
     const bootstrapSession = async () => {
       try {
-        const response = await Api.getSession();
-        localStorage.setItem('user', JSON.stringify(response.user));
-        if (response.token) {
-          localStorage.setItem('token', response.token);
-        }
+        const response = await Api.getMe();
         setUser(response.user);
-        // Backend in production currently has no PIN endpoints; keep session unlocked
+        // Backend in production currently has no PIN lock bootstrap; keep session unlocked.
         setIsLocked(false);
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
-          clearSession();
-          return;
+        if (!(error instanceof ApiError && error.status === 401)) {
+          console.error('Failed to bootstrap auth session:', error);
         }
-
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          try {
-            setUser(JSON.parse(userData));
-            setIsLocked(false);
-          } catch (parseError) {
-            console.error('Invalid user data in localStorage:', parseError);
-            clearSession();
-          }
-        }
+        clearSession();
       } finally {
         setIsLoading(false);
       }
@@ -87,11 +70,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const response = await Api.login(username, password);
 
-      if (response?.token) {
-        localStorage.setItem('token', response.token);
-      }
-
-      localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
       setIsLocked(false);
     } catch (error) {
@@ -110,8 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
       setUser(null);
       setIsLocked(false);
     }
