@@ -139,7 +139,7 @@ describe('Auth module', () => {
       expect(fetch).not.toHaveBeenCalled();
     });
 
-    it('sends OTP request without create_user and with redirect', async () => {
+    it('sends OTP request with the REST API redirect field and without create_user', async () => {
       (fetch as any).mockResolvedValue({ ok: true, json: vi.fn() });
 
       const result = await sendMagicLink('Samuel@Example.com');
@@ -148,13 +148,17 @@ describe('Auth module', () => {
       expect(fetch).toHaveBeenCalledTimes(1);
       const [url, options] = (fetch as any).mock.calls[0];
       expect(url).toBe('https://example.supabase.co/auth/v1/otp');
+      expect(options.headers).toMatchObject({
+        'Content-Type': 'application/json',
+        apikey: 'anon-key',
+        Authorization: 'Bearer anon-key',
+      });
       expect(JSON.parse(options.body)).toEqual({
         email: 'samuel@example.com',
-        options: {
-          emailRedirectTo: 'http://localhost:3100/auth/callback',
-        },
+        email_redirect_to: 'http://localhost:3100/auth/callback',
       });
       expect(options.body).not.toContain('create_user');
+      expect(options.body).not.toContain('emailRedirectTo');
     });
 
     it('surfaces Supabase rate limits explicitly', async () => {

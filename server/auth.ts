@@ -356,12 +356,11 @@ export const sendMagicLink = async (email: string): Promise<MagicLinkResult> => 
     headers: {
       'Content-Type': 'application/json',
       apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
     },
     body: JSON.stringify({
       email: normalizeEmail(email),
-      options: {
-        emailRedirectTo: redirectTo,
-      },
+      email_redirect_to: redirectTo,
     }),
   });
 
