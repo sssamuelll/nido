@@ -1,40 +1,54 @@
-import { describe, it, expect } from 'vitest';
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 
-describe('Sidebar component', () => {
-  const renderWithRouter = (initialEntries = ['/']) => {
-    return render(
-      <MemoryRouter initialEntries={initialEntries}>
-        <Sidebar />
-      </MemoryRouter>
-    );
-  };
+// Mock the auth hook
+vi.mock('../auth', () => ({
+  useAuth: () => ({
+    user: { username: 'samuel' },
+    isLoading: false,
+    isLocked: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    verifyPin: vi.fn(),
+    isAuthenticated: true,
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
+const renderWithProviders = (initialEntries = ['/']) => {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <Sidebar />
+    </MemoryRouter>
+  );
+};
+
+describe('Sidebar component', () => {
   it('renders sidebar with logo', () => {
-    renderWithRouter();
-    expect(screen.getByText('🦋 nido')).toBeInTheDocument();
+    renderWithProviders();
+    expect(screen.getByText('nido')).toBeInTheDocument();
   });
 
-  it('renders navigation links', () => {
-    renderWithRouter();
-    expect(screen.getByText('Inicio')).toBeInTheDocument();
+  it('renders main navigation links', () => {
+    renderWithProviders();
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Añadir Gasto')).toBeInTheDocument();
+    expect(screen.getByText('Analíticas')).toBeInTheDocument();
+    expect(screen.getByText('Objetivos')).toBeInTheDocument();
+  });
+
+  it('renders secondary navigation links', () => {
+    renderWithProviders();
     expect(screen.getByText('Historial')).toBeInTheDocument();
-    expect(screen.getByText('Registrar')).toBeInTheDocument();
     expect(screen.getByText('Configuración')).toBeInTheDocument();
   });
 
-  it('highlights active link based on current route', () => {
-    renderWithRouter(['/history']);
-    const historyLink = screen.getByText('Historial').closest('a');
-    expect(historyLink).toHaveClass('active');
-    const homeLink = screen.getByText('Inicio').closest('a');
-    expect(homeLink).not.toHaveClass('active');
-  });
-
-  it('renders footer with version', () => {
-    renderWithRouter();
-    expect(screen.getByText('v1.0 · Warm Nest')).toBeInTheDocument();
+  it('highlights active nav item', () => {
+    renderWithProviders(['/analytics']);
+    const analyticsBtn = screen.getByText('Analíticas').closest('button');
+    expect(analyticsBtn).toHaveClass('nav-item--active');
   });
 });
