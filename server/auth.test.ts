@@ -1,18 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response, NextFunction } from 'express';
 
+const mockDbFactory = () => ({
+  get: vi.fn(),
+  run: vi.fn(),
+});
+
 vi.mock('./db.js', () => ({
-  getDatabase: vi.fn(() => ({
-    get: vi.fn(),
-  })),
+  getDatabase: vi.fn(() => mockDbFactory()),
 }));
 
 vi.mock('./config.js', () => ({
   jwtSecret: 'test-secret-1234567890-1234567890-123456',
-  isSupabaseAuthConfigured: false,
-  supabaseUrl: undefined,
-  supabaseAnonKey: undefined,
+  isSupabaseAuthConfigured: true,
+  supabaseUrl: 'https://example.supabase.co',
+  supabaseAnonKey: 'anon-key',
   supabaseServiceRoleKey: undefined,
+  magicLinkAllowedEmails: ['samuel@example.com', 'maria@example.com'],
   appBaseUrl: 'http://localhost:3100',
   appSessionDays: 30,
   appSessionCookieName: 'nido_session',
@@ -31,7 +35,14 @@ vi.mock('jsonwebtoken', () => ({
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { login, authenticateToken, type AuthRequest } from './auth.js';
+import {
+  login,
+  authenticateToken,
+  type AuthRequest,
+  isMagicLinkEmailAllowed,
+  sendMagicLink,
+  findOrCreateAppUserFromSupabase,
+} from './auth.js';
 
 describe('Auth module', () => {
   let mockDb: any;
@@ -44,8 +55,9 @@ describe('Auth module', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
     const { getDatabase } = await import('./db.js');
-    mockDb = { get: vi.fn() };
+    mockDb = mockDbFactory();
     getDatabase.mockReturnValue(mockDb);
 
     mockRequest = { cookies: {}, headers: {} };
@@ -105,6 +117,58 @@ describe('Auth module', () => {
       const result = await login('samuel', 'password');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('magic link allowlist', () => {
+    it('accepts configured emails case-insensitively', () => {
+      expect(isMagicLinkEmailAllowed(' Samuel@Example.com ')).toBe(true);
+      expect(isMagicLinkEmailAllowed('maria@example.com')).toBe(true);
+    });
+
+    it('rejects emails outside the configured allowlist', () => {
+      expect(isMagicLinkEmailAllowed('other@example.com')).toBe(false);
+    });
+  });
+
+  describe('sendMagicLink', () => {
+    it('does not send for emails outside the allowlist', async () => {
+      const result = await sendMagicLink('other@example.com');
+
+      expect(result).toEqual({ success: false, reason: 'forbidden' });
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('sends OTP request without create_user and with redirect', async () => {
+      (fetch as any).mockResolvedValue({ ok: true, json: vi.fn() });
+
+      const result = await sendMagicLink('Samuel@Example.com');
+
+      expect(result).toEqual({ success: true });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      const [url, options] = (fetch as any).mock.calls[0];
+      expect(url).toBe('https://example.supabase.co/auth/v1/otp');
+      expect(JSON.parse(options.body)).toEqual({
+        email: 'samuel@example.com',
+        options: {
+          emailRedirectTo: 'http://localhost:3100/auth/callback',
+        },
+      });
+      expect(options.body).not.toContain('create_user');
+    });
+  });
+
+  describe('findOrCreateAppUserFromSupabase', () => {
+    it('rejects Supabase users outside the email allowlist', async () => {
+      (fetch as any).mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ id: 'supabase-user-1', email: 'other@example.com' }),
+      });
+
+      const result = await findOrCreateAppUserFromSupabase('access-token');
+
+      expect(result).toBeNull();
+      expect(mockDb.get).not.toHaveBeenCalled();
     });
   });
 

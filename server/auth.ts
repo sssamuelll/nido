@@ -9,6 +9,7 @@ import {
   supabaseUrl,
   supabaseAnonKey,
   supabaseServiceRoleKey,
+  magicLinkAllowedEmails,
   appBaseUrl,
   appSessionDays,
   appSessionCookieName,
@@ -39,6 +40,15 @@ interface AppUserRow {
 }
 
 const hashSessionToken = (token: string) => createHash('sha256').update(token).digest('hex');
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+export const isMagicLinkEmailAllowed = (email: string) => {
+  if (magicLinkAllowedEmails.length === 0) {
+    return false;
+  }
+
+  return magicLinkAllowedEmails.includes(normalizeEmail(email));
+};
 
 const sessionCookieOptions = () => ({
   httpOnly: true,
@@ -194,9 +204,9 @@ const fetchSupabaseUser = async (accessToken: string): Promise<{ id: string; ema
 export const findOrCreateAppUserFromSupabase = async (accessToken: string): Promise<AuthUser | null> => {
   try {
     const identity = await fetchSupabaseUser(accessToken);
-    const email = identity?.email?.trim().toLowerCase();
+    const email = identity?.email ? normalizeEmail(identity.email) : null;
 
-    if (!identity?.id || !email) {
+    if (!identity?.id || !email || !isMagicLinkEmailAllowed(email)) {
       return null;
     }
 
@@ -236,6 +246,10 @@ export const sendMagicLink = async (email: string) => {
     return { success: false as const, reason: 'disabled' as const };
   }
 
+  if (!isMagicLinkEmailAllowed(email)) {
+    return { success: false as const, reason: 'forbidden' as const };
+  }
+
   const redirectTo = new URL('/auth/callback', appBaseUrl).toString();
   const response = await fetch(`${supabaseUrl}/auth/v1/otp`, {
     method: 'POST',
@@ -244,8 +258,7 @@ export const sendMagicLink = async (email: string) => {
       apikey: supabaseAnonKey,
     },
     body: JSON.stringify({
-      email,
-      create_user: false,
+      email: normalizeEmail(email),
       options: {
         emailRedirectTo: redirectTo,
       },

@@ -91,6 +91,10 @@ app.post('/api/auth/magic-link/start', loginLimiter, async (req, res) => {
   const result = await sendMagicLink(validation.data.email.trim().toLowerCase());
 
   if (!result.success) {
+    if (result.reason === 'forbidden') {
+      return res.status(403).json({ error: 'Magic link no permitido para este email' });
+    }
+
     return res.status(502).json({ error: 'No se pudo enviar el magic link' });
   }
 
@@ -109,7 +113,7 @@ app.post('/api/auth/session/exchange', loginLimiter, async (req, res) => {
 
   const user = await findOrCreateAppUserFromSupabase(validation.data.accessToken);
   if (!user) {
-    return res.status(401).json({ error: 'Supabase session could not be verified' });
+    return res.status(403).json({ error: 'Supabase session is not allowed' });
   }
 
   const { sessionToken } = await createAppSession(user.id, req);
