@@ -59,6 +59,16 @@ export type SupabaseUserSyncResult =
       error: string;
     };
 
+export type MagicLinkConfirmResult =
+  | { success: true; accessToken: string }
+  | { success: false; reason: 'disabled' }
+  | {
+      success: false;
+      reason: 'auth' | 'upstream';
+      status: number;
+      error: string;
+    };
+
 const hashSessionToken = (token: string) => createHash('sha256').update(token).digest('hex');
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -350,7 +360,7 @@ export const sendMagicLink = async (email: string): Promise<MagicLinkResult> => 
     return { success: false as const, reason: 'forbidden' as const };
   }
 
-  const redirectTo = new URL('/auth/callback', appBaseUrl).toString();
+  const redirectTo = new URL('/auth/confirm', appBaseUrl).toString();
   const response = await fetch(`${supabaseUrl}/auth/v1/otp`, {
     method: 'POST',
     headers: {
@@ -371,6 +381,45 @@ export const sendMagicLink = async (email: string): Promise<MagicLinkResult> => 
   }
 
   return { success: true };
+};
+
+export const confirmMagicLink = async (tokenHash: string, type: string): Promise<MagicLinkConfirmResult> => {
+  if (!isSupabaseAuthConfigured || !supabaseUrl || !supabaseAnonKey) {
+    return { success: false, reason: 'disabled' };
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+    },
+    body: JSON.stringify({
+      token_hash: tokenHash,
+      type,
+    }),
+  });
+
+  if (!response.ok) {
+    const parsed = await parseSupabaseError(response);
+    console.error('Magic link confirm failed:', parsed.error);
+    return { success: false, reason: parsed.reason === 'rate_limited' ? 'upstream' : parsed.reason, status: parsed.reason === 'rate_limited' ? 502 : parsed.status, error: parsed.reason === 'rate_limited' ? 'Supabase magic link verification was rate-limited' : parsed.error };
+  }
+
+  const payload = await response.json().catch(() => null);
+  const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : null;
+
+  if (!accessToken) {
+    return {
+      success: false,
+      reason: 'upstream',
+      status: 502,
+      error: 'Supabase verification response did not include an access token',
+    };
+  }
+
+  return { success: true, accessToken };
 };
 
 // Verify PIN function

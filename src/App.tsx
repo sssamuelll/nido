@@ -36,7 +36,7 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  if (location.pathname === '/auth/callback') {
+  if (location.pathname === '/auth/confirm' || location.pathname === '/auth/callback') {
     return <AuthCallback />;
   }
 
@@ -74,6 +74,7 @@ const App: React.FC = () => {
     <AuthProvider>
       <Router>
         <Routes>
+          <Route path="/auth/confirm" element={<AuthCallback />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="*" element={<AppRoutes />} />
         </Routes>
