@@ -37,12 +37,27 @@ export const budgetUpdateSchema = z.object({
   total_budget: z.coerce.number().positive('Total budget must be positive'),
   rent: z.coerce.number().nonnegative('Rent cannot be negative'),
   savings: z.coerce.number().nonnegative('Savings cannot be negative'),
-  personal_samuel: z.coerce.number().nonnegative('Personal Samuel cannot be negative'),
-  personal_maria: z.coerce.number().nonnegative('Personal Maria cannot be negative'),
+  personal_budget: z.coerce.number().nonnegative('Personal budget cannot be negative').optional(),
+  personal_samuel: z.coerce.number().nonnegative('Personal Samuel cannot be negative').optional(),
+  personal_maria: z.coerce.number().nonnegative('Personal Maria cannot be negative').optional(),
   categories: z.record(z.string(), z.coerce.number().nonnegative()).optional()
 }).refine(data => {
+  if (
+    data.personal_budget === undefined &&
+    (data.personal_samuel === undefined || data.personal_maria === undefined)
+  ) {
+    return false;
+  }
+
   // Ensure sum of components does not exceed total budget
-  const sum = data.rent + data.savings + data.personal_samuel + data.personal_maria;
+  const personalSamuel = data.personal_samuel ?? 0;
+  const personalMaria = data.personal_maria ?? 0;
+  const personalBudget = data.personal_budget ?? 0;
+  const sum = data.rent + data.savings + (
+    data.personal_samuel !== undefined || data.personal_maria !== undefined
+      ? personalSamuel + personalMaria
+      : personalBudget
+  );
   return sum <= data.total_budget;
 }, {
   message: 'Sum of rent, savings, and personal budgets cannot exceed total budget'

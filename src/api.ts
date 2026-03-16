@@ -198,8 +198,8 @@ export class Api {
     total_budget: number;
     rent: number;
     savings: number;
-    personal_samuel: number;
-    personal_maria: number;
+    personal_budget: number;
+    categories?: Record<string, number>;
   }) {
     return this.request('/budgets', {
       method: 'PUT',

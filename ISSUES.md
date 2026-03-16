@@ -28,6 +28,13 @@ This file tracks bugs, improvements, and feature requests for the Nido expense t
 - **Fix:** Maintain current pattern; add audit note to avoid string interpolation.
 - **Priority:** Low
 
+### [SEC-004] Private Budget/Expense Visibility
+- **Description:** Monthly expense and budget responses exposed both users' personal allocations and private spending to either authenticated user.
+- **Risk:** Medium. Household-shared data should stay visible, but private budget/spend must remain scoped to the owner.
+- **Fix:** Scope backend monthly expense queries to `shared OR owned personal`, return only the authenticated user's personal allocation/spend in budget and summary responses, and render only that private data in dashboard/settings. **Implemented** – Route filtering now uses the authenticated app user, shared expense management remains available to both users, and focused privacy tests cover server and frontend visibility behavior.
+- **Priority:** High
+- **Status:** Implemented (2026‑03‑17)
+
 ---
 
 ## 🐛 Bugs & Defects
