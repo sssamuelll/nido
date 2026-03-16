@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabase } from '../db.js';
+import { findAppUserIdByUsername, getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { 
   expenseCreateSchema, 
@@ -37,10 +37,11 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 
   try {
     const db = getDatabase();
+    const paidByUserId = await findAppUserIdByUsername(paid_by);
     const result = await db.run(`
-      INSERT INTO expenses (description, amount, category, date, paid_by, type, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, description, amount, category, date, paid_by, type, status);
+      INSERT INTO expenses (description, amount, category, date, paid_by, paid_by_user_id, type, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, description, amount, category, date, paid_by, paidByUserId, type, status);
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
     res.status(201).json(newExpense);

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defaultPassword as envDefaultPassword, isProduction } from './config.js';
+import { databaseUrl, defaultPassword as envDefaultPassword, isProduction } from './config.js';
 
 const format = (d: Date, fmt: string) => {
   const y = d.getFullYear();
@@ -15,20 +15,127 @@ const format = (d: Date, fmt: string) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let db: Database;
+let db: Database | undefined;
+
+const defaultDatabasePath = path.join(__dirname, '..', 'nido.db');
+const primaryHouseholdSlug = 'primary';
+const primaryHouseholdName = 'Samuel & Maria';
+
+const hasColumn = async (database: Database, tableName: string, columnName: string) => {
+  const columns = await database.all<{ name: string }[]>(`PRAGMA table_info(${tableName})`);
+  return columns.some((column) => column.name === columnName);
+};
+
+const ensureColumn = async (database: Database, tableName: string, columnName: string, definition: string) => {
+  if (!(await hasColumn(database, tableName, columnName))) {
+    await database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+};
+
+const ensurePrimaryHousehold = async (database: Database) => {
+  await database.run(
+    `INSERT OR IGNORE INTO households (slug, name) VALUES (?, ?)`,
+    primaryHouseholdSlug,
+    primaryHouseholdName
+  );
+
+  const household = await database.get<{ id: number }>(
+    `SELECT id FROM households WHERE slug = ?`,
+    primaryHouseholdSlug
+  );
+
+  if (!household) {
+    throw new Error('Failed to initialize primary household');
+  }
+
+  return household.id;
+};
+
+const syncAppUsersFromLegacyUsers = async (database: Database, householdId: number) => {
+  const legacyUsers = await database.all<{ id: number; username: string; created_at: string }[]>(
+    `SELECT id, username, created_at FROM users ORDER BY id`
+  );
+
+  for (const legacyUser of legacyUsers) {
+    await database.run(
+      `
+        INSERT INTO app_users (household_id, legacy_user_id, username, created_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(legacy_user_id) DO UPDATE SET
+          household_id = excluded.household_id,
+          username = excluded.username
+      `,
+      householdId,
+      legacyUser.id,
+      legacyUser.username,
+      legacyUser.created_at
+    );
+  }
+};
+
+const backfillExpenseUserIds = async (database: Database) => {
+  await database.run(`
+    UPDATE expenses
+    SET paid_by_user_id = (
+      SELECT app_users.id
+      FROM app_users
+      WHERE app_users.username = expenses.paid_by
+    )
+    WHERE paid_by_user_id IS NULL
+  `);
+};
+
+const syncBudgetAllocations = async (database: Database) => {
+  const appUsers = await database.all<{ id: number; username: string }[]>(
+    `SELECT id, username FROM app_users WHERE username IN ('samuel', 'maria')`
+  );
+  const userIds = new Map(appUsers.map((user) => [user.username, user.id]));
+  const budgets = await database.all<{
+    id: number;
+    personal_samuel: number;
+    personal_maria: number;
+  }[]>(`SELECT id, personal_samuel, personal_maria FROM budgets`);
+
+  for (const budget of budgets) {
+    const allocationEntries = [
+      { username: 'samuel', amount: budget.personal_samuel },
+      { username: 'maria', amount: budget.personal_maria },
+    ];
+
+    for (const entry of allocationEntries) {
+      const appUserId = userIds.get(entry.username);
+      if (!appUserId) {
+        continue;
+      }
+
+      await database.run(
+        `
+          INSERT INTO budget_allocations (budget_id, app_user_id, allocation_type, amount)
+          VALUES (?, ?, 'personal', ?)
+          ON CONFLICT(budget_id, app_user_id, allocation_type) DO UPDATE SET
+            amount = excluded.amount
+        `,
+        budget.id,
+        appUserId,
+        entry.amount
+      );
+    }
+  }
+};
 
 // Initialize database
 export const initDatabase = async () => {
-  db = await open({
-    filename: path.join(__dirname, '..', 'nido.db'),
+  const database = await open({
+    filename: databaseUrl || defaultDatabasePath,
     driver: sqlite3.Database
   });
+  db = database;
 
   // Enable foreign keys
-  await db.exec('PRAGMA foreign_keys = ON');
+  await database.exec('PRAGMA foreign_keys = ON');
 
   // Create tables
-  await db.exec(`
+  await database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -68,17 +175,60 @@ export const initDatabase = async () => {
       UNIQUE(month, category)
     );
 
+    CREATE TABLE IF NOT EXISTS households (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS app_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id INTEGER NOT NULL,
+      legacy_user_id INTEGER UNIQUE,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+      FOREIGN KEY (legacy_user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      app_user_id INTEGER NOT NULL,
+      token_hash TEXT UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (app_user_id) REFERENCES app_users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS budget_allocations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      budget_id INTEGER NOT NULL,
+      app_user_id INTEGER NOT NULL,
+      allocation_type TEXT NOT NULL DEFAULT 'personal' CHECK (allocation_type IN ('personal')),
+      amount REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(budget_id, app_user_id, allocation_type),
+      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
+      FOREIGN KEY (app_user_id) REFERENCES app_users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
     CREATE INDEX IF NOT EXISTS idx_expenses_paid_by ON expenses(paid_by);
     CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses(type);
+    CREATE INDEX IF NOT EXISTS idx_app_users_household_id ON app_users(household_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_app_user_id ON sessions(app_user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_budget_allocations_budget_id ON budget_allocations(budget_id);
+    CREATE INDEX IF NOT EXISTS idx_budget_allocations_app_user_id ON budget_allocations(app_user_id);
   `);
 
   // Migrations: Ensure 'pin' column exists
-  try {
-    await db.exec('ALTER TABLE users ADD COLUMN pin TEXT DEFAULT "1234"');
-  } catch (e) {
-    // Column already exists
-  }
+  await ensureColumn(database, 'users', 'pin', `TEXT DEFAULT '1234'`);
+  await ensureColumn(database, 'expenses', 'paid_by_user_id', 'INTEGER REFERENCES app_users(id) ON DELETE SET NULL');
+  await database.exec('CREATE INDEX IF NOT EXISTS idx_expenses_paid_by_user_id ON expenses(paid_by_user_id)');
 
   // Seed users
   let defaultPassword = envDefaultPassword;
@@ -93,15 +243,15 @@ export const initDatabase = async () => {
 
   if (defaultPassword) {
     const saltedPassword = bcrypt.hashSync(defaultPassword, 10);
-    await db.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', saltedPassword, '1234']);
-    await db.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', saltedPassword, '1234']);
+    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', saltedPassword, '1234']);
+    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', saltedPassword, '1234']);
     console.log(`Seeded default users (password from ${passwordSource})`);
   } else if (isProduction) {
     console.log('Skipping user seeding in production - DEFAULT_PASSWORD not set (assuming existing users)');
   }
 
   // Seed default budget if none exists
-  await db.run(`
+  await database.run(`
     INSERT OR IGNORE INTO budgets (month, total_budget, rent, savings, personal_samuel, personal_maria)
     VALUES (?, ?, ?, ?, ?, ?)
   `, [format(new Date(), 'yyyy-MM'), 2800, 335, 300, 500, 500]);
@@ -118,13 +268,44 @@ export const initDatabase = async () => {
   };
 
   for (const cat of categories) {
-    await db.run(`
+    await database.run(`
       INSERT OR IGNORE INTO category_budgets (month, category, amount)
       VALUES (?, ?, ?)
     `, [format(new Date(), 'yyyy-MM'), cat, defaultCategoryAmounts[cat] || 0]);
   }
 
+  const householdId = await ensurePrimaryHousehold(database);
+  await syncAppUsersFromLegacyUsers(database, householdId);
+  await backfillExpenseUserIds(database);
+  await syncBudgetAllocations(database);
+
   console.log('Database initialized');
+};
+
+export const findAppUserIdByUsername = async (username: string) => {
+  const database = getDatabase();
+  const user = await database.get<{ id: number }>(
+    `SELECT id FROM app_users WHERE username = ?`,
+    username
+  );
+  return user?.id ?? null;
+};
+
+export const syncBudgetAllocationsForMonth = async (month: string) => {
+  const database = getDatabase();
+  const budget = await database.get<{ id: number }>(`SELECT id FROM budgets WHERE month = ?`, month);
+  if (!budget) {
+    return;
+  }
+
+  await syncBudgetAllocations(database);
+};
+
+export const closeDatabase = async () => {
+  if (db) {
+    await db.close();
+    db = undefined;
+  }
 };
 
 export const getDatabase = () => {
