@@ -31,6 +31,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.set('trust proxy', 1);
 const magicLinkSchema = z.object({
   email: z.string().email(),
 });
@@ -95,6 +96,22 @@ app.post('/api/auth/magic-link/start', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Magic link no permitido para este email' });
     }
 
+    if (result.reason === 'disabled') {
+      return res.status(404).json({ error: 'Magic link auth is not configured' });
+    }
+
+    if (result.reason === 'rate_limited') {
+      return res.status(429).json({ error: result.error });
+    }
+
+    if (result.reason === 'auth') {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    if ('status' in result) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
     return res.status(502).json({ error: 'No se pudo enviar el magic link' });
   }
 
@@ -111,15 +128,31 @@ app.post('/api/auth/session/exchange', loginLimiter, async (req, res) => {
     return res.status(404).json({ error: 'Magic link auth is not configured' });
   }
 
-  const user = await findOrCreateAppUserFromSupabase(validation.data.accessToken);
-  if (!user) {
-    return res.status(403).json({ error: 'Supabase session is not allowed' });
+  const result = await findOrCreateAppUserFromSupabase(validation.data.accessToken);
+  if (!result.success) {
+    if (result.reason === 'forbidden') {
+      return res.status(403).json({ error: 'Supabase session is not allowed' });
+    }
+
+    if (result.reason === 'disabled') {
+      return res.status(404).json({ error: 'Magic link auth is not configured' });
+    }
+
+    if (result.reason === 'auth') {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    if ('status' in result) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(502).json({ error: 'Supabase session exchange failed' });
   }
 
-  const { sessionToken } = await createAppSession(user.id, req);
+  const { sessionToken } = await createAppSession(result.user.id, req);
   setAppSessionCookie(res, sessionToken);
 
-  res.json({ user });
+  res.json({ user: result.user });
 });
 
 // Legacy auth endpoint kept as staged fallback.
