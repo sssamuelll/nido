@@ -88,6 +88,13 @@ export class Api {
     });
   }
 
+  static async confirmMagicLink(tokenHash: string, type: string) {
+    return this.request('/auth/magic-link/confirm', {
+      method: 'POST',
+      body: { tokenHash, type },
+    });
+  }
+
   static async logout() {
     try {
       return await this.request('/auth/logout', {
