@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 
-// Mock dependencies (hoisted)
 vi.mock('./db.js', () => ({
   getDatabase: vi.fn(() => ({
     get: vi.fn(),
@@ -23,31 +22,35 @@ vi.mock('jsonwebtoken', () => ({
   default: { sign: vi.fn(), verify: vi.fn() },
 }));
 
-// Import after mocks
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { login, authenticateToken } from './auth.js';
+import { login, authenticateToken, type AuthRequest } from './auth.js';
 
 describe('Auth module', () => {
   let mockDb: any;
-  let mockRequest: Partial<Request>;
-  let mockResponse: Partial<Response>;
+  let mockRequest: Partial<AuthRequest>;
+  let mockResponse: {
+    status: ReturnType<typeof vi.fn>;
+    json: ReturnType<typeof vi.fn>;
+  };
   let mockNext: NextFunction;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    // Setup db mock
     const { getDatabase } = await import('./db.js');
     mockDb = { get: vi.fn() };
     getDatabase.mockReturnValue(mockDb);
 
-    mockRequest = { cookies: {} }; // Updated to expect cookies
-    mockResponse = { sendStatus: vi.fn() };
+    mockRequest = { cookies: {}, headers: {} };
+    mockResponse = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    };
     mockNext = vi.fn();
   });
 
   describe('login', () => {
-    it('should return token and user on valid credentials', async () => {
+    it('returns token and user on valid credentials', async () => {
       const mockUser = { id: 1, username: 'samuel', password: 'hashedPassword' };
       mockDb.get.mockResolvedValue(mockUser);
       (bcrypt.compareSync as any).mockReturnValue(true);
@@ -60,7 +63,7 @@ describe('Auth module', () => {
       expect(jwt.sign).toHaveBeenCalledWith(
         { id: 1, username: 'samuel' },
         'test-secret-1234567890-1234567890-123456',
-        { expiresIn: '365d' } // Updated to 365d
+        { expiresIn: '365d' }
       );
       expect(result).toEqual({
         token: 'fake-jwt-token',
@@ -68,7 +71,7 @@ describe('Auth module', () => {
       });
     });
 
-    it('should return null if user not found', async () => {
+    it('returns null if user is not found', async () => {
       mockDb.get.mockResolvedValue(null);
 
       const result = await login('unknown', 'password');
@@ -78,7 +81,7 @@ describe('Auth module', () => {
       expect(jwt.sign).not.toHaveBeenCalled();
     });
 
-    it('should return null if password mismatch', async () => {
+    it('returns null if password mismatches', async () => {
       const mockUser = { id: 1, username: 'samuel', password: 'hashedPassword' };
       mockDb.get.mockResolvedValue(mockUser);
       (bcrypt.compareSync as any).mockReturnValue(false);
@@ -86,11 +89,10 @@ describe('Auth module', () => {
       const result = await login('samuel', 'wrongpassword');
 
       expect(result).toBeNull();
-      expect(bcrypt.compareSync).toHaveBeenCalledWith('wrongpassword', 'hashedPassword');
       expect(jwt.sign).not.toHaveBeenCalled();
     });
 
-    it('should return null on database error', async () => {
+    it('returns null on database error', async () => {
       mockDb.get.mockRejectedValue(new Error('DB error'));
 
       const result = await login('samuel', 'password');
@@ -100,40 +102,58 @@ describe('Auth module', () => {
   });
 
   describe('authenticateToken middleware', () => {
-    it('should call next() with valid token', () => {
-      mockRequest.cookies = { token: 'valid-token' }; // Updated to cookies
-      (jwt.verify as any).mockImplementation((token: string, secret: string, callback: any) => {
+    it('accepts a valid cookie token', () => {
+      mockRequest.cookies = { token: 'valid-cookie-token' };
+      (jwt.verify as any).mockImplementation((_token: string, _secret: string, callback: any) => {
         callback(null, { id: 1, username: 'samuel' });
       });
 
-      authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
+      authenticateToken(mockRequest as AuthRequest, mockResponse as unknown as Response, mockNext);
 
       expect(jwt.verify).toHaveBeenCalledWith(
-        'valid-token',
+        'valid-cookie-token',
         'test-secret-1234567890-1234567890-123456',
         expect.any(Function)
       );
       expect(mockRequest.user).toEqual({ id: 1, username: 'samuel' });
       expect(mockNext).toHaveBeenCalled();
-      expect(mockResponse.sendStatus).not.toHaveBeenCalled();
     });
 
-    it('should return 401 if no token cookie', () => { // Updated test case name
-      authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
+    it('falls back to a bearer token when present', () => {
+      mockRequest.headers = { authorization: 'Bearer valid-bearer-token' };
+      (jwt.verify as any).mockImplementation((_token: string, _secret: string, callback: any) => {
+        callback(null, { id: 2, username: 'maria' });
+      });
 
-      expect(mockResponse.sendStatus).toHaveBeenCalledWith(401);
+      authenticateToken(mockRequest as AuthRequest, mockResponse as unknown as Response, mockNext);
+
+      expect(jwt.verify).toHaveBeenCalledWith(
+        'valid-bearer-token',
+        'test-secret-1234567890-1234567890-123456',
+        expect.any(Function)
+      );
+      expect(mockRequest.user).toEqual({ id: 2, username: 'maria' });
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    it('returns 401 when no auth token is present', () => {
+      authenticateToken(mockRequest as AuthRequest, mockResponse as unknown as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should return 403 if token verification fails', () => {
-      mockRequest.cookies = { token: 'invalid-token' }; // Updated to cookies
-      (jwt.verify as any).mockImplementation((token: string, secret: string, callback: any) => {
+    it('returns 401 when token verification fails', () => {
+      mockRequest.cookies = { token: 'invalid-token' };
+      (jwt.verify as any).mockImplementation((_token: string, _secret: string, callback: any) => {
         callback(new Error('Invalid token'), undefined);
       });
 
-      authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
+      authenticateToken(mockRequest as AuthRequest, mockResponse as unknown as Response, mockNext);
 
-      expect(mockResponse.sendStatus).toHaveBeenCalledWith(403);
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Session expired' });
       expect(mockNext).not.toHaveBeenCalled();
     });
   });

@@ -85,10 +85,15 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   }
 });
 
-// Session endpoint
-app.get('/api/auth/session', authenticateToken, (req: AuthRequest, res) => {
+const respondWithAuthenticatedUser = (req: AuthRequest, res: express.Response) => {
   res.json({ user: req.user });
-});
+};
+
+// Canonical current-user endpoint for cookie-backed auth bootstrap.
+app.get('/api/auth/me', authenticateToken, respondWithAuthenticatedUser);
+
+// Backward-compatible alias for older clients.
+app.get('/api/auth/session', authenticateToken, respondWithAuthenticatedUser);
 
 // Verify PIN endpoint (for quick access)
 app.post('/api/auth/verify-pin', authenticateToken, async (req: AuthRequest, res) => {

@@ -23,15 +23,12 @@ export class Api {
   private static async request(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', body, headers = {} } = options;
 
-    const token = localStorage.getItem('token');
-
     const config: RequestInit = {
       method,
-      credentials: 'include', // supports cookie-based auth
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'x-nido-request': 'true', // CSRF marker for hardened backend
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'x-nido-request': 'true',
         ...headers,
       },
     };
@@ -41,7 +38,7 @@ export class Api {
     }
 
     const response = await fetch(`${API_BASE}${endpoint}`, config);
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
 
@@ -49,6 +46,7 @@ export class Api {
         response.status === 401 &&
         endpoint !== '/auth/login' &&
         endpoint !== '/auth/verify-pin' &&
+        endpoint !== '/auth/me' &&
         endpoint !== '/auth/session'
       ) {
         this.unauthorizedHandler?.();
@@ -57,7 +55,6 @@ export class Api {
       throw new ApiError(response.status, errorData.error || 'Request failed');
     }
 
-    // Handle 204 No Content
     if (response.status === 204) {
       return null;
     }
@@ -65,7 +62,6 @@ export class Api {
     return await response.json();
   }
 
-  // Auth
   static async login(username: string, password: string) {
     return this.request('/auth/login', {
       method: 'POST',
@@ -79,14 +75,24 @@ export class Api {
         method: 'POST',
       });
     } catch (error) {
-      // Backward compatibility with backend versions that don't expose /auth/logout
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;
     }
   }
 
+  static async getMe() {
+    try {
+      return await this.request('/auth/me');
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return this.request('/auth/session');
+      }
+      throw error;
+    }
+  }
+
   static async getSession() {
-    return this.request('/auth/session');
+    return this.getMe();
   }
 
   static async verifyPin(pin: string) {
@@ -117,7 +123,6 @@ export class Api {
     }
   }
 
-  // Expenses
   static async getExpenses(month: string) {
     return this.request(`/expenses?month=${month}`);
   }
@@ -158,7 +163,6 @@ export class Api {
     return this.request('/expenses/categories');
   }
 
-  // Budgets
   static async getBudget(month: string) {
     return this.request(`/budgets?month=${month}`);
   }
@@ -177,7 +181,6 @@ export class Api {
     });
   }
 
-  // Health check
   static async health() {
     return this.request('/health');
   }
