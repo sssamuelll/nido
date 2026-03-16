@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth, LoginPage, PinPage } from './auth';
+import { AuthProvider, useAuth } from './auth';
+import { Login } from './views/Login';
+import { PinPage } from './views/PinPage';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './views/Dashboard';
@@ -25,19 +27,15 @@ const AppRoutes: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="login-container">
-        <div className="login-card">
-          <div className="text-center">
-            <h1 className="login-title">🏠 Nido</h1>
-            <div>Cargando...</div>
-          </div>
-        </div>
+      <div className="loading-screen">
+        <div className="loading-screen__logo"><span>N</span></div>
+        <div className="loading-screen__text">Cargando...</div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return <Login />;
   }
 
   if (isLocked) {
