@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 let db: Database;
 
 // Initialize database
-const initDatabase = async () => {
+export const initDatabase = async () => {
   db = await open({
     filename: path.join(__dirname, '..', 'nido.db'),
     driver: sqlite3.Database
@@ -126,9 +126,6 @@ const initDatabase = async () => {
 
   console.log('Database initialized');
 };
-
-// Initialize the database
-initDatabase().catch(console.error);
 
 export const getDatabase = () => {
   if (!db) {
