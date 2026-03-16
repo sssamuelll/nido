@@ -107,24 +107,19 @@ export const History: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="app-layout">
-        <div className="content-area">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="skeleton" style={{ height: 60 }} />
-            <div className="skeleton" style={{ height: 48 }} />
-            <div className="skeleton" style={{ height: 56 }} />
-            <div className="skeleton" style={{ height: 56 }} />
-            <div className="skeleton" style={{ height: 56 }} />
-          </div>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="skeleton" style={{ height: 60 }} />
+        <div className="skeleton" style={{ height: 48 }} />
+        <div className="skeleton" style={{ height: 56 }} />
+        <div className="skeleton" style={{ height: 56 }} />
+        <div className="skeleton" style={{ height: 56 }} />
       </div>
     );
   }
 
   return (
-    <div className="app-layout">
-      <div className="content-area">
-        {/* Page header */}
+    <>
+      {/* Page header */}
         <div className="dashboard__header">
           <div>
             <div className="page-subtitle">Finanzas</div>
@@ -272,7 +267,6 @@ export const History: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 };

@@ -37,9 +37,8 @@ export const Goals: React.FC = () => {
   const col2Goals = goals.filter((_, i) => i % 2 === 1);
 
   return (
-    <div className="app-layout">
-      <div className="content-area">
-        {/* Header */}
+    <>
+      {/* Header */}
         <div className="goals__header">
           <div>
             <div className="goals__subtitle">Finanzas</div>
@@ -96,7 +95,6 @@ export const Goals: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 };

@@ -87,45 +87,39 @@ export const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="app-layout">
-        <div className="content-area">
-          <div className="dashboard__header">
-            <div>
-              <div className="skeleton" style={{ width: 120, height: 16, marginBottom: 8 }} />
-              <div className="skeleton" style={{ width: 200, height: 32 }} />
-            </div>
-          </div>
-          <div className="dashboard__balances">
-            <div className="skeleton" style={{ flex: 1, height: 180 }} />
-            <div className="skeleton" style={{ flex: 1, height: 180 }} />
-            <div className="skeleton" style={{ flex: 1, height: 180 }} />
-          </div>
-          <div className="dashboard__bottom">
-            <div className="skeleton" style={{ flex: 1, height: 300 }} />
-            <div className="skeleton" style={{ flex: 1, height: 300 }} />
+      <>
+        <div className="dashboard__header">
+          <div>
+            <div className="skeleton" style={{ width: 120, height: 16, marginBottom: 8 }} />
+            <div className="skeleton" style={{ width: 200, height: 32 }} />
           </div>
         </div>
-      </div>
+        <div className="dashboard__balances">
+          <div className="skeleton" style={{ flex: 1, height: 180 }} />
+          <div className="skeleton" style={{ flex: 1, height: 180 }} />
+          <div className="skeleton" style={{ flex: 1, height: 180 }} />
+        </div>
+        <div className="dashboard__bottom">
+          <div className="skeleton" style={{ flex: 1, height: 300 }} />
+          <div className="skeleton" style={{ flex: 1, height: 300 }} />
+        </div>
+      </>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="app-layout">
-        <div className="content-area">
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <div style={{ color: 'var(--color-danger)', marginBottom: 16, fontSize: 16 }}>
-              {error || 'Error al cargar'}
-            </div>
-            <button
-              onClick={loadDashboardData}
-              className="btn btn--samuel"
-              style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
-            >
-              Reintentar
-            </button>
-          </div>
+      <div style={{ textAlign: 'center', padding: '60px 0' }}>
+        <div style={{ color: 'var(--color-danger)', marginBottom: 16, fontSize: 16 }}>
+          {error || 'Error al cargar'}
         </div>
+        <button
+          onClick={loadDashboardData}
+          className="btn btn--samuel"
+          style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
@@ -179,10 +173,9 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="app-layout">
-      <div className="content-area">
-        {/* Header */}
-        <div className="dashboard__header">
+    <>
+      {/* Header */}
+      <div className="dashboard__header">
           <div>
             <div className="dashboard__greeting">{greeting}</div>
             <div className="dashboard__title">
@@ -300,6 +293,6 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

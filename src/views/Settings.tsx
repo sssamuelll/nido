@@ -150,15 +150,13 @@ export const Settings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="app-layout">
-        <div className="content-area">
-          <div className="skeleton" style={{ height: 60 }} />
-          <div style={{ display: 'flex', gap: 36 }}>
-            <div className="skeleton" style={{ flex: 1, height: 400 }} />
-            <div className="skeleton" style={{ width: 420, height: 400 }} />
-          </div>
+      <>
+        <div className="skeleton" style={{ height: 60 }} />
+        <div style={{ display: 'flex', gap: 36 }}>
+          <div className="skeleton" style={{ flex: 1, height: 400 }} />
+          <div className="skeleton" style={{ width: 420, height: 400 }} />
         </div>
-      </div>
+      </>
     );
   }
 
@@ -167,9 +165,8 @@ export const Settings: React.FC = () => {
   const userColor = user?.username === 'maria' ? 'var(--color-maria)' : 'var(--color-samuel)';
 
   return (
-    <div className="app-layout">
-      <div className="content-area">
-        {/* Toast */}
+    <>
+      {/* Toast */}
         {toast && (
           <div style={{
             position: 'fixed',
@@ -530,6 +527,6 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

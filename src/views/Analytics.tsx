@@ -71,9 +71,8 @@ export const Analytics: React.FC = () => {
   const paths = buildAreaChartPaths(MOCK_CHART_DATA, SVG_W, SVG_H, PAD);
 
   return (
-    <div className="app-layout">
-      <div className="content-area">
-        {/* Header */}
+    <>
+      {/* Header */}
         <div className="analytics__header">
           <div>
             <div className="analytics__subtitle">Finanzas</div>
@@ -225,7 +224,6 @@ export const Analytics: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 };
