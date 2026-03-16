@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
+import { getOrCreateConfirmAttempt } from './authConfirmAttempt';
 
 const getMagicLinkParams = (location: ReturnType<typeof useLocation>) => {
   const searchParams = new URLSearchParams(location.search);
@@ -26,18 +27,25 @@ export const AuthCallback: React.FC = () => {
       return;
     }
 
-    const run = async () => {
-      try {
-        await confirmMagicLink(tokenHash, type);
+    const run = getOrCreateConfirmAttempt(tokenHash, type, () => confirmMagicLink(tokenHash, type));
+
+    let isActive = true;
+
+    run
+      .then(() => {
+        if (!isActive) return;
         navigate('/', { replace: true });
-      } catch (err: any) {
+      })
+      .catch((err: any) => {
+        if (!isActive) return;
         setError(err.message || 'No se pudo completar el acceso');
         setIsWorking(false);
-      }
-    };
+      });
 
-    void run();
-  }, [confirmMagicLink, location, navigate]);
+    return () => {
+      isActive = false;
+    };
+  }, [confirmMagicLink, location.search, navigate]);
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;

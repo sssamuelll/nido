@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
-import { getDatabase } from './db.js';
+import { getDatabase, ensureSessionColumns } from './db.js';
 import {
   jwtSecret,
   isSupabaseAuthConfigured,
@@ -198,8 +198,9 @@ export const createAppSession = async (appUserId: number, req: Request) => {
   const sessionToken = randomBytes(32).toString('hex');
   const sessionId = randomBytes(16).toString('hex');
   const expiresAt = new Date(Date.now() + appSessionDays * 24 * 60 * 60 * 1000).toISOString();
+  const userAgent = req.get('user-agent') ?? null;
 
-  await db.run(
+  const insertSession = async () => db.run(
     `
       INSERT INTO sessions (id, app_user_id, token_hash, expires_at, user_agent)
       VALUES (?, ?, ?, ?, ?)
@@ -208,8 +209,20 @@ export const createAppSession = async (appUserId: number, req: Request) => {
     appUserId,
     hashSessionToken(sessionToken),
     expiresAt,
-    req.get('user-agent') ?? null
+    userAgent
   );
+
+  try {
+    await insertSession();
+  } catch (error: any) {
+    const message = typeof error?.message === 'string' ? error.message : '';
+    if (!message.includes('table sessions has no column named user_agent')) {
+      throw error;
+    }
+
+    await ensureSessionColumns(db);
+    await insertSession();
+  }
 
   return { sessionToken, expiresAt };
 };
