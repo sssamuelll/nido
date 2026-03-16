@@ -41,6 +41,7 @@ import {
   type AuthRequest,
   isMagicLinkEmailAllowed,
   sendMagicLink,
+  confirmMagicLink,
   findOrCreateAppUserFromSupabase,
 } from './auth.js';
 
@@ -155,7 +156,7 @@ describe('Auth module', () => {
       });
       expect(JSON.parse(options.body)).toEqual({
         email: 'samuel@example.com',
-        email_redirect_to: 'http://localhost:3100/auth/callback',
+        email_redirect_to: 'http://localhost:3100/auth/confirm',
       });
       expect(options.body).not.toContain('create_user');
       expect(options.body).not.toContain('emailRedirectTo');
@@ -194,6 +195,46 @@ describe('Auth module', () => {
         reason: 'auth',
         status: 400,
         error: 'Email provider is disabled',
+      });
+    });
+  });
+
+  describe('confirmMagicLink', () => {
+    it('verifies token_hash via Supabase and returns the access token', async () => {
+      (fetch as any).mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ access_token: 'verified-access-token' }),
+      });
+
+      const result = await confirmMagicLink('abc123', 'email');
+
+      expect(result).toEqual({ success: true, accessToken: 'verified-access-token' });
+      expect(fetch).toHaveBeenCalledWith('https://example.supabase.co/auth/v1/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: 'anon-key',
+          Authorization: 'Bearer anon-key',
+        },
+        body: JSON.stringify({ token_hash: 'abc123', type: 'email' }),
+      });
+    });
+
+    it('surfaces invalid token_hash responses as auth errors', async () => {
+      (fetch as any).mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: vi.fn().mockResolvedValue({ msg: 'OTP expired' }),
+      });
+
+      const result = await confirmMagicLink('expired-token', 'email');
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'auth',
+        status: 401,
+        error: 'OTP expired',
       });
     });
   });

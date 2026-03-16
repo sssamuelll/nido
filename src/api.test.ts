@@ -63,4 +63,26 @@ describe('Api auth requests', () => {
     await expect(Api.getMe()).rejects.toBeInstanceOf(ApiError);
     expect(unauthorizedHandler).not.toHaveBeenCalled();
   });
+
+  it('posts token_hash confirmation through the backend bridge endpoint', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ user: { id: 1, username: 'samuel' } }),
+    } as Response);
+
+    const response = await Api.confirmMagicLink('token-hash-123', 'email');
+
+    expect(response).toEqual({ user: { id: 1, username: 'samuel' } });
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/magic-link/confirm', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-nido-request': 'true',
+      },
+      body: JSON.stringify({ tokenHash: 'token-hash-123', type: 'email' }),
+    });
+  });
 });
