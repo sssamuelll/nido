@@ -14,6 +14,12 @@ class ApiError extends Error {
 }
 
 export class Api {
+  private static unauthorizedHandler: (() => void) | null = null;
+
+  static setUnauthorizedHandler(handler: (() => void) | null) {
+    this.unauthorizedHandler = handler;
+  }
+
   private static async request(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', body, headers = {} } = options;
 
@@ -38,6 +44,16 @@ export class Api {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+
+      if (
+        response.status === 401 &&
+        endpoint !== '/auth/login' &&
+        endpoint !== '/auth/verify-pin' &&
+        endpoint !== '/auth/session'
+      ) {
+        this.unauthorizedHandler?.();
+      }
+
       throw new ApiError(response.status, errorData.error || 'Request failed');
     }
 
@@ -67,6 +83,10 @@ export class Api {
       if (error instanceof ApiError && error.status === 404) return null;
       throw error;
     }
+  }
+
+  static async getSession() {
+    return this.request('/auth/session');
   }
 
   static async verifyPin(pin: string) {
