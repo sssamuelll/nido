@@ -6,18 +6,37 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 import './config.js'; // Validate environment first
 import { getDatabase, initDatabase } from './db.js';
-import { login, authenticateToken, AuthRequest, verifyPin } from './auth.js';
+import {
+  login,
+  authenticateToken,
+  AuthRequest,
+  verifyPin,
+  isMagicLinkEnabled,
+  sendMagicLink,
+  findOrCreateAppUserFromSupabase,
+  createAppSession,
+  setAppSessionCookie,
+  clearAuthCookies,
+  revokeAppSession,
+} from './auth.js';
 import expensesRouter from './routes/expenses.js';
 import budgetsRouter from './routes/budgets.js';
-import { port } from './config.js';
+import { port, appSessionCookieName } from './config.js';
 import { pinSchema } from './validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const magicLinkSchema = z.object({
+  email: z.string().email(),
+});
+const sessionExchangeSchema = z.object({
+  accessToken: z.string().min(1),
+});
 
 // Security Middleware
 app.use(helmet({
@@ -27,14 +46,13 @@ app.use(cookieParser());
 
 // Rate limiting for the login endpoint
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 login requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: { error: 'Too many login attempts, please try again after 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Simple CSRF Protection for SPAs
 const csrfCheck = (req: any, res: any, next: any) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
@@ -45,7 +63,6 @@ const csrfCheck = (req: any, res: any, next: any) => {
   return res.status(403).json({ error: 'Seguridad CSRF: Petición no autorizada' });
 };
 
-// Middleware
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -55,7 +72,53 @@ app.use(cors({
 app.use(express.json());
 app.use(csrfCheck);
 
-// Auth endpoint
+app.get('/api/auth/config', (_req, res) => {
+  res.json({
+    magicLinkEnabled: isMagicLinkEnabled(),
+  });
+});
+
+app.post('/api/auth/magic-link/start', loginLimiter, async (req, res) => {
+  const validation = magicLinkSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: 'Email inválido' });
+  }
+
+  if (!isMagicLinkEnabled()) {
+    return res.status(404).json({ error: 'Magic link auth is not configured' });
+  }
+
+  const result = await sendMagicLink(validation.data.email.trim().toLowerCase());
+
+  if (!result.success) {
+    return res.status(502).json({ error: 'No se pudo enviar el magic link' });
+  }
+
+  res.json({ success: true, message: 'Si el email existe, recibirás un magic link enseguida.' });
+});
+
+app.post('/api/auth/session/exchange', loginLimiter, async (req, res) => {
+  const validation = sessionExchangeSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: 'Access token inválido' });
+  }
+
+  if (!isMagicLinkEnabled()) {
+    return res.status(404).json({ error: 'Magic link auth is not configured' });
+  }
+
+  const user = await findOrCreateAppUserFromSupabase(validation.data.accessToken);
+  if (!user) {
+    return res.status(401).json({ error: 'Supabase session could not be verified' });
+  }
+
+  const { sessionToken } = await createAppSession(user.id, req);
+  setAppSessionCookie(res, sessionToken);
+
+  res.json({ user });
+});
+
+// Legacy auth endpoint kept as staged fallback.
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
 
@@ -65,20 +128,19 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
   try {
     const result = await login(username, password);
-    
+
     if (!result) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Set cookie and return user info
     res.cookie('token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
+      maxAge: 365 * 24 * 60 * 60 * 1000
     });
 
-    res.json({ user: result.user, token: result.token });
+    res.json({ user: result.user, token: result.token, authMode: 'legacy' });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -89,13 +151,9 @@ const respondWithAuthenticatedUser = (req: AuthRequest, res: express.Response) =
   res.json({ user: req.user });
 };
 
-// Canonical current-user endpoint for cookie-backed auth bootstrap.
 app.get('/api/auth/me', authenticateToken, respondWithAuthenticatedUser);
-
-// Backward-compatible alias for older clients.
 app.get('/api/auth/session', authenticateToken, respondWithAuthenticatedUser);
 
-// Verify PIN endpoint (for quick access)
 app.post('/api/auth/verify-pin', authenticateToken, async (req: AuthRequest, res) => {
   const validation = pinSchema.safeParse(req.body);
   if (!validation.success) {
@@ -118,13 +176,12 @@ app.post('/api/auth/verify-pin', authenticateToken, async (req: AuthRequest, res
   }
 });
 
-// Update PIN endpoint
 app.post('/api/auth/update-pin', authenticateToken, async (req: AuthRequest, res) => {
   const validation = pinSchema.safeParse(req.body);
   if (!validation.success) {
-    return res.status(400).json({ 
-      error: 'PIN inválido', 
-      details: validation.error.format() 
+    return res.status(400).json({
+      error: 'PIN inválido',
+      details: validation.error.format()
     });
   }
 
@@ -141,26 +198,27 @@ app.post('/api/auth/update-pin', authenticateToken, async (req: AuthRequest, res
   }
 });
 
-// Logout endpoint
-app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('token');
-  res.json({ message: 'Logged out' });
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    await revokeAppSession(req.cookies?.[appSessionCookieName]);
+  } catch (error) {
+    console.error('Session revoke error:', error);
+  } finally {
+    clearAuthCookies(res);
+    res.json({ message: 'Logged out' });
+  }
 });
 
-// Protected API routes
 app.use('/api/expenses', authenticateToken, expensesRouter);
 app.use('/api/budgets', authenticateToken, budgetsRouter);
 
-// Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve static files from the client build
 const clientBuildPath = path.join(__dirname, '../client');
 app.use(express.static(clientBuildPath));
 
-// Catch-all handler
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
