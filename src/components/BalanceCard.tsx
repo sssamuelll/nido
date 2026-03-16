@@ -1,34 +1,73 @@
 import React from 'react';
+import { OWNER_THEMES, type BalanceData } from '../types';
 
-interface BalanceCardProps {
-  samuelBalance: number;
-  mariaBalance: number;
-  owesWho: string;
+interface BalanceCardProps extends BalanceData {
+  className?: string;
 }
 
-export const BalanceCard: React.FC<BalanceCardProps> = ({ 
-  samuelBalance, 
-  mariaBalance, 
-  owesWho 
+export const BalanceCard: React.FC<BalanceCardProps> = ({
+  owner,
+  name,
+  avatar,
+  balance,
+  monthChange,
+  progress,
+  sparkline,
+  className = '',
 }) => {
+  const theme = OWNER_THEMES[owner];
+  const maxBar = Math.max(...sparkline, 1);
+
   return (
-    <div className="balance-card">
-      <div className="balance-title">Quién debe a quién</div>
-      <div className="balance-amount">{owesWho}</div>
-      
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        marginTop: '1rem',
-        fontSize: '0.875rem',
-        opacity: 0.9
-      }}>
-        <div>
-          Samuel: €{samuelBalance.toFixed(2)}
+    <div
+      className={`balance-card balance-card--${owner} ${className}`}
+      style={{
+        '--card-gradient': theme.gradientDiag,
+        '--card-glow': theme.glow,
+        '--card-dot': theme.dot,
+      } as React.CSSProperties}
+    >
+      <div className="balance-card__header">
+        <div className="balance-card__owner">
+          <div
+            className="balance-card__dot"
+            style={{ background: theme.dot, boxShadow: `0 0 8px ${theme.dot}80` }}
+          />
+          <span className="balance-card__name">{name}</span>
         </div>
-        <div>
-          María: €{mariaBalance.toFixed(2)}
+        <span className="balance-card__avatar">{avatar}</span>
+      </div>
+
+      <div className="balance-card__amount">
+        €{balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+      </div>
+
+      <div className="balance-card__change">
+        {monthChange >= 0 ? '↑ +' : '↓ '}€{Math.abs(monthChange).toLocaleString('es-ES')} este mes
+      </div>
+
+      <div className="balance-card__progress">
+        <div className="balance-card__progress-track">
+          <div
+            className="balance-card__progress-fill"
+            style={{ width: `${Math.min(progress, 100)}%` }}
+          />
         </div>
+        <span className="balance-card__progress-label">{progress}%</span>
+      </div>
+
+      <div className="balance-card__sparkline">
+        {sparkline.map((v, i) => {
+          const isLast = i === sparkline.length - 1;
+          const isSecondLast = i === sparkline.length - 2;
+          return (
+            <div
+              key={i}
+              className={`balance-card__spark-bar ${isLast ? 'balance-card__spark-bar--current' : isSecondLast ? 'balance-card__spark-bar--prev' : ''}`}
+              style={{ height: `${(v / maxBar) * 100}%` }}
+            />
+          );
+        })}
       </div>
     </div>
   );
