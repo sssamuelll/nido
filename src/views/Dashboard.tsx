@@ -189,17 +189,6 @@ export const Dashboard: React.FC = () => {
         {/* Balance Cards */}
         <div className="dashboard__balances">
           <BalanceCard
-            owner={personalCard.owner}
-            name={personalCard.name}
-            avatar={personalCard.avatar}
-            balance={personalCard.balance}
-            monthChange={personalCard.monthChange}
-            progress={personalCard.progress}
-            sparkline={personalCard.sparkline}
-            onClick={() => navigate('/personal')}
-            ariaLabel="Abrir detalle personal"
-          />
-          <BalanceCard
             owner="shared"
             name="Compartido"
             avatar="🏠"
@@ -209,6 +198,17 @@ export const Dashboard: React.FC = () => {
             sparkline={[availableShared * 0.3, availableShared * 0.5, availableShared * 0.4, availableShared * 0.6, availableShared * 0.7, totalSharedSpent]}
             onClick={() => navigate('/')}
             ariaLabel="Abrir dashboard compartido"
+          />
+          <BalanceCard
+            owner={personalCard.owner}
+            name={personalCard.name}
+            avatar={personalCard.avatar}
+            balance={personalCard.balance}
+            monthChange={personalCard.monthChange}
+            progress={personalCard.progress}
+            sparkline={personalCard.sparkline}
+            onClick={() => navigate('/personal')}
+            ariaLabel="Abrir detalle personal"
           />
         </div>
 
