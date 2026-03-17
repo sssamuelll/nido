@@ -73,7 +73,8 @@ const toNum = (value: unknown, fallback = 0) =>
   Number.isFinite(Number(value)) ? Number(value) : fallback;
 
 export const getPersonalBalanceCardModel = (data: DashboardSummaryData): PersonalBalanceCardViewModel => {
-  const owner = data?.personal?.owner === 'maria' ? 'maria' : 'samuel';
+  const ownerRaw = data?.personal?.owner || 'samuel';
+  const owner = ownerRaw.toLowerCase().includes('maria') ? 'maria' : 'samuel';
   const spent = toNum(data?.personal?.spent);
   const budget = toNum(data?.personal?.budget ?? data?.budget?.personal);
   const balance = budget - spent;
@@ -82,7 +83,7 @@ export const getPersonalBalanceCardModel = (data: DashboardSummaryData): Persona
   return {
     owner,
     name: owner === 'maria' ? 'María' : 'Samuel',
-    avatar: owner === 'maria' ? '👩🎨' : '👨💻',
+    avatar: owner === 'maria' ? '👩‍🎨' : '👨‍💻',
     balance,
     monthChange: -spent,
     progress,
@@ -141,7 +142,8 @@ export const buildPersonalDetailModel = ({
   expenses?: VisibleExpense[] | null;
   username: string;
 }): PersonalDetailViewModel => {
-  const owner = summary?.personal?.owner === 'maria' || username === 'maria' ? 'maria' : 'samuel';
+  const ownerRaw = summary?.personal?.owner || username || 'samuel';
+  const owner = ownerRaw.toLowerCase().includes('maria') ? 'maria' : 'samuel';
   const personalBudget = toNum(summary?.personal?.budget ?? budget?.personal_budget ?? summary?.budget?.personal);
   const privateExpenses = getPrivateExpensesForUser(expenses ?? [], username);
   const personalSpent = privateExpenses.reduce((sum, expense) => sum + toNum(expense.amount), 0);
