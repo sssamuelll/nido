@@ -126,14 +126,6 @@ export const PersonalDashboard: React.FC = () => {
   return (
     <div className="personal-dashboard">
       <div className="personal-dashboard__header">
-        <div>
-          <button className="personal-dashboard__back" onClick={() => navigate('/')}>
-            <ArrowLeft size={16} />
-            <span>Dashboard compartido</span>
-          </button>
-          <div className="personal-dashboard__subtitle">Espacio privado</div>
-          <div className="personal-dashboard__title">Tu detalle personal</div>
-        </div>
         <div className="dashboard__actions">
           <div className="dashboard__search">
             <Search size={16} color="var(--color-text-tertiary)" />
