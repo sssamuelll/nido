@@ -201,7 +201,7 @@ export const Dashboard: React.FC = () => {
           />
           <BalanceCard
             owner={personalCard.owner}
-            name={personalCard.name}
+            name={userName}
             avatar={personalCard.avatar}
             balance={personalCard.balance}
             monthChange={personalCard.monthChange}

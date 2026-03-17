@@ -127,6 +127,9 @@ export const PersonalDashboard: React.FC = () => {
   const chartSeries = detail.chart.map((point) => point.total);
   const chartPaths = buildLinePath(chartSeries, 520, 220, 24);
 
+  const normalizedUsername = user?.username?.toLowerCase().trim() || '';
+  const displayName = normalizedUsername === 'maria' ? 'María' : normalizedUsername === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
+
   return (
     <div className="personal-dashboard">
       <div className="personal-dashboard__header">
@@ -143,7 +146,7 @@ export const PersonalDashboard: React.FC = () => {
 
       <div className="personal-dashboard__hero">
         <div className="personal-dashboard__hero-copy">
-          <span className="personal-dashboard__eyebrow">{detail.name}</span>
+          <span className="personal-dashboard__eyebrow">{displayName}</span>
           <div className="personal-dashboard__hero-title">{toCurrency(detail.remaining)}</div>
           <div className="personal-dashboard__hero-subtitle">
             {toCurrency(detail.personalSpent)} de {toCurrency(detail.personalBudget)} usados este mes
