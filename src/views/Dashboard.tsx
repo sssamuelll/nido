@@ -91,18 +91,17 @@ export const Dashboard: React.FC = () => {
       <>
         <div className="dashboard__header">
           <div>
-            <div className="skeleton" style={{ width: 120, height: 16, marginBottom: 8 }} />
-            <div className="skeleton" style={{ width: 200, height: 32 }} />
+            <div className="skeleton skeleton--subtitle" />
+            <div className="skeleton skeleton--title" />
           </div>
         </div>
         <div className="dashboard__balances">
-          <div className="skeleton" style={{ flex: 1, height: 180 }} />
-          <div className="skeleton" style={{ flex: 1, height: 180 }} />
-          <div className="skeleton" style={{ flex: 1, height: 180 }} />
+          <div className="skeleton skeleton--card-sm" />
+          <div className="skeleton skeleton--card-sm" />
         </div>
         <div className="dashboard__bottom">
-          <div className="skeleton" style={{ flex: 1, height: 300 }} />
-          <div className="skeleton" style={{ flex: 1, height: 300 }} />
+          <div className="skeleton skeleton--card-lg" />
+          <div className="skeleton skeleton--card-lg" />
         </div>
       </>
     );
@@ -110,13 +109,13 @@ export const Dashboard: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 0' }}>
-        <div style={{ color: 'var(--color-danger)', marginBottom: 16, fontSize: 16 }}>
+      <div className="error-view">
+        <div className="error-view__msg">
           {error || 'Error al cargar'}
         </div>
         <button
           onClick={loadDashboardData}
-          className="btn btn--samuel"
+          className="btn btn--samuel btn--dynamic"
           style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
         >
           Reintentar
@@ -223,7 +222,7 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
             {categoryBreakdown.length === 0 ? (
-              <div style={{ color: 'var(--color-text-tertiary)', fontSize: 14, padding: '20px 0' }}>
+              <div className="empty-view">
                 Sin datos de categorías
               </div>
             ) : (
@@ -255,7 +254,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="dashboard__transactions">
               {recentTransactions.length === 0 ? (
-                <div style={{ color: 'var(--color-text-tertiary)', fontSize: 14, padding: '20px 0' }}>
+                <div className="empty-view">
                   No hay gastos registrados
                 </div>
               ) : (

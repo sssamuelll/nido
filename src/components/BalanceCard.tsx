@@ -39,7 +39,10 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
         <div className="balance-card__owner">
           <div
             className="balance-card__dot"
-            style={{ background: theme.dot, boxShadow: `0 0 8px ${theme.dot}80` }}
+            style={{ 
+              '--theme-dot': theme.dot,
+              '--theme-dot-glow': `${theme.dot}80`
+            } as React.CSSProperties}
           />
           <span className="balance-card__name">{name}</span>
         </div>
@@ -58,7 +61,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
         <div className="balance-card__progress-track">
           <div
             className="balance-card__progress-fill"
-            style={{ width: `${Math.min(progress, 100)}%` }}
+            style={{ '--progress-width': `${Math.min(progress, 100)}%` } as React.CSSProperties}
           />
         </div>
         <span className="balance-card__progress-label">{progress}%</span>
@@ -72,7 +75,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
             <div
               key={i}
               className={`balance-card__spark-bar ${isLast ? 'balance-card__spark-bar--current' : isSecondLast ? 'balance-card__spark-bar--prev' : ''}`}
-              style={{ height: `${(v / maxBar) * 100}%` }}
+              style={{ '--bar-height': `${(v / maxBar) * 100}%` } as React.CSSProperties}
             />
           );
         })}

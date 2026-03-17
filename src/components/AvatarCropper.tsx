@@ -272,8 +272,7 @@ export const AvatarCropper: React.FC<AvatarCropperProps> = ({ imageUrl, onCrop, 
             ref={canvasRef}
             width={CANVAS_SIZE}
             height={CANVAS_SIZE}
-            className="crop-canvas"
-            style={{ touchAction: 'none' }}
+            className="crop-canvas u-touch-none"
           />
         </div>
         <input

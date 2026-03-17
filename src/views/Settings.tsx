@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { OWNER_THEMES, type Owner } from '../types';
-import { Plus, Trash2, Check, X, AlertCircle, Download, LogOut, Shield, Key, Lock, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, AlertCircle, Download, LogOut, Key, Lock, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/Button';
 import { InputField } from '../components/InputField';
 
@@ -22,7 +21,7 @@ interface BudgetData {
   pending_approval?: {
     id: number;
     shared_available: number;
-    requested_by: string;
+    requested_by_user_id: number;
   };
   categories: Record<string, number>;
 }
@@ -63,8 +62,6 @@ export const Settings: React.FC = () => {
         Api.getMembers()
       ]);
       
-      // If there's a pending shared budget change requested by ME, 
-      // show THAT value in the input instead of the old approved one
       if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
         budgetData.shared_available = budgetData.pending_approval.shared_available;
       }
@@ -189,13 +186,13 @@ export const Settings: React.FC = () => {
   if (loading || !budget) {
     return (
       <div className="settings">
-        <div className="skeleton" style={{ height: 60, width: 240, marginBottom: 32 }} />
+        <div className="skeleton settings__skeleton-title" />
         <div className="settings__columns">
           <div className="settings__col-left">
-            <div className="skeleton" style={{ height: 400 }} />
+            <div className="skeleton settings__skeleton-card" />
           </div>
           <div className="settings__col-right">
-            <div className="skeleton" style={{ height: 400 }} />
+            <div className="skeleton settings__skeleton-card" />
           </div>
         </div>
       </div>
@@ -210,30 +207,25 @@ export const Settings: React.FC = () => {
     <div className="settings">
       {/* Toast */}
       {toast && (
-        <div className={`toast toast--${toast.type}`} style={{
-          position: 'fixed', top: 24, right: 24, zIndex: 1000,
-          background: toast.type === 'success' ? 'var(--color-samuel)' : 'var(--color-danger)',
-          color: '#fff', padding: '12px 20px', borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-neu-lg)'
-        }}>
+        <div className={`settings__toast settings__toast--${toast.type}`}>
           {toast.msg}
         </div>
       )}
 
       {/* Header */}
-      <div className="settings__header" style={{ marginBottom: 32 }}>
+      <div className="settings__header">
         <div className="settings__subtitle">Ajustes del hogar</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="settings__header-main">
           <h1 className="settings__title">Configuración</h1>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={() => navigateMonth(-1)} className="btn btn--sm" style={{ padding: '8px' }}>
+          <div className="settings__month-nav">
+            <button onClick={() => navigateMonth(-1)} className="btn btn--sm settings__month-btn">
               <ChevronLeft size={18} />
             </button>
-            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, minWidth: 100, textAlign: 'center' }}>
+            <span className="settings__month-label">
               {formatMonthName(currentMonth)}
             </span>
-            <button onClick={() => navigateMonth(1)} className="btn btn--sm" style={{ padding: '8px' }}>
+            <button onClick={() => navigateMonth(1)} className="btn btn--sm settings__month-btn">
               <ChevronRight size={18} />
             </button>
           </div>
@@ -241,12 +233,11 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="settings__columns">
-        {/* Left Column: Budget & Categories */}
         <div className="settings__col-left">
           
           {/* Budget Card */}
           <div className="settings__card">
-            <div className="settings__card-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="settings__card-title settings__card-title--flex">
               <Lock size={18} /> Presupuesto Mensual
             </div>
             
@@ -255,12 +246,11 @@ export const Settings: React.FC = () => {
                 <div className="settings__row-label">Presupuesto compartido</div>
                 <div className="settings__row-desc">Cambios requieren aprobación de {partnerName}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.5 }}>€</span>
+              <div className="settings__budget-input-wrapper">
+                <span className="settings__currency-symbol">€</span>
                 <input 
                   type="number" 
-                  className="input-field__input"
-                  style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
+                  className="settings__budget-input"
                   value={budget.shared_available === 0 ? '' : budget.shared_available}
                   onChange={e => {
                     const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
@@ -276,12 +266,11 @@ export const Settings: React.FC = () => {
                 <div className="settings__row-label">Tu disponible personal</div>
                 <div className="settings__row-desc">Presupuesto para tus gastos privados</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.5 }}>€</span>
+              <div className="settings__budget-input-wrapper">
+                <span className="settings__currency-symbol">€</span>
                 <input 
                   type="number" 
-                  className="input-field__input"
-                  style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
+                  className="settings__budget-input"
                   value={budget.personal_budget === 0 ? '' : budget.personal_budget}
                   onChange={e => {
                     const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
@@ -293,12 +282,12 @@ export const Settings: React.FC = () => {
             </div>
 
             {budget.pending_approval && (
-              <div style={{ margin: '16px 24px', padding: '16px', borderRadius: '16px', background: 'rgba(124, 181, 232, 0.1)', border: '1px dashed var(--color-shared)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div className="settings__pending-card">
+                <div className="settings__pending-header">
                   <AlertCircle size={16} color="var(--color-shared)" />
-                  <strong style={{ fontSize: 13, color: 'var(--color-shared)' }}>Cambio pendiente</strong>
+                  <strong className="settings__pending-title">Cambio pendiente</strong>
                 </div>
-                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
+                <p className="settings__pending-desc">
                   {isPendingByMe 
                     ? `Esperando aprobación de ${partnerName} para €${budget.pending_approval.shared_available}`
                     : `${partnerName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
@@ -309,7 +298,7 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            <div style={{ padding: '16px 24px 24px' }}>
+            <div className="settings__card-actions">
               <Button 
                 label={saving ? 'Guardando...' : 'Guardar presupuesto'} 
                 fullWidth 
@@ -327,28 +316,28 @@ export const Settings: React.FC = () => {
 
           {/* Categories Card */}
           <div className="settings__card">
-            <div className="settings__card-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="settings__card-title settings__category-header">
+              <div className="settings__card-title--flex">
                 <Plus size={18} /> Categorías
               </div>
-              <button onClick={() => setEditingCategory({ name: '', emoji: '🦋', color: '#a89e94' })} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-samuel)' }}>
+              <button className="settings__category-add-btn" onClick={() => setEditingCategory({ name: '', emoji: '🦋', color: '#a89e94' })}>
                 <Plus size={20} />
               </button>
             </div>
 
-            <div style={{ padding: '8px 0' }}>
+            <div className="settings__category-list-inner">
               {categories.map(cat => (
                 <div key={cat.id} className="settings__row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <span style={{ fontSize: 20 }}>{cat.emoji}</span>
+                  <div className="settings__category-info-row">
+                    <span className="settings__category-emoji-large">{cat.emoji}</span>
                     <div>
                       <div className="settings__row-label">{cat.name}</div>
-                      <div className="settings__row-desc" style={{ color: cat.color }}>Color: {cat.color}</div>
+                      <div className="settings__row-desc settings__category-color-dot" style={{ color: cat.color }}>Color: {cat.color}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setEditingCategory(cat)} className="btn btn--sm" style={{ padding: '6px' }}><Shield size={14} /></button>
-                    <button onClick={() => handleDeleteCategory(cat.id)} className="btn btn--sm" style={{ padding: '6px', color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
+                  <div className="settings__category-actions-row">
+                    <button onClick={() => setEditingCategory(cat)} className="btn btn--sm settings__action-btn"><Shield size={14} /></button>
+                    <button onClick={() => handleDeleteCategory(cat.id)} className="btn btn--sm settings__action-btn settings__action-btn--danger"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
@@ -356,26 +345,24 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Security & Tools */}
         <div className="settings__col-right">
           
           {/* PIN Card */}
           <div className="settings__card">
-            <div className="settings__card-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="settings__card-title settings__card-title--flex">
               <Key size={18} /> Seguridad
             </div>
             <div className="settings__row">
-              <div style={{ flex: 1 }}>
+              <div className="settings__flex-1">
                 <div className="settings__row-label">PIN de acceso</div>
                 <div className="settings__row-desc">Código de 4 dígitos para acceso rápido</div>
               </div>
             </div>
-            <form onSubmit={handlePinSave} style={{ padding: '0 24px 24px', display: 'flex', gap: 12 }}>
+            <form onSubmit={handlePinSave} className="settings__pin-form-inner">
               <input 
                 type="password" 
                 maxLength={4} 
-                className="input-field__input"
-                style={{ flex: 1, letterSpacing: 8, textAlign: 'center', fontSize: 18, background: 'var(--color-bg)', border: 'none', boxShadow: 'var(--shadow-neu-xs)', borderRadius: 12 }}
+                className="settings__pin-field"
                 value={newPin}
                 onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
                 placeholder="****"
@@ -388,8 +375,8 @@ export const Settings: React.FC = () => {
           <div className="settings__card">
             <div className="settings__card-title">Herramientas</div>
             
-            <div className="settings__row" style={{ cursor: 'pointer' }} onClick={exportToCSV}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="settings__row settings__clickable-row" onClick={exportToCSV}>
+              <div className="settings__category-info-row">
                 <Download size={18} color="var(--color-text-tertiary)" />
                 <div>
                   <div className="settings__row-label">Exportar datos</div>
@@ -398,11 +385,11 @@ export const Settings: React.FC = () => {
               </div>
             </div>
 
-            <div className="settings__row" style={{ cursor: 'pointer', borderBottom: 'none' }} onClick={() => logout()}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="settings__row settings__clickable-row settings__row--no-border" onClick={() => logout()}>
+              <div className="settings__category-info-row">
                 <LogOut size={18} color="var(--color-danger)" />
                 <div>
-                  <div className="settings__row-label" style={{ color: 'var(--color-danger)' }}>Cerrar sesión</div>
+                  <div className="settings__row-label settings__label--danger">Cerrar sesión</div>
                   <div className="settings__row-desc">Salir de tu cuenta en este dispositivo</div>
                 </div>
               </div>
@@ -412,20 +399,18 @@ export const Settings: React.FC = () => {
           {/* Danger Zone */}
           <div className="settings__danger-zone">
             <div className="settings__danger-title">Zona de peligro</div>
-            <div className="settings__danger-text" style={{ fontSize: 13, color: 'var(--color-danger)', opacity: 0.8 }}>
+            <div className="settings__danger-desc">
               Estas acciones son permanentes y no se pueden deshacer. Procede con cuidado.
             </div>
-            <div className="settings__danger-actions" style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            <div className="settings__danger-actions-row">
               <button 
-                className="btn btn--sm" 
-                style={{ flex: 1, background: 'transparent', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', boxShadow: 'none' }}
+                className="btn btn--sm settings__danger-btn-outline" 
                 onClick={() => window.confirm('¿Estás seguro de que quieres borrar todos tus datos?')}
               >
                 Borrar datos
               </button>
               <button 
-                className="btn btn--sm" 
-                style={{ flex: 1, background: 'var(--color-danger)', color: '#fff', boxShadow: 'none' }}
+                className="btn btn--sm settings__danger-btn-solid" 
                 onClick={() => logout()}
               >
                 Cerrar sesión
@@ -434,8 +419,8 @@ export const Settings: React.FC = () => {
           </div>
 
           {/* Info Footer */}
-          <div style={{ padding: '0 12px', textAlign: 'center' }}>
-            <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+          <div className="settings__footer-info">
+            <p className="settings__footer-version">
               NIDO v1.2 · 2026
             </p>
           </div>
@@ -444,19 +429,23 @@ export const Settings: React.FC = () => {
 
       {/* Category Modal */}
       {editingCategory && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
-          <div className="settings__card" style={{ width: '100%', maxWidth: 400, padding: '32px' }}>
-            <h3 style={{ marginBottom: 24, fontFamily: 'var(--font-display)', fontSize: 20 }}>{editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
+        <div className="settings__modal-overlay">
+          <div className="settings__card settings__modal-card">
+            <h3 className="settings__modal-title">{editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <InputField label="Nombre" value={editingCategory.name} onChange={v => setEditingCategory({...editingCategory, name: v})} />
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ flex: 1 }}><InputField label="Emoji" value={editingCategory.emoji} onChange={v => setEditingCategory({...editingCategory, emoji: v})} /></div>
-                <div style={{ width: 80 }}><InputField label="Color" type="color" value={editingCategory.color} onChange={v => setEditingCategory({...editingCategory, color: v})} /></div>
+            <div className="settings__modal-form">
+              <InputField label="Nombre" value={editingCategory.name || ''} onChange={v => setEditingCategory({...editingCategory, name: v})} />
+              <div className="settings__modal-row">
+                <div className="settings__modal-emoji">
+                  <InputField label="Emoji" value={editingCategory.emoji || ''} onChange={v => setEditingCategory({...editingCategory, emoji: v})} />
+                </div>
+                <div className="settings__modal-color">
+                  <InputField label="Color" type="color" value={editingCategory.color || ''} onChange={v => setEditingCategory({...editingCategory, color: v})} />
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+            <div className="settings__modal-footer">
               <Button label="Cancelar" variant="maria" fullWidth onClick={() => setEditingCategory(null)} />
               <Button label="Guardar" fullWidth onClick={handleSaveCategory} />
             </div>

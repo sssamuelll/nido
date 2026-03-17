@@ -48,9 +48,9 @@ export const Login: React.FC = () => {
   return (
     <div className="login">
       <div className="login__hero">
-        <div className="login__orb" style={{ width: 200, height: 200, background: 'rgba(139,220,107,0.18)', top: '15%', left: '10%' }} />
-        <div className="login__orb" style={{ width: 180, height: 180, background: 'rgba(255,140,107,0.12)', top: '25%', right: '15%' }} />
-        <div className="login__orb" style={{ width: 160, height: 160, background: 'rgba(124,181,232,0.10)', filter: 'blur(50px)', bottom: '20%', left: '30%' }} />
+        <div className="login__orb login__orb--1" />
+        <div className="login__orb login__orb--2" />
+        <div className="login__orb login__orb--3" />
         <div className="login__logo">
           <div className="login__logo-icon"><span>N</span></div>
           <span className="login__logo-text">nido</span>
@@ -118,7 +118,7 @@ export const Login: React.FC = () => {
               disabled={isLoading}
             />
 
-            {error && <div style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-body)', fontSize: 13, textAlign: 'center' }}>{error}</div>}
+            {error && <div className="error-view__msg u-text-center">{error}</div>}
 
             <Button
               label={isLoading ? 'Entrando...' : isMagicLinkEnabled ? 'Entrar con acceso clásico' : 'Iniciar Sesión'}

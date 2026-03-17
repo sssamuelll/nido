@@ -37,7 +37,7 @@ export const Goals: React.FC = () => {
   const col2Goals = goals.filter((_, i) => i % 2 === 1);
 
   return (
-    <>
+    <div className="u-flex-gap-24">
       {/* Header */}
         <div className="goals__header">
           <div>
@@ -56,7 +56,7 @@ export const Goals: React.FC = () => {
           {SUMMARY_STATS.map(stat => (
             <div key={stat.label} className="goals__stat-card">
               <span className="goals__stat-label">{stat.label}</span>
-              <span className="goals__stat-value" style={{ color: stat.color }}>
+              <span className="goals__stat-value" style={{ color: stat.color } as React.CSSProperties}>
                 {stat.value}
               </span>
               <span className="goals__stat-sub">{stat.sub}</span>
@@ -90,11 +90,11 @@ export const Goals: React.FC = () => {
             ))}
             {/* Add placeholder */}
             <div className="goals__add-placeholder">
-              <span style={{ fontSize: 28 }}>+</span>
+              <span className="goals__plus-icon">+</span>
               <span className="goals__add-text">Añadir objetivo</span>
             </div>
           </div>
         </div>
-    </>
+    </div>
   );
 };

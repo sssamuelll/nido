@@ -1,83 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { CATEGORIES, type Owner } from '../types';
-import { CategoryPill } from '../components/CategoryPill';
-import { NumpadKey } from '../components/NumpadKey';
+import { useAuth } from '../auth';
 import { Button } from '../components/Button';
-import { Pencil } from 'lucide-react';
-
-const OWNER_OPTIONS: { owner: Owner; label: string; emoji: string }[] = [
-  { owner: 'shared', label: 'Compartido', emoji: '🏠' },
-  { owner: 'samuel', label: 'Samuel', emoji: '👨‍💻' },
-  { owner: 'maria', label: 'María', emoji: '👩‍🎨' },
-];
-
-const NUMPAD_ROWS = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['.', '0', '⌫'],
-];
+import { InputField } from '../components/InputField';
+import { NumpadKey } from '../components/NumpadKey';
+import { ChevronLeft } from 'lucide-react';
 
 export const AddExpense: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [amount, setAmount] = useState('0');
+  const { user } = useAuth();
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [owner, setOwner] = useState<Owner>('shared');
-  const [saving, setSaving] = useState(false);
+  const [amount, setAmount] = useState('0');
+  const [category, setCategory] = useState('Gastos');
+  const [type, setType] = useState<'shared' | 'personal'>('shared');
+  const [split, setSplit] = useState(50);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [split, setSplit] = useState(50);
+  const [categories, setCategories] = useState<any[]>([]);
 
-  const handleNumpad = (key: string) => {
-    if (key === '⌫') {
-      setAmount(prev => prev.length <= 1 ? '0' : prev.slice(0, -1));
-      return;
+  useEffect(() => {
+    Api.getCategories().then(setCategories).catch(console.error);
+  }, []);
+
+  const handleKey = (key: string) => {
+    if (key === 'del') {
+      setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else if (key === '.') {
+      if (!amount.includes('.')) setAmount(prev => prev + '.');
+    } else {
+      setAmount(prev => prev === '0' ? key : prev + key);
     }
-    if (key === '.' && amount.includes('.')) return;
-    if (amount.includes('.') && amount.split('.')[1].length >= 2) return;
-    setAmount(prev => prev === '0' && key !== '.' ? key : prev + key);
   };
 
-  const handleSubmit = async () => {
-    const num = parseFloat(amount);
-    if (!num || num <= 0) { setError('Ingresa una cantidad'); return; }
-    if (!category) { setError('¿En qué gastaste?'); return; }
-
-    const paid_by = owner === 'maria' ? 'maria' : owner === 'samuel' ? 'samuel' : (user?.username || 'samuel');
-    const type = owner === 'shared' ? 'shared' : 'personal';
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parseFloat(amount) <= 0) return setError('Ingresa un monto válido');
+    if (!description) return setError('Ingresa una descripción');
 
     try {
-      setSaving(true);
+      setLoading(true);
       setError('');
       await Api.createExpense({
-        amount: num,
-        description: description.trim() || category,
+        description,
+        amount: parseFloat(amount),
         category,
         date: format(new Date(), 'yyyy-MM-dd'),
-        paid_by,
         type,
+        paid_by: user?.username || 'samuel',
       });
       setSuccess(true);
-      setTimeout(() => navigate('/', { replace: true }), 600);
-    } catch {
-      setError('Error al guardar');
+      setTimeout(() => navigate('/'), 1500);
+    } catch (err) {
+      setError('Error al guardar el gasto');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
   if (success) {
     return (
-      <div className="add-expense" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>✓</div>
-          <div className="page-subtitle">Guardado</div>
+      <div className="u-vh-center">
+        <div className="u-text-center">
+          <div className="add-expense__success-icon">✓</div>
+          <div className="settings__title">¡Gasto guardado!</div>
+          <div className="settings__subtitle">Redirigiendo...</div>
         </div>
       </div>
     );
@@ -85,107 +74,123 @@ export const AddExpense: React.FC = () => {
 
   return (
     <div className="add-expense">
-      {/* Header with owner pills */}
       <div className="add-expense__header">
-        <h2 className="add-expense__title">Nuevo Gasto</h2>
-        <div className="add-expense__owner-pills">
-          {OWNER_OPTIONS.map(o => (
-            <button
-              key={o.owner}
-              className="add-expense__owner-pill"
-              onClick={() => setOwner(o.owner)}
-              style={{
-                background: owner === o.owner ? `var(--color-${o.owner})` : 'transparent',
-                borderColor: `var(--color-${o.owner})`,
-                color: owner === o.owner ? '#FFFFFF' : `var(--color-${o.owner})`,
-              }}
-            >
-              {o.emoji} {o.label}
-            </button>
-          ))}
-        </div>
+        <button onClick={() => navigate(-1)} className="add-expense__back">
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="add-expense__title">Nuevo Gasto</h1>
       </div>
 
-      {/* Amount display */}
-      <div className="add-expense__amount-display">
-        <div className="add-expense__amount-box">
-          <span className="add-expense__currency">€</span>
-          <span className="add-expense__value">{amount}</span>
-        </div>
-      </div>
+      <form onSubmit={handleSubmit} className="add-expense__form">
+        <div className="add-expense__main-card">
+          <div className="add-expense__display">
+            <span className="add-expense__currency">€</span>
+            <span className="add-expense__amount">{amount}</span>
+          </div>
 
-      {/* Categories */}
-      <div className="add-expense__categories">
-        {CATEGORIES.map(cat => (
-          <CategoryPill
-            key={cat.id}
-            emoji={cat.emoji}
-            name={cat.name}
-            active={category === cat.id}
-            onClick={() => setCategory(cat.id)}
+          <div className="add-expense__fields">
+            <InputField
+              label="Descripción"
+              placeholder="¿En qué gastaste?"
+              value={description}
+              onChange={setDescription}
+            />
+
+            <div className="add-expense__field-group">
+              <label className="input-field__label">Categoría</label>
+              <div className="add-expense__categories">
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`add-expense__cat-pill ${category === cat.name ? 'add-expense__cat-pill--active' : ''}`}
+                    onClick={() => setCategory(cat.name)}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="add-expense__field-group">
+              <label className="input-field__label">Tipo de Gasto</label>
+              <div className="add-expense__tabs">
+                <button
+                  type="button"
+                  className={`add-expense__tab ${type === 'shared' ? 'add-expense__tab--active' : ''}`}
+                  onClick={() => setType('shared')}
+                >
+                  Compartido
+                </button>
+                <button
+                  type="button"
+                  className={`add-expense__tab ${type === 'personal' ? 'add-expense__tab--active' : ''}`}
+                  onClick={() => setType('personal')}
+                >
+                  Personal
+                </button>
+              </div>
+            </div>
+
+            {type === 'shared' && (
+              <div className="add-expense__field-group">
+                <div className="add-expense__split-label-row">
+                  <label className="input-field__label">Reparto</label>
+                  <div className="add-expense__split-badges">
+                    <div className="add-expense__split-badge add-expense__split-badge--samuel">
+                      <span className="add-expense__split-icon">👨‍💻</span>
+                      <span className="add-expense__split-pct u-color-samuel">{split}%</span>
+                    </div>
+                    <div className="add-expense__split-badge add-expense__split-badge--maria">
+                      <span className="add-expense__split-pct u-color-maria">{100 - split}%</span>
+                      <span className="add-expense__split-icon">👩‍🎨</span>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={split}
+                  onChange={e => setSplit(parseInt(e.target.value))}
+                  className="add-expense__range-input"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="add-expense__numpad">
+          <div className="add-expense__numpad-row">
+            {['1', '2', '3'].map(k => <NumpadKey key={k} value={k} onClick={() => handleKey(k)} />)}
+          </div>
+          <div className="add-expense__numpad-row">
+            {['4', '5', '6'].map(k => <NumpadKey key={k} value={k} onClick={() => handleKey(k)} />)}
+          </div>
+          <div className="add-expense__numpad-row">
+            {['7', '8', '9'].map(k => <NumpadKey key={k} value={k} onClick={() => handleKey(k)} />)}
+          </div>
+          <div className="add-expense__numpad-row">
+            <NumpadKey value="." onClick={() => handleKey('.')} />
+            <NumpadKey value="0" onClick={() => handleKey('0')} />
+            <NumpadKey value="del" onClick={() => handleKey('del')} isDelete />
+          </div>
+        </div>
+
+        {error && <div className="add-expense__error-msg">{error}</div>}
+
+        <div className="add-expense__cta">
+          <Button
+            label={loading ? 'Guardando...' : 'Añadir Gasto'}
+            variant={user?.username === 'maria' ? 'maria' : 'samuel'}
+            type="submit"
+            fullWidth
+            disabled={loading}
           />
-        ))}
-      </div>
-
-      {/* Description */}
-      <div className="add-expense__description">
-        <Pencil size={16} color="var(--color-text-tertiary)" />
-        <input
-          className="add-expense__description-input"
-          placeholder="Añadir nota..."
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-        />
-      </div>
-
-      {/* Split slider (visual-only when shared) */}
-      {owner === 'shared' && (
-        <div className="add-expense__split">
-          <div className="add-expense__split-badge" style={{ background: 'rgba(139,220,107,0.18)' }}>
-            <span style={{ fontSize: 14 }}>👨‍💻</span>
-            <span className="add-expense__split-pct" style={{ color: 'var(--color-samuel)' }}>{split}%</span>
-          </div>
-          <input
-            type="range" min={0} max={100} value={split}
-            onChange={e => setSplit(Number(e.target.value))}
-            className="add-expense__split-slider"
-            style={{ accentColor: 'var(--color-samuel)' }}
-          />
-          <div className="add-expense__split-badge" style={{ background: 'rgba(255,140,107,0.18)' }}>
-            <span className="add-expense__split-pct" style={{ color: 'var(--color-maria)' }}>{100 - split}%</span>
-            <span style={{ fontSize: 14 }}>👩‍🎨</span>
-          </div>
         </div>
-      )}
-
-      {error && <div style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-body)', fontSize: 13, textAlign: 'center', padding: '0 24px' }}>{error}</div>}
-
-      {/* Numpad */}
-      <div className="add-expense__numpad">
-        {NUMPAD_ROWS.map((row, ri) => (
-          <div key={ri} className="add-expense__numpad-row">
-            {row.map(key => (
-              <NumpadKey
-                key={key}
-                label={key}
-                variant={key === '⌫' ? 'delete' : 'default'}
-                onClick={() => handleNumpad(key)}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* CTA */}
-      <div className="add-expense__cta">
-        <Button
-          label={saving ? 'Guardando...' : 'Guardar'}
-          variant={owner}
-          fullWidth
-          onClick={handleSubmit}
-          disabled={saving || amount === '0'}
-        />
-      </div>
+      </form>
     </div>
   );
 };

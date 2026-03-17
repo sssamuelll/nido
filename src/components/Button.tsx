@@ -27,7 +27,7 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       type={type}
-      className={`btn btn--${variant} ${size === 'sm' ? 'btn--sm' : ''} ${fullWidth ? 'btn--full' : ''}`}
+      className={`btn btn--${variant} btn--dynamic ${size === 'sm' ? 'btn--sm' : ''} ${fullWidth ? 'btn--full' : ''}`}
       onClick={onClick}
       disabled={disabled}
       style={{
