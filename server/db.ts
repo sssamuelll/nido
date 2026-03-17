@@ -225,8 +225,43 @@ export const initDatabase = async () => {
     CREATE INDEX IF NOT EXISTS idx_app_users_household_id ON app_users(household_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_app_user_id ON sessions(app_user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_budget_allocations_budget_id ON budget_allocations(budget_id);
-    CREATE INDEX IF NOT EXISTS idx_budget_allocations_app_user_id ON budget_allocations(app_user_id);
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      emoji TEXT NOT NULL,
+      color TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+      UNIQUE(household_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS budget_approvals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      budget_id INTEGER NOT NULL,
+      requested_by_user_id INTEGER NOT NULL,
+      shared_available REAL NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      approved_by_user_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
+      FOREIGN KEY (requested_by_user_id) REFERENCES app_users(id) ON DELETE CASCADE,
+      FOREIGN KEY (approved_by_user_id) REFERENCES app_users(id) ON DELETE SET NULL
+    );
+
+    -- New budgets table structure (simplified)
+    CREATE TABLE IF NOT EXISTS budgets_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month TEXT UNIQUE NOT NULL,
+      shared_available REAL NOT NULL DEFAULT 0,
+      personal_samuel REAL NOT NULL DEFAULT 0,
+      personal_maria REAL NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_categories_household_id ON categories(household_id);
+    CREATE INDEX IF NOT EXISTS idx_budget_approvals_budget_id ON budget_approvals(budget_id);
+    CREATE INDEX IF NOT EXISTS idx_budget_approvals_status ON budget_approvals(status);
   `);
 
   // Migrations: Ensure 'pin' column exists
@@ -255,31 +290,38 @@ export const initDatabase = async () => {
     console.log('Skipping user seeding in production - DEFAULT_PASSWORD not set (assuming existing users)');
   }
 
-  // Seed default budget if none exists
-  await database.run(`
-    INSERT OR IGNORE INTO budgets (month, total_budget, rent, savings, personal_samuel, personal_maria)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [format(new Date(), 'yyyy-MM'), 2800, 335, 300, 500, 500]);
-
-  // Seed default category budgets
-  const categories = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
-  const defaultCategoryAmounts: Record<string, number> = {
-    'Restaurant': 200,
-    'Gastos': 400,
-    'Servicios': 150,
-    'Ocio': 200,
-    'Inversión': 100,
-    'Otros': 115
-  };
-
-  for (const cat of categories) {
-    await database.run(`
-      INSERT OR IGNORE INTO category_budgets (month, category, amount)
-      VALUES (?, ?, ?)
-    `, [format(new Date(), 'yyyy-MM'), cat, defaultCategoryAmounts[cat] || 0]);
+  // Migration: Transfer data from budgets to budgets_new
+  const budgetTableExists = await database.get<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='budgets'`
+  );
+  if (budgetTableExists && !(await hasColumn(database, 'budgets', 'shared_available'))) {
+    await database.exec(`
+      INSERT OR IGNORE INTO budgets_new (month, shared_available, personal_samuel, personal_maria, created_at)
+      SELECT month, (rent + savings), personal_samuel, personal_maria, created_at FROM budgets
+    `);
+    await database.exec('DROP TABLE budgets');
+    await database.exec('ALTER TABLE budgets_new RENAME TO budgets');
   }
 
+  // Seed default categories if none exist
   const householdId = await ensurePrimaryHousehold(database);
+  const categoriesCount = await database.get<{ count: number }>('SELECT COUNT(*) as count FROM categories WHERE household_id = ?', householdId);
+  if (categoriesCount && categoriesCount.count === 0) {
+    const defaultCategories = [
+      { name: 'Restaurant', emoji: '🍽️', color: '#ff8c6b' },
+      { name: 'Gastos', emoji: '🛒', color: '#7cb5e8' },
+      { name: 'Servicios', emoji: '💡', color: '#c4a0e8' },
+      { name: 'Ocio', emoji: '🎉', color: '#e87ca0' },
+      { name: 'Inversión', emoji: '📈', color: '#a6c79c' },
+      { name: 'Otros', emoji: '🦋', color: '#a89e94' }
+    ];
+    for (const cat of defaultCategories) {
+      await database.run(
+        'INSERT INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)',
+        [householdId, cat.name, cat.emoji, cat.color]
+      );
+    }
+  }
   await syncAppUsersFromLegacyUsers(database, householdId);
   await backfillExpenseUserIds(database);
   await syncBudgetAllocations(database);

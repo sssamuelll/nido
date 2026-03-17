@@ -19,7 +19,7 @@ export const dateSchema = z.string()
 export const expenseCreateSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida').max(100),
   amount: z.coerce.number().positive('El monto debe ser un número positivo'),
-  category: z.enum(['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros']),
+  category: z.string().min(1, 'La categoría es requerida'),
   date: dateSchema,
   paid_by: z.enum(['samuel', 'maria']),
   type: z.enum(['shared', 'personal'], {
@@ -34,33 +34,11 @@ export const expenseUpdateSchema = expenseCreateSchema;
 // Budget schemas
 export const budgetUpdateSchema = z.object({
   month: monthSchema,
-  total_budget: z.coerce.number().positive('Total budget must be positive'),
-  rent: z.coerce.number().nonnegative('Rent cannot be negative'),
-  savings: z.coerce.number().nonnegative('Savings cannot be negative'),
+  shared_available: z.coerce.number().nonnegative('Shared available cannot be negative').optional(),
   personal_budget: z.coerce.number().nonnegative('Personal budget cannot be negative').optional(),
   personal_samuel: z.coerce.number().nonnegative('Personal Samuel cannot be negative').optional(),
   personal_maria: z.coerce.number().nonnegative('Personal Maria cannot be negative').optional(),
   categories: z.record(z.string(), z.coerce.number().nonnegative()).optional()
-}).refine(data => {
-  if (
-    data.personal_budget === undefined &&
-    (data.personal_samuel === undefined || data.personal_maria === undefined)
-  ) {
-    return false;
-  }
-
-  // Ensure sum of components does not exceed total budget
-  const personalSamuel = data.personal_samuel ?? 0;
-  const personalMaria = data.personal_maria ?? 0;
-  const personalBudget = data.personal_budget ?? 0;
-  const sum = data.rent + data.savings + (
-    data.personal_samuel !== undefined || data.personal_maria !== undefined
-      ? personalSamuel + personalMaria
-      : personalBudget
-  );
-  return sum <= data.total_budget;
-}, {
-  message: 'Sum of rent, savings, and personal budgets cannot exceed total budget'
 });
 
 export const pinSchema = z.object({
