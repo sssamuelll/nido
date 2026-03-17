@@ -78,19 +78,19 @@ export const PersonalDashboard: React.FC = () => {
     void loadPersonalDashboard();
   }, [currentMonth]);
 
-  if (loading) {
+  if (loading || !detail) {
     return (
       <div className="personal-dashboard">
         <div className="personal-dashboard__header">
           <div>
-            <div className="skeleton" style={{ width: 120, height: 16, marginBottom: 8 }} />
-            <div className="skeleton" style={{ width: 240, height: 32 }} />
+            <div className="skeleton skeleton--subtitle" />
+            <div className="skeleton skeleton--title" />
           </div>
         </div>
         <div className="personal-dashboard__grid">
-          <div className="skeleton" style={{ minHeight: 260 }} />
-          <div className="skeleton" style={{ minHeight: 260 }} />
-          <div className="skeleton" style={{ minHeight: 320 }} />
+          <div className="skeleton skeleton--card-lg" />
+          <div className="skeleton skeleton--card-lg" />
+          <div className="skeleton skeleton--card-lg" />
         </div>
       </div>
     );
@@ -98,13 +98,13 @@ export const PersonalDashboard: React.FC = () => {
 
   if (error || !user || !summary || !budget) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 0' }}>
-        <div style={{ color: 'var(--color-danger)', marginBottom: 16, fontSize: 16 }}>
+      <div className="error-view">
+        <div className="error-view__msg">
           {error || 'No se pudo cargar tu detalle personal'}
         </div>
         <button
           onClick={() => navigate('/')}
-          className="btn btn--samuel"
+          className="btn btn--samuel btn--dynamic"
           style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
         >
           Volver al dashboard
@@ -193,9 +193,9 @@ export const PersonalDashboard: React.FC = () => {
                       <div
                         className="personal-dashboard__category-fill"
                         style={{
-                          width: `${category.budgetShare}%`,
-                          background: categoryDef?.color ?? ownerTheme.base,
-                        }}
+                          '--progress-width': `${category.budgetShare}%`,
+                          '--theme-base': categoryDef?.color ?? ownerTheme.base,
+                        } as React.CSSProperties}
                       />
                     </div>
                   </div>

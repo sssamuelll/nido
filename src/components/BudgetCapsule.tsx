@@ -35,10 +35,9 @@ export const BudgetCapsule: React.FC<BudgetCapsuleProps> = ({
           <div
             className={`budget-capsule__fill ${isWarning ? 'budget-capsule__fill--warning' : ''}`}
             style={{
-              width: `${Math.min(pct, 100)}%`,
-              '--capsule-gradient': isWarning
-                ? 'linear-gradient(90deg, #e87c7c, #F08080)'
-                : `linear-gradient(90deg, ${gradientColors[0]}, ${gradientColors[1]})`,
+              '--progress-width': `${Math.min(pct, 100)}%`,
+              '--gradient-start': isWarning ? '#e87c7c' : gradientColors[0],
+              '--gradient-end': isWarning ? '#F08080' : gradientColors[1],
             } as React.CSSProperties}
           />
         </div>

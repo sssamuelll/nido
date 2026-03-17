@@ -23,8 +23,8 @@ export const GoalCard: React.FC<GoalCardProps> = ({
     <div className="goal-card">
       <div className="goal-card__header">
         <span className="goal-card__emoji">{emoji}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="goal-card__pct" style={{ color: theme.base }}>{pct}%</span>
+        <div className="goal-card__header-meta">
+          <span className="goal-card__pct" style={{ '--theme-base': theme.base } as React.CSSProperties}>{pct}%</span>
           {onEdit && (
             <button className="goal-card__edit" onClick={onEdit}>···</button>
           )}
@@ -39,11 +39,11 @@ export const GoalCard: React.FC<GoalCardProps> = ({
 
       <div className="goal-card__track">
         <div
-          className="goal-card__fill"
+          className="goal-card__track-fill"
           style={{
-            width: `${Math.min(pct, 100)}%`,
-            background: `linear-gradient(90deg, ${theme.base}, ${theme.light})`,
-          }}
+            '--progress-width': `${Math.min(pct, 100)}%`,
+            '--theme-base': theme.base,
+          } as React.CSSProperties}
         />
       </div>
 
@@ -51,11 +51,11 @@ export const GoalCard: React.FC<GoalCardProps> = ({
 
       {onContribute && (
         <button
-          className="goal-card__contribute-btn"
+          className="goal-card__contribute-btn btn--dynamic"
           onClick={onContribute}
           style={{
-            '--goal-gradient': theme.gradient,
-            '--goal-glow': theme.glow,
+            '--btn-gradient': theme.gradient,
+            '--btn-glow': theme.glow,
           } as React.CSSProperties}
         >
           + Contribuir
