@@ -2,39 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { CATEGORIES } from '../types';
-import { toVisibleBudgetFormData } from './privacy';
+import { OWNER_THEMES, type Owner } from '../types';
+import { Plus, Trash2, Check, X, AlertCircle, Download, LogOut, Shield, Key } from 'lucide-react';
+import { Button } from '../components/Button';
+import { InputField } from '../components/InputField';
+
+interface Category {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+}
 
 interface BudgetData {
+  id?: number;
   month: string;
-  total_budget: number;
-  rent: number;
-  savings: number;
+  shared_available: number;
   personal_budget: number;
+  pending_approval?: {
+    id: number;
+    shared_available: number;
+    requested_by: string;
+  };
   categories: Record<string, number>;
 }
 
 export const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
-  const [budget, setBudget] = useState<BudgetData>({
-    month: currentMonth,
-    total_budget: 2800,
-    rent: 335,
-    savings: 300,
-    personal_budget: 500,
-    categories: {}
-  });
-
+  const [budget, setBudget] = useState<BudgetData | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
   const [saving, setSaving] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const [notifEnabled, setNotifEnabled] = useState(true);
-  const [weeklyReportEnabled, setWeeklyReportEnabled] = useState(false);
+  
+  // Category editor state
+  const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
-  useEffect(() => { loadBudget(); }, [currentMonth]);
+  useEffect(() => { 
+    loadData(); 
+  }, [currentMonth]);
 
   useEffect(() => {
     if (toast) {
@@ -43,28 +53,39 @@ export const Settings: React.FC = () => {
     }
   }, [toast]);
 
-  const loadBudget = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await Api.getBudget(currentMonth);
-      setBudget(toVisibleBudgetFormData(data, currentMonth));
+      const [budgetData, categoriesData] = await Promise.all([
+        Api.getBudget(currentMonth),
+        Api.getCategories()
+      ]);
+      setBudget(budgetData);
+      setCategories(categoriesData);
     } catch {
-      setToast({ type: 'error', msg: 'Error al cargar presupuesto' });
+      setToast({ type: 'error', msg: 'Error al cargar datos' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (budget.total_budget <= 0) {
-      setToast({ type: 'error', msg: 'Total debe ser mayor a 0' });
-      return;
-    }
+  const handleSaveBudget = async () => {
+    if (!budget) return;
     try {
       setSaving(true);
-      await Api.updateBudget(budget);
-      setToast({ type: 'success', msg: '✓ Presupuesto guardado' });
+      const res = await Api.updateBudget({
+        month: currentMonth,
+        shared_available: budget.shared_available,
+        personal_budget: budget.personal_budget,
+        categories: budget.categories
+      });
+      
+      if (res.pending_approval) {
+        setToast({ type: 'success', msg: 'Petición enviada a tu pareja' });
+      } else {
+        setToast({ type: 'success', msg: '✓ Presupuesto guardado' });
+      }
+      loadData();
     } catch {
       setToast({ type: 'error', msg: 'Error al guardar' });
     } finally {
@@ -72,12 +93,45 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleApproveBudget = async () => {
+    if (!budget?.pending_approval) return;
+    try {
+      setSaving(true);
+      await Api.approveBudget(budget.pending_approval.id);
+      setToast({ type: 'success', msg: '✓ Presupuesto aprobado' });
+      loadData();
+    } catch {
+      setToast({ type: 'error', msg: 'Error al aprobar' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!editingCategory?.name) return;
+    try {
+      await Api.saveCategory(editingCategory);
+      setEditingCategory(null);
+      loadData();
+      setToast({ type: 'success', msg: '✓ Categoría guardada' });
+    } catch {
+      setToast({ type: 'error', msg: 'Error al guardar categoría' });
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!window.confirm('¿Borrar esta categoría?')) return;
+    try {
+      await Api.deleteCategory(id);
+      loadData();
+    } catch {
+      setToast({ type: 'error', msg: 'Error al borrar' });
+    }
+  };
+
   const handlePinSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPin.length !== 4 || !/^\d+$/.test(newPin)) {
-      setToast({ type: 'error', msg: 'El PIN debe ser de 4 dígitos' });
-      return;
-    }
+    if (newPin.length !== 4) return;
     try {
       setPinLoading(true);
       await Api.updatePin(newPin);
@@ -88,35 +142,6 @@ export const Settings: React.FC = () => {
     } finally {
       setPinLoading(false);
     }
-  };
-
-  const updateField = (field: keyof BudgetData, value: string) => {
-    if (field === 'categories') return;
-    setBudget({ ...budget, [field]: parseFloat(value) || 0 });
-  };
-
-  const updateCategoryBudget = (category: string, value: string) => {
-    setBudget({
-      ...budget,
-      categories: {
-        ...budget.categories,
-        [category]: parseFloat(value) || 0
-      }
-    });
-  };
-
-  const available = budget.total_budget - budget.rent - budget.savings - budget.personal_budget;
-
-  const navigateMonth = (dir: -1 | 1) => {
-    const [y, m] = currentMonth.split('-').map(Number);
-    const d = new Date(y, m - 1 + dir, 1);
-    setCurrentMonth(format(d, 'yyyy-MM'));
-  };
-
-  const formatMonthName = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return `${months[parseInt(month) - 1]} ${year}`;
   };
 
   const exportToCSV = async () => {
@@ -139,383 +164,201 @@ export const Settings: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !budget) {
     return (
-      <>
-        <div className="skeleton" style={{ height: 60 }} />
-        <div style={{ display: 'flex', gap: 36 }}>
-          <div className="skeleton" style={{ flex: 1, height: 400 }} />
-          <div className="skeleton" style={{ width: 420, height: 400 }} />
+      <div className="settings__loading">
+        <div className="skeleton" style={{ height: 40, width: 200, marginBottom: 24 }} />
+        <div className="settings__grid">
+          <div className="skeleton" style={{ height: 300 }} />
+          <div className="skeleton" style={{ height: 300 }} />
         </div>
-      </>
+      </div>
     );
   }
 
-  const userName = user?.username === 'maria' ? 'María' : 'Samuel';
-  const userInitials = user?.username === 'maria' ? 'MA' : 'SD';
-  const userColor = user?.username === 'maria' ? 'var(--color-maria)' : 'var(--color-samuel)';
+  const isOwner = (name: string) => user?.username === name;
+  const partnerName = isOwner('samuel') ? 'María' : 'Samuel';
 
   return (
-    <>
-      {/* Toast */}
-        {toast && (
-          <div style={{
-            position: 'fixed',
-            top: 24,
-            right: 24,
-            zIndex: 1000,
-            background: toast.type === 'success' ? 'var(--color-samuel)' : 'var(--color-danger)',
-            color: '#fff',
-            padding: '12px 20px',
-            borderRadius: 'var(--radius-md)',
-            fontFamily: 'var(--font-body)',
-            fontSize: 14,
-            fontWeight: 500,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          }}>
-            {toast.msg}
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="settings__header">
-          <div className="settings__subtitle">Gestión</div>
-          <div className="settings__title">Configuración</div>
+    <div className="settings">
+      {toast && (
+        <div className={`toast toast--${toast.type}`}>
+          {toast.msg}
         </div>
+      )}
 
-        <div className="settings__columns">
-          {/* Left column */}
-          <div className="settings__col-left">
-
-            {/* Profile card */}
-            <div className="settings__card">
-              <div className="settings__card-title">Perfil</div>
-              <div className="settings__row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: `linear-gradient(225deg, ${userColor}, ${userColor}80)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
-                      {userInitials}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="settings__row-label">{userName}</div>
-                    <div className="settings__row-desc">{user?.username}@nido.app</div>
-                  </div>
-                </div>
-              </div>
-              <div className="settings__row" style={{ borderBottom: 'none' }}>
-                <div>
-                  <div className="settings__row-label">Idioma</div>
-                  <div className="settings__row-desc">Español</div>
-                </div>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-tertiary)' }}>🇪🇸</span>
-              </div>
-            </div>
-
-            {/* Budget General card */}
-            <div className="settings__card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 4px' }}>
-                <span className="settings__card-title" style={{ padding: 0 }}>Presupuesto General</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    onClick={() => navigateMonth(-1)}
-                    style={{ width: 28, height: 28, background: 'var(--color-bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    ‹
-                  </button>
-                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-secondary)', minWidth: 70, textAlign: 'center' }}>
-                    {formatMonthName(currentMonth)}
-                  </span>
-                  <button
-                    onClick={() => navigateMonth(1)}
-                    style={{ width: 28, height: 28, background: 'var(--color-bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    ›
-                  </button>
-                </div>
-              </div>
-              <form onSubmit={handleSave}>
-                {[
-                  { key: 'total_budget', label: 'Total', desc: 'Presupuesto mensual total' },
-                  { key: 'rent', label: 'Alquiler', desc: 'Gasto fijo mensual' },
-                  { key: 'savings', label: 'Ahorros', desc: 'Meta de ahorro mensual' },
-                  { key: 'personal_budget', label: `${userName} personal`, desc: 'Tu presupuesto personal mensual' },
-                ].map(({ key, label, desc }) => (
-                  <div key={key} className="settings__row">
-                    <div>
-                      <div className="settings__row-label">{label}</div>
-                      <div className="settings__row-desc">{desc}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-tertiary)' }}>€</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={(budget as any)[key]}
-                        onChange={e => updateField(key as keyof BudgetData, e.target.value)}
-                        disabled={saving}
-                        style={{
-                          width: 90,
-                          padding: '6px 10px',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'var(--color-bg)',
-                          boxShadow: 'var(--shadow-neu-xs)',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 13,
-                          color: 'var(--color-text-primary)',
-                          textAlign: 'right',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                <div className="settings__row" style={{ borderBottom: 'none' }}>
-                  <div>
-                    <div className="settings__row-label">Disponible compartido</div>
-                    <div className="settings__row-desc">Calculado automáticamente</div>
-                  </div>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: available >= 0 ? 'var(--color-samuel)' : 'var(--color-danger)',
-                  }}>
-                    €{available.toFixed(2)}
-                  </span>
-                </div>
-                <div style={{ padding: '12px 24px 20px' }}>
-                  <button
-                    type="submit"
-                    className="btn btn--samuel btn--full"
-                    disabled={saving}
-                    style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
-                  >
-                    {saving ? 'Guardando...' : 'Guardar presupuesto'}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Category Budgets card */}
-            <div className="settings__card">
-              <div className="settings__card-title">Límites por Categoría</div>
-              {CATEGORIES.map(cat => (
-                <div key={cat.id} className="settings__row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{cat.emoji}</span>
-                    <div className="settings__row-label">{cat.name}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-text-tertiary)' }}>€</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={budget.categories[cat.id] || 0}
-                      onChange={e => updateCategoryBudget(cat.id, e.target.value)}
-                      disabled={saving}
-                      style={{
-                        width: 90,
-                        padding: '6px 10px',
-                        border: 'none',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'var(--color-bg)',
-                        boxShadow: 'var(--shadow-neu-xs)',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 13,
-                        color: 'var(--color-text-primary)',
-                        textAlign: 'right',
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-              <div style={{ padding: '12px 24px 20px' }}>
-                <button
-                  onClick={() => handleSave()}
-                  className="btn btn--shared btn--full"
-                  disabled={saving}
-                  style={{ '--btn-gradient': 'linear-gradient(180deg, #7cb5e8, #5a9ecc)', '--btn-glow': 'rgba(124,181,232,0.25)' } as React.CSSProperties}
-                >
-                  {saving ? 'Guardando...' : 'Guardar límites'}
-                </button>
-              </div>
-            </div>
-
-            {/* Notifications card */}
-            <div className="settings__card">
-              <div className="settings__card-title">Notificaciones</div>
-              <div className="settings__row">
-                <div>
-                  <div className="settings__row-label">Alertas de gasto</div>
-                  <div className="settings__row-desc">Recibe alertas cuando superes el presupuesto</div>
-                </div>
-                <button
-                  className="settings__toggle"
-                  onClick={() => setNotifEnabled(!notifEnabled)}
-                  style={{ background: notifEnabled ? 'var(--color-samuel)' : 'var(--color-divider)' }}
-                >
-                  <div
-                    className="settings__toggle-knob"
-                    style={{ left: notifEnabled ? 22 : 2 }}
-                  />
-                </button>
-              </div>
-              <div className="settings__row" style={{ borderBottom: 'none' }}>
-                <div>
-                  <div className="settings__row-label">Resumen semanal</div>
-                  <div className="settings__row-desc">Informe de gastos cada lunes</div>
-                </div>
-                <button
-                  className="settings__toggle"
-                  onClick={() => setWeeklyReportEnabled(!weeklyReportEnabled)}
-                  style={{ background: weeklyReportEnabled ? 'var(--color-samuel)' : 'var(--color-divider)' }}
-                >
-                  <div
-                    className="settings__toggle-knob"
-                    style={{ left: weeklyReportEnabled ? 22 : 2 }}
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right column */}
-          <div className="settings__col-right">
-
-            {/* Partner card */}
-            <div className="settings__card">
-              <div className="settings__card-title">Pareja</div>
-              <div className="settings__row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: user?.username === 'maria'
-                      ? 'linear-gradient(225deg, #8bdc6b, #6bc98b)'
-                      : 'linear-gradient(225deg, #ff8c6b, #e87c7c)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
-                      {user?.username === 'maria' ? 'SD' : 'MA'}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="settings__row-label">
-                      {user?.username === 'maria' ? 'Samuel' : 'María'}
-                    </div>
-                    <div className="settings__row-desc">Cuenta vinculada</div>
-                  </div>
-                </div>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-samuel)', display: 'inline-block' }} />
-              </div>
-              <div className="settings__row" style={{ borderBottom: 'none' }}>
-                <div className="settings__row-label">Estado</div>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-samuel)', fontWeight: 500 }}>
-                  Conectado
-                </span>
-              </div>
-            </div>
-
-            {/* PIN management */}
-            <div className="settings__card">
-              <div className="settings__card-title">Seguridad</div>
-              <form onSubmit={handlePinSave}>
-                <div className="settings__row">
-                  <div>
-                    <div className="settings__row-label">Nuevo PIN de acceso</div>
-                    <div className="settings__row-desc">PIN de 4 dígitos para acceso rápido</div>
-                  </div>
-                </div>
-                <div style={{ padding: '0 24px 16px', display: 'flex', gap: 8 }}>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    inputMode="numeric"
-                    placeholder="••••"
-                    value={newPin}
-                    onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    disabled={pinLoading}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      border: 'none',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--color-bg)',
-                      boxShadow: 'var(--shadow-neu-sm)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 20,
-                      letterSpacing: 6,
-                      color: 'var(--color-text-primary)',
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    className="btn btn--samuel btn--sm"
-                    disabled={pinLoading || newPin.length !== 4}
-                    style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
-                  >
-                    {pinLoading ? '...' : 'Cambiar'}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Data export */}
-            <div className="settings__card">
-              <div className="settings__card-title">Datos</div>
-              <div className="settings__row" style={{ borderBottom: 'none' }}>
-                <div>
-                  <div className="settings__row-label">Exportar CSV</div>
-                  <div className="settings__row-desc">Descarga tus gastos de {formatMonthName(currentMonth)}</div>
-                </div>
-                <button
-                  onClick={exportToCSV}
-                  className="btn btn--shared btn--sm"
-                  style={{ '--btn-gradient': 'linear-gradient(180deg, #7cb5e8, #5a9ecc)', '--btn-glow': 'rgba(124,181,232,0.25)' } as React.CSSProperties}
-                >
-                  📥 Exportar
-                </button>
-              </div>
-            </div>
-
-            {/* Danger zone */}
-            <div className="settings__danger-zone">
-              <div className="settings__danger-title">Zona de peligro</div>
-              <div className="settings__danger-text">
-                Estas acciones son permanentes y no se pueden deshacer. Procede con cuidado.
-              </div>
-              <div className="settings__danger-actions">
-                <button className="settings__danger-btn settings__danger-btn--outline">
-                  Borrar datos
-                </button>
-                <button
-                  className="settings__danger-btn settings__danger-btn--solid"
-                  onClick={() => logout()}
-                >
-                  Cerrar sesión
-                </button>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div style={{ textAlign: 'center', padding: '8px 0', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-tertiary)' }}>
-              🏠 Nido v1.0 · Hecho con ❤️ para Samuel y María
-            </div>
-          </div>
+      <div className="settings__header">
+        <h1 className="settings__title">Configuración</h1>
+        <div className="settings__month-nav">
+          <button onClick={() => {
+            const [y, m] = currentMonth.split('-').map(Number);
+            const d = new Date(y, m - 2, 1);
+            setCurrentMonth(format(d, 'yyyy-MM'));
+          }}>‹</button>
+          <span>{format(new Date(currentMonth + '-01'), 'MMMM yyyy')}</span>
+          <button onClick={() => {
+            const [y, m] = currentMonth.split('-').map(Number);
+            const d = new Date(y, m, 1);
+            setCurrentMonth(format(d, 'yyyy-MM'));
+          }}>›</button>
         </div>
-    </>
+      </div>
+
+      <div className="settings__grid">
+        {/* Budget Section */}
+        <section className="settings__card">
+          <div className="settings__card-header">
+            <h2 className="settings__card-title">Presupuesto Mensual</h2>
+            <AlertCircle size={18} color="var(--color-text-tertiary)" />
+          </div>
+
+          <div className="settings__fields">
+            <div className="settings__field-group">
+              <label>Disponible compartido</label>
+              <div className="settings__input-row">
+                <input 
+                  type="number" 
+                  value={budget.shared_available}
+                  onChange={e => setBudget({...budget, shared_available: parseFloat(e.target.value) || 0})}
+                />
+                <span className="settings__currency">€</span>
+              </div>
+              <p className="settings__help">Cambios requieren aprobación de {partnerName}</p>
+            </div>
+
+            <div className="settings__field-group">
+              <label>Tu disponible personal</label>
+              <div className="settings__input-row">
+                <input 
+                  type="number" 
+                  value={budget.personal_budget}
+                  onChange={e => setBudget({...budget, personal_budget: parseFloat(e.target.value) || 0})}
+                />
+                <span className="settings__currency">€</span>
+              </div>
+            </div>
+          </div>
+
+          {budget.pending_approval && (
+            <div className="settings__pending">
+              <div className="settings__pending-info">
+                <strong>Pendiente de aprobación</strong>
+                <p>
+                  {budget.pending_approval.requested_by === user?.username 
+                    ? `Esperando a que ${partnerName} apruebe €${budget.pending_approval.shared_available}`
+                    : `${partnerName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
+                </p>
+              </div>
+              {budget.pending_approval.requested_by !== user?.username && (
+                <div className="settings__pending-actions">
+                  <Button label="Aprobar" size="sm" onClick={handleApproveBudget} disabled={saving} />
+                </div>
+              )}
+            </div>
+          )}
+
+          <Button 
+            label={saving ? 'Guardando...' : 'Guardar Presupuesto'} 
+            fullWidth 
+            onClick={handleSaveBudget}
+            disabled={saving}
+          />
+        </section>
+
+        {/* Categories Section */}
+        <section className="settings__card">
+          <div className="settings__card-header">
+            <h2 className="settings__card-title">Categorías Configurables</h2>
+            <button className="settings__add-btn" onClick={() => setEditingCategory({ name: '', emoji: '🦋', color: '#a89e94' })}>
+              <Plus size={18} />
+            </button>
+          </div>
+
+          <div className="settings__category-list">
+            {categories.map(cat => (
+              <div key={cat.id} className="settings__category-item">
+                <div className="settings__category-info">
+                  <span className="settings__category-emoji">{cat.emoji}</span>
+                  <span className="settings__category-name">{cat.name}</span>
+                </div>
+                <div className="settings__category-actions">
+                  <button onClick={() => setEditingCategory(cat)}><X size={14} /></button>
+                  <button className="settings__delete-btn" onClick={() => handleDeleteCategory(cat.id)}><Trash2 size={14} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {editingCategory && (
+            <div className="settings__modal">
+              <div className="settings__modal-content">
+                <h3>{editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
+                <InputField 
+                  label="Nombre" 
+                  value={editingCategory.name} 
+                  onChange={v => setEditingCategory({...editingCategory, name: v})} 
+                />
+                <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                  <InputField 
+                    label="Emoji" 
+                    value={editingCategory.emoji} 
+                    onChange={v => setEditingCategory({...editingCategory, emoji: v})} 
+                  />
+                  <InputField 
+                    label="Color" 
+                    type="color"
+                    value={editingCategory.color} 
+                    onChange={v => setEditingCategory({...editingCategory, color: v})} 
+                  />
+                </div>
+                <div className="settings__modal-actions">
+                  <Button label="Cancelar" variant="maria" onClick={() => setEditingCategory(null)} />
+                  <Button label="Guardar" onClick={handleSaveCategory} />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Security Section */}
+        <section className="settings__card">
+          <div className="settings__card-header">
+            <h2 className="settings__card-title">Seguridad</h2>
+            <Shield size={18} color="var(--color-text-tertiary)" />
+          </div>
+          <form onSubmit={handlePinSave} className="settings__pin-form">
+            <label>Cambiar PIN de acceso</label>
+            <div className="settings__pin-input">
+              <Key size={16} />
+              <input 
+                type="password" 
+                maxLength={4} 
+                value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="****"
+              />
+              <Button label="Actualizar" size="sm" disabled={newPin.length !== 4 || pinLoading} />
+            </div>
+          </form>
+        </section>
+
+        {/* Tools Section */}
+        <section className="settings__card">
+          <div className="settings__card-header">
+            <h2 className="settings__card-title">Herramientas</h2>
+          </div>
+          <div className="settings__tool-buttons">
+            <button className="settings__tool-btn" onClick={exportToCSV}>
+              <Download size={18} />
+              <span>Exportar datos a CSV</span>
+            </button>
+            <button className="settings__tool-btn settings__tool-btn--danger" onClick={() => logout()}>
+              <LogOut size={18} />
+              <span>Cerrar sesión</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 };
