@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { House, ChartNoAxesColumn, Plus, Target, Settings } from 'lucide-react';
+import { House, ChartNoAxesColumn, Plus, Target, Lock } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
@@ -30,19 +30,19 @@ export const BottomNav: React.FC = () => {
       </button>
 
       <button
+        className={`bottom-nav__item ${isActive('/personal') ? 'bottom-nav__item--active' : ''}`}
+        onClick={() => navigate('/personal')}
+      >
+        <Lock size={22} />
+        <span className="bottom-nav__item-label">Personal</span>
+      </button>
+
+      <button
         className={`bottom-nav__item ${isActive('/goals') ? 'bottom-nav__item--active' : ''}`}
         onClick={() => navigate('/goals')}
       >
         <Target size={22} />
         <span className="bottom-nav__item-label">Objetivos</span>
-      </button>
-
-      <button
-        className={`bottom-nav__item ${isActive('/settings') ? 'bottom-nav__item--active' : ''}`}
-        onClick={() => navigate('/settings')}
-      >
-        <Settings size={22} />
-        <span className="bottom-nav__item-label">Config</span>
       </button>
     </nav>
   );

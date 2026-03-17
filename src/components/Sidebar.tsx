@@ -5,6 +5,7 @@ import { useAuth } from '../auth';
 
 const NAV_ITEMS = [
   { icon: 'house', label: 'Dashboard', path: '/' },
+  { icon: 'lock', label: 'Personal', path: '/personal' },
   { icon: 'circle-plus', label: 'Añadir Gasto', path: '/add' },
   { icon: 'chart-no-axes-column', label: 'Analíticas', path: '/analytics' },
   { icon: 'target', label: 'Objetivos', path: '/goals' },
