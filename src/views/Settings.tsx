@@ -60,6 +60,13 @@ export const Settings: React.FC = () => {
         Api.getBudget(currentMonth),
         Api.getCategories()
       ]);
+      
+      // If there's a pending shared budget change requested by ME, 
+      // show THAT value in the input instead of the old approved one
+      if (budgetData.pending_approval && budgetData.pending_approval.requested_by.toLowerCase() === user?.username?.toLowerCase()) {
+        budgetData.shared_available = budgetData.pending_approval.shared_available;
+      }
+      
       setBudget(budgetData);
       setCategories(categoriesData);
     } catch {
@@ -193,6 +200,8 @@ export const Settings: React.FC = () => {
   }
 
   const partnerName = user?.username?.toLowerCase() === 'samuel' ? 'María' : 'Samuel';
+  const myUsernameLower = user?.username?.toLowerCase() || '';
+  const isPendingByMe = budget.pending_approval?.requested_by?.toLowerCase() === myUsernameLower;
 
   return (
     <div className="settings">
@@ -287,11 +296,11 @@ export const Settings: React.FC = () => {
                   <strong style={{ fontSize: 13, color: 'var(--color-shared)' }}>Cambio pendiente</strong>
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
-                  {budget.pending_approval.requested_by.toLowerCase() === user?.username?.toLowerCase() 
+                  {isPendingByMe 
                     ? `Esperando aprobación de ${partnerName} para €${budget.pending_approval.shared_available}`
                     : `${partnerName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
                 </p>
-                {budget.pending_approval.requested_by.toLowerCase() !== user?.username?.toLowerCase() && (
+                {!isPendingByMe && (
                   <Button label="Aprobar cambio" size="sm" variant="shared" onClick={handleApproveBudget} disabled={saving} />
                 )}
               </div>
