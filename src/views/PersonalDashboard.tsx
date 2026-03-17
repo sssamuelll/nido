@@ -145,13 +145,7 @@ export const PersonalDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div
-        className="personal-dashboard__hero"
-        style={{
-          '--personal-gradient': ownerTheme.gradientDiag,
-          '--personal-glow': ownerTheme.glow,
-        } as React.CSSProperties}
-      >
+      <div className="personal-dashboard__hero">
         <div className="personal-dashboard__hero-copy">
           <span className="personal-dashboard__eyebrow">{detail.name}</span>
           <div className="personal-dashboard__hero-title">{toCurrency(detail.remaining)}</div>
