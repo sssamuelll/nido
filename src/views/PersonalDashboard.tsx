@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { ArrowLeft, Bell, Search } from 'lucide-react';
+import { Bell, Search, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
@@ -31,6 +31,8 @@ const buildLinePath = (values: number[], width: number, height: number, padding:
     x: padding + index * xStep,
     y: toY(value),
   }));
+
+  if (points.length === 0) return { linePath: '', areaPath: '' };
 
   let linePath = `M ${points[0].x} ${points[0].y}`;
   for (let index = 1; index < points.length; index += 1) {
@@ -78,7 +80,7 @@ export const PersonalDashboard: React.FC = () => {
     void loadPersonalDashboard();
   }, [currentMonth]);
 
-  if (loading || !detail) {
+  if (loading) {
     return (
       <div className="personal-dashboard">
         <div className="personal-dashboard__header">
@@ -113,12 +115,14 @@ export const PersonalDashboard: React.FC = () => {
     );
   }
 
+  // Define detail AFTER we are sure budget and summary exist
   const detail = buildPersonalDetailModel({
     summary,
     budget,
     expenses,
     username: user.username,
   });
+
   const ownerTheme = OWNER_THEMES[detail.owner];
   const chartSeries = detail.chart.map((point) => point.total);
   const chartPaths = buildLinePath(chartSeries, 520, 220, 24);
@@ -199,37 +203,6 @@ export const PersonalDashboard: React.FC = () => {
                       />
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        <section className="personal-dashboard__card">
-          <div className="personal-dashboard__section-header">
-            <div>
-              <div className="personal-dashboard__section-kicker">Últimos gastos</div>
-              <div className="personal-dashboard__section-title">Solo tus movimientos privados</div>
-            </div>
-          </div>
-
-          <div className="personal-dashboard__transactions">
-            {detail.recentExpenses.length === 0 ? (
-              <div className="personal-dashboard__empty">No hay gastos personales registrados este mes.</div>
-            ) : (
-              detail.recentExpenses.map((expense) => {
-                const categoryDef = CATEGORIES.find((item) => item.id === expense.category);
-                return (
-                  <TransactionRow
-                    key={expense.id}
-                    emoji={categoryDef?.emoji ?? '🦋'}
-                    name={expense.description}
-                    payer="Privado"
-                    amount={`-€${expense.amount.toFixed(2)}`}
-                    date={expense.date}
-                    indicatorColor={ownerTheme.base}
-                    isPositive={false}
-                  />
                 );
               })
             )}
