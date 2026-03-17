@@ -3,7 +3,7 @@ import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { OWNER_THEMES, type Owner } from '../types';
-import { Plus, Trash2, Check, X, AlertCircle, Download, LogOut, Shield, Key } from 'lucide-react';
+import { Plus, Trash2, Check, X, AlertCircle, Download, LogOut, Shield, Key, Lock, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/Button';
 import { InputField } from '../components/InputField';
 
@@ -144,6 +144,18 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const navigateMonth = (dir: -1 | 1) => {
+    const [y, m] = currentMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + dir, 1);
+    setCurrentMonth(format(d, 'yyyy-MM'));
+  };
+
+  const formatMonthName = (monthStr: string) => {
+    const [year, month] = monthStr.split('-');
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${months[parseInt(month) - 1]} ${year}`;
+  };
+
   const exportToCSV = async () => {
     try {
       const expenses = await Api.getExpenses(currentMonth);
@@ -166,199 +178,236 @@ export const Settings: React.FC = () => {
 
   if (loading || !budget) {
     return (
-      <div className="settings__loading">
-        <div className="skeleton" style={{ height: 40, width: 200, marginBottom: 24 }} />
-        <div className="settings__grid">
-          <div className="skeleton" style={{ height: 300 }} />
-          <div className="skeleton" style={{ height: 300 }} />
+      <div className="settings">
+        <div className="skeleton" style={{ height: 60, width: 240, marginBottom: 32 }} />
+        <div className="settings__columns">
+          <div className="settings__col-left">
+            <div className="skeleton" style={{ height: 400 }} />
+          </div>
+          <div className="settings__col-right">
+            <div className="skeleton" style={{ height: 400 }} />
+          </div>
         </div>
       </div>
     );
   }
 
-  const isOwner = (name: string) => user?.username === name;
-  const partnerName = isOwner('samuel') ? 'María' : 'Samuel';
+  const partnerName = user?.username === 'samuel' ? 'María' : 'Samuel';
 
   return (
     <div className="settings">
+      {/* Toast */}
       {toast && (
-        <div className={`toast toast--${toast.type}`}>
+        <div className={`toast toast--${toast.type}`} style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 1000,
+          background: toast.type === 'success' ? 'var(--color-samuel)' : 'var(--color-danger)',
+          color: '#fff', padding: '12px 20px', borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-neu-lg)'
+        }}>
           {toast.msg}
         </div>
       )}
 
-      <div className="settings__header">
-        <h1 className="settings__title">Configuración</h1>
-        <div className="settings__month-nav">
-          <button onClick={() => {
-            const [y, m] = currentMonth.split('-').map(Number);
-            const d = new Date(y, m - 2, 1);
-            setCurrentMonth(format(d, 'yyyy-MM'));
-          }}>‹</button>
-          <span>{format(new Date(currentMonth + '-01'), 'MMMM yyyy')}</span>
-          <button onClick={() => {
-            const [y, m] = currentMonth.split('-').map(Number);
-            const d = new Date(y, m, 1);
-            setCurrentMonth(format(d, 'yyyy-MM'));
-          }}>›</button>
+      {/* Header */}
+      <div className="settings__header" style={{ marginBottom: 32 }}>
+        <div className="settings__subtitle">Ajustes del hogar</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 className="settings__title">Configuración</h1>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={() => navigateMonth(-1)} className="btn btn--sm" style={{ padding: '8px' }}>
+              <ChevronLeft size={18} />
+            </button>
+            <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, minWidth: 100, textAlign: 'center' }}>
+              {formatMonthName(currentMonth)}
+            </span>
+            <button onClick={() => navigateMonth(1)} className="btn btn--sm" style={{ padding: '8px' }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="settings__grid">
-        {/* Budget Section */}
-        <section className="settings__card">
-          <div className="settings__card-header">
-            <h2 className="settings__card-title">Presupuesto Mensual</h2>
-            <AlertCircle size={18} color="var(--color-text-tertiary)" />
-          </div>
-
-          <div className="settings__fields">
-            <div className="settings__field-group">
-              <label>Disponible compartido</label>
-              <div className="settings__input-row">
+      <div className="settings__columns">
+        {/* Left Column: Budget & Categories */}
+        <div className="settings__col-left">
+          
+          {/* Budget Card */}
+          <div className="settings__card">
+            <div className="settings__card-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Lock size={18} /> Presupuesto Mensual
+            </div>
+            
+            <div className="settings__row">
+              <div>
+                <div className="settings__row-label">Disponible compartido</div>
+                <div className="settings__row-desc">Cambios requieren aprobación de {partnerName}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.5 }}>€</span>
                 <input 
                   type="number" 
+                  className="input-field__input"
+                  style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
                   value={budget.shared_available}
                   onChange={e => setBudget({...budget, shared_available: parseFloat(e.target.value) || 0})}
                 />
-                <span className="settings__currency">€</span>
               </div>
-              <p className="settings__help">Cambios requieren aprobación de {partnerName}</p>
             </div>
 
-            <div className="settings__field-group">
-              <label>Tu disponible personal</label>
-              <div className="settings__input-row">
+            <div className="settings__row">
+              <div>
+                <div className="settings__row-label">Tu disponible personal</div>
+                <div className="settings__row-desc">Presupuesto para tus gastos privados</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.5 }}>€</span>
                 <input 
                   type="number" 
+                  className="input-field__input"
+                  style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
                   value={budget.personal_budget}
                   onChange={e => setBudget({...budget, personal_budget: parseFloat(e.target.value) || 0})}
                 />
-                <span className="settings__currency">€</span>
               </div>
             </div>
-          </div>
 
-          {budget.pending_approval && (
-            <div className="settings__pending">
-              <div className="settings__pending-info">
-                <strong>Pendiente de aprobación</strong>
-                <p>
+            {budget.pending_approval && (
+              <div style={{ margin: '16px 24px', padding: '16px', borderRadius: '16px', background: 'rgba(124, 181, 232, 0.1)', border: '1px dashed var(--color-shared)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <AlertCircle size={16} color="var(--color-shared)" />
+                  <strong style={{ fontSize: 13, color: 'var(--color-shared)' }}>Cambio pendiente</strong>
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
                   {budget.pending_approval.requested_by === user?.username 
-                    ? `Esperando a que ${partnerName} apruebe €${budget.pending_approval.shared_available}`
+                    ? `Esperando aprobación de ${partnerName} para €${budget.pending_approval.shared_available}`
                     : `${partnerName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
                 </p>
+                {budget.pending_approval.requested_by !== user?.username && (
+                  <Button label="Aprobar cambio" size="sm" variant="shared" onClick={handleApproveBudget} disabled={saving} />
+                )}
               </div>
-              {budget.pending_approval.requested_by !== user?.username && (
-                <div className="settings__pending-actions">
-                  <Button label="Aprobar" size="sm" onClick={handleApproveBudget} disabled={saving} />
-                </div>
-              )}
+            )}
+
+            <div style={{ padding: '16px 24px 24px' }}>
+              <Button label={saving ? 'Guardando...' : 'Guardar presupuesto'} fullWidth onClick={handleSaveBudget} disabled={saving} />
             </div>
-          )}
-
-          <Button 
-            label={saving ? 'Guardando...' : 'Guardar Presupuesto'} 
-            fullWidth 
-            onClick={handleSaveBudget}
-            disabled={saving}
-          />
-        </section>
-
-        {/* Categories Section */}
-        <section className="settings__card">
-          <div className="settings__card-header">
-            <h2 className="settings__card-title">Categorías Configurables</h2>
-            <button className="settings__add-btn" onClick={() => setEditingCategory({ name: '', emoji: '🦋', color: '#a89e94' })}>
-              <Plus size={18} />
-            </button>
           </div>
 
-          <div className="settings__category-list">
-            {categories.map(cat => (
-              <div key={cat.id} className="settings__category-item">
-                <div className="settings__category-info">
-                  <span className="settings__category-emoji">{cat.emoji}</span>
-                  <span className="settings__category-name">{cat.name}</span>
-                </div>
-                <div className="settings__category-actions">
-                  <button onClick={() => setEditingCategory(cat)}><X size={14} /></button>
-                  <button className="settings__delete-btn" onClick={() => handleDeleteCategory(cat.id)}><Trash2 size={14} /></button>
-                </div>
+          {/* Categories Card */}
+          <div className="settings__card">
+            <div className="settings__card-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Plus size={18} /> Categorías
               </div>
-            ))}
-          </div>
+              <button onClick={() => setEditingCategory({ name: '', emoji: '🦋', color: '#a89e94' })} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-samuel)' }}>
+                <Plus size={20} />
+              </button>
+            </div>
 
-          {editingCategory && (
-            <div className="settings__modal">
-              <div className="settings__modal-content">
-                <h3>{editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
-                <InputField 
-                  label="Nombre" 
-                  value={editingCategory.name} 
-                  onChange={v => setEditingCategory({...editingCategory, name: v})} 
-                />
-                <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-                  <InputField 
-                    label="Emoji" 
-                    value={editingCategory.emoji} 
-                    onChange={v => setEditingCategory({...editingCategory, emoji: v})} 
-                  />
-                  <InputField 
-                    label="Color" 
-                    type="color"
-                    value={editingCategory.color} 
-                    onChange={v => setEditingCategory({...editingCategory, color: v})} 
-                  />
+            <div style={{ padding: '8px 0' }}>
+              {categories.map(cat => (
+                <div key={cat.id} className="settings__row">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <span style={{ fontSize: 20 }}>{cat.emoji}</span>
+                    <div>
+                      <div className="settings__row-label">{cat.name}</div>
+                      <div className="settings__row-desc" style={{ color: cat.color }}>Color: {cat.color}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setEditingCategory(cat)} className="btn btn--sm" style={{ padding: '6px' }}><Shield size={14} /></button>
+                    <button onClick={() => handleDeleteCategory(cat.id)} className="btn btn--sm" style={{ padding: '6px', color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
+                  </div>
                 </div>
-                <div className="settings__modal-actions">
-                  <Button label="Cancelar" variant="maria" onClick={() => setEditingCategory(null)} />
-                  <Button label="Guardar" onClick={handleSaveCategory} />
-                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Security & Tools */}
+        <div className="settings__col-right">
+          
+          {/* PIN Card */}
+          <div className="settings__card">
+            <div className="settings__card-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Key size={18} /> Seguridad
+            </div>
+            <div className="settings__row">
+              <div style={{ flex: 1 }}>
+                <div className="settings__row-label">PIN de acceso</div>
+                <div className="settings__row-desc">Código de 4 dígitos para acceso rápido</div>
               </div>
             </div>
-          )}
-        </section>
-
-        {/* Security Section */}
-        <section className="settings__card">
-          <div className="settings__card-header">
-            <h2 className="settings__card-title">Seguridad</h2>
-            <Shield size={18} color="var(--color-text-tertiary)" />
-          </div>
-          <form onSubmit={handlePinSave} className="settings__pin-form">
-            <label>Cambiar PIN de acceso</label>
-            <div className="settings__pin-input">
-              <Key size={16} />
+            <form onSubmit={handlePinSave} style={{ padding: '0 24px 24px', display: 'flex', gap: 12 }}>
               <input 
                 type="password" 
                 maxLength={4} 
+                className="input-field__input"
+                style={{ flex: 1, letterSpacing: 8, textAlign: 'center', fontSize: 18, background: 'var(--color-bg)', border: 'none', boxShadow: 'var(--shadow-neu-xs)', borderRadius: 12 }}
                 value={newPin}
                 onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
                 placeholder="****"
               />
-              <Button label="Actualizar" size="sm" disabled={newPin.length !== 4 || pinLoading} />
-            </div>
-          </form>
-        </section>
+              <Button label="Cambiar" disabled={newPin.length !== 4 || pinLoading} />
+            </form>
+          </div>
 
-        {/* Tools Section */}
-        <section className="settings__card">
-          <div className="settings__card-header">
-            <h2 className="settings__card-title">Herramientas</h2>
+          {/* Tools Card */}
+          <div className="settings__card">
+            <div className="settings__card-title">Herramientas</div>
+            
+            <div className="settings__row" style={{ cursor: 'pointer' }} onClick={exportToCSV}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <Download size={18} color="var(--color-text-tertiary)" />
+                <div>
+                  <div className="settings__row-label">Exportar datos</div>
+                  <div className="settings__row-desc">Descargar gastos en formato CSV</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings__row" style={{ cursor: 'pointer', borderBottom: 'none' }} onClick={() => logout()}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <LogOut size={18} color="var(--color-danger)" />
+                <div>
+                  <div className="settings__row-label" style={{ color: 'var(--color-danger)' }}>Cerrar sesión</div>
+                  <div className="settings__row-desc">Salir de tu cuenta en este dispositivo</div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="settings__tool-buttons">
-            <button className="settings__tool-btn" onClick={exportToCSV}>
-              <Download size={18} />
-              <span>Exportar datos a CSV</span>
-            </button>
-            <button className="settings__tool-btn settings__tool-btn--danger" onClick={() => logout()}>
-              <LogOut size={18} />
-              <span>Cerrar sesión</span>
-            </button>
+
+          {/* Info Footer */}
+          <div style={{ padding: '0 12px', textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+              NIDO v1.2 · 2026
+            </p>
           </div>
-        </section>
+        </div>
       </div>
+
+      {/* Category Modal */}
+      {editingCategory && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20 }}>
+          <div className="settings__card" style={{ width: '100%', maxWidth: 400, padding: '32px' }}>
+            <h3 style={{ marginBottom: 24, fontFamily: 'var(--font-display)', fontSize: 20 }}>{editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <InputField label="Nombre" value={editingCategory.name} onChange={v => setEditingCategory({...editingCategory, name: v})} />
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}><InputField label="Emoji" value={editingCategory.emoji} onChange={v => setEditingCategory({...editingCategory, emoji: v})} /></div>
+                <div style={{ width: 80 }}><InputField label="Color" type="color" value={editingCategory.color} onChange={v => setEditingCategory({...editingCategory, color: v})} /></div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+              <Button label="Cancelar" variant="maria" fullWidth onClick={() => setEditingCategory(null)} />
+              <Button label="Guardar" fullWidth onClick={handleSaveCategory} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
