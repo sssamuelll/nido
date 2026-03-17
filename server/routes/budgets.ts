@@ -5,14 +5,12 @@ import { budgetUpdateSchema, validate, validateMonthParam } from '../validation.
 
 const router = Router();
 const defaultBudgetResponse = {
-  total_budget: 2800,
-  rent: 335,
-  savings: 300,
+  shared_available: 2000,
   personal_samuel: 500,
   personal_maria: 500,
 };
 
-const getPersonalBudgetForUser = (budget: typeof defaultBudgetResponse, username: string) =>
+const getPersonalBudgetForUser = (budget: any, username: string) =>
   username === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 // Get budget for a specific month
@@ -23,6 +21,12 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
     const db = getDatabase();
     const budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
     const categoryBudgets = await db.all('SELECT * FROM category_budgets WHERE month = ?', month);
+    const pendingApproval = await db.get(`
+      SELECT ba.*, au.username as requested_by 
+      FROM budget_approvals ba
+      JOIN app_users au ON ba.requested_by_user_id = au.id
+      WHERE ba.budget_id = ? AND ba.status = 'pending'
+    `, budget?.id);
     
     const response = budget || {
       month,
@@ -30,11 +34,11 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
     };
 
     res.json({
+      id: response.id,
       month: response.month,
-      total_budget: response.total_budget,
-      rent: response.rent,
-      savings: response.savings,
+      shared_available: response.shared_available,
       personal_budget: getPersonalBudgetForUser(response, req.user!.username),
+      pending_approval: pendingApproval,
       categories: categoryBudgets.reduce((acc: any, b: any) => {
         acc[b.category] = b.amount;
         return acc;
@@ -46,46 +50,48 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
   }
 });
 
-// Update or create budget
+// Update budget (personal or request shared change)
 router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
-  const { month, total_budget, rent, savings, personal_budget, personal_samuel, personal_maria, categories } = req.validatedData;
+  const { month, shared_available, personal_budget, categories } = req.validatedData;
+  const username = req.user!.username;
 
   try {
     const db = getDatabase();
-    const existingBudget = await db.get(
-      'SELECT * FROM budgets WHERE month = ?',
-      month
-    );
-    const baseBudget = existingBudget || { month, ...defaultBudgetResponse };
-    const nextPersonalSamuel = req.user!.username === 'samuel'
-      ? personal_budget ?? personal_samuel ?? baseBudget.personal_samuel
-      : personal_samuel ?? baseBudget.personal_samuel;
-    const nextPersonalMaria = req.user!.username === 'maria'
-      ? personal_budget ?? personal_maria ?? baseBudget.personal_maria
-      : personal_maria ?? baseBudget.personal_maria;
-    const nextAllocationSum = rent + savings + nextPersonalSamuel + nextPersonalMaria;
-
-    if (nextAllocationSum > total_budget) {
-      return res.status(400).json({
-        error: 'Total budget cannot be lower than the combined shared and personal allocations'
-      });
-    }
+    let budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
     
-    // Update main budget
-    const updateResult = await db.run(`
-      UPDATE budgets 
-      SET total_budget = ?, rent = ?, savings = ?, personal_samuel = ?, personal_maria = ?
-      WHERE month = ?
-    `, total_budget, rent, savings, nextPersonalSamuel, nextPersonalMaria, month);
-
-    if (updateResult.changes === 0) {
-      await db.run(`
-        INSERT INTO budgets (month, total_budget, rent, savings, personal_samuel, personal_maria)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, month, total_budget, rent, savings, nextPersonalSamuel, nextPersonalMaria);
+    if (!budget) {
+      const result = await db.run(`
+        INSERT INTO budgets (month, shared_available, personal_samuel, personal_maria)
+        VALUES (?, ?, ?, ?)
+      `, month, defaultBudgetResponse.shared_available, defaultBudgetResponse.personal_samuel, defaultBudgetResponse.personal_maria);
+      budget = await db.get('SELECT * FROM budgets WHERE id = ?', result.lastID);
     }
 
-    // Update category budgets if provided
+    // Handle personal budget update (direct)
+    if (personal_budget !== undefined) {
+      const field = username === 'samuel' ? 'personal_samuel' : 'personal_maria';
+      await db.run(`UPDATE budgets SET ${field} = ? WHERE id = ?`, personal_budget, budget.id);
+    }
+
+    // Handle shared_available update (requires approval)
+    if (shared_available !== undefined && shared_available !== budget.shared_available) {
+      // Check if there is already a pending approval
+      const existingPending = await db.get('SELECT id FROM budget_approvals WHERE budget_id = ? AND status = "pending"', budget.id);
+      
+      if (existingPending) {
+        await db.run('UPDATE budget_approvals SET shared_available = ?, requested_by_user_id = ? WHERE id = ?', 
+          shared_available, req.user!.id, existingPending.id);
+      } else {
+        await db.run(`
+          INSERT INTO budget_approvals (budget_id, requested_by_user_id, shared_available)
+          VALUES (?, ?, ?)
+        `, budget.id, req.user!.id, shared_available);
+      }
+      
+      console.log(`📧 NOTIFICATION: User ${username} requested to change shared budget to €${shared_available}. Notification email sent to partner.`);
+    }
+
+    // Update category budgets
     if (categories && typeof categories === 'object') {
       for (const [category, amount] of Object.entries(categories)) {
         await db.run(`
@@ -97,11 +103,43 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
     }
 
     await syncBudgetAllocationsForMonth(month);
-
-    res.json({ success: true });
+    res.json({ success: true, pending_approval: shared_available !== undefined && shared_available !== budget.shared_available });
   } catch (error) {
     console.error('Error updating budget:', error);
     res.status(500).json({ error: 'Failed to update budget' });
+  }
+});
+
+// Approve shared budget change
+router.post('/approve', async (req: AuthRequest, res) => {
+  const { approval_id } = req.body;
+  if (!approval_id) return res.status(400).json({ error: 'approval_id is required' });
+
+  try {
+    const db = getDatabase();
+    const approval = await db.get('SELECT * FROM budget_approvals WHERE id = ? AND status = "pending"', approval_id);
+    
+    if (!approval) return res.status(404).json({ error: 'Pending approval not found' });
+    if (approval.requested_by_user_id === req.user!.id) {
+      return res.status(403).json({ error: 'You cannot approve your own request' });
+    }
+
+    await db.exec('BEGIN TRANSACTION');
+    
+    // Update the main budget
+    await db.run('UPDATE budgets SET shared_available = ? WHERE id = ?', approval.shared_available, approval.budget_id);
+    
+    // Mark as approved
+    await db.run('UPDATE budget_approvals SET status = "approved", approved_by_user_id = ? WHERE id = ?', req.user!.id, approval_id);
+    
+    await db.exec('COMMIT');
+    
+    res.json({ success: true });
+  } catch (error) {
+    const db = getDatabase();
+    await db.exec('ROLLBACK');
+    console.error('Error approving budget:', error);
+    res.status(500).json({ error: 'Failed to approve budget' });
   }
 });
 

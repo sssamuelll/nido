@@ -26,9 +26,7 @@ export interface PersonalBalanceCardViewModel {
 
 export interface VisibleBudgetFormData {
   month: string;
-  total_budget: number;
-  rent: number;
-  savings: number;
+  shared_available: number;
   personal_budget: number;
   categories: Record<string, number>;
 }
@@ -98,9 +96,7 @@ export const toVisibleBudgetFormData = (
   fallbackPersonalBudget = 500
 ): VisibleBudgetFormData => ({
   month,
-  total_budget: Number(data?.total_budget ?? 2800),
-  rent: Number(data?.rent ?? 335),
-  savings: Number(data?.savings ?? 300),
+  shared_available: Number(data?.shared_available ?? 2000),
   personal_budget: Number(data?.personal_budget ?? fallbackPersonalBudget),
   categories: data?.categories && typeof data.categories === 'object' ? data.categories : {},
 });

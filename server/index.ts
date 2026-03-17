@@ -296,6 +296,49 @@ app.post('/api/auth/logout', async (req, res) => {
 app.use('/api/expenses', authenticateToken, expensesRouter);
 app.use('/api/budgets', authenticateToken, budgetsRouter);
 
+// Categories routes
+app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    const categories = await db.all('SELECT * FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?)', req.user!.id);
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+app.post('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
+  const { name, emoji, color, id } = req.body;
+  if (!name || !emoji || !color) return res.status(400).json({ error: 'Name, emoji and color are required' });
+
+  try {
+    const db = getDatabase();
+    const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    
+    if (id) {
+      await db.run('UPDATE categories SET name = ?, emoji = ?, color = ? WHERE id = ? AND household_id = ?', 
+        name, emoji, color, id, user.household_id);
+    } else {
+      await db.run('INSERT INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)', 
+        user.household_id, name, emoji, color);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save category' });
+  }
+});
+
+app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    await db.run('DELETE FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

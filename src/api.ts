@@ -185,8 +185,21 @@ export class Api {
     return this.request(`/expenses/summary?month=${month}`);
   }
 
-  static async getCategories(): Promise<string[]> {
-    return this.request('/expenses/categories');
+  static async getCategories(): Promise<any[]> {
+    return this.request('/categories');
+  }
+
+  static async saveCategory(category: any) {
+    return this.request('/categories', {
+      method: 'POST',
+      body: category,
+    });
+  }
+
+  static async deleteCategory(id: number) {
+    return this.request(`/categories/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   static async getBudget(month: string) {
@@ -195,15 +208,20 @@ export class Api {
 
   static async updateBudget(budget: {
     month: string;
-    total_budget: number;
-    rent: number;
-    savings: number;
-    personal_budget: number;
+    shared_available?: number;
+    personal_budget?: number;
     categories?: Record<string, number>;
   }) {
     return this.request('/budgets', {
       method: 'PUT',
       body: budget,
+    });
+  }
+
+  static async approveBudget(approvalId: number) {
+    return this.request('/budgets/approve', {
+      method: 'POST',
+      body: { approval_id: approvalId },
     });
   }
 
