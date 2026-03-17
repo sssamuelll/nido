@@ -69,7 +69,7 @@ export const PinPage: React.FC = () => {
         </div>
       </div>
 
-      {error && <p style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-body)', fontSize: 13 }}>PIN incorrecto</p>}
+      {error && <p className="error-view__msg">PIN incorrecto</p>}
     </div>
   );
 };

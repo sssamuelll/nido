@@ -71,159 +71,150 @@ export const Analytics: React.FC = () => {
   const paths = buildAreaChartPaths(MOCK_CHART_DATA, SVG_W, SVG_H, PAD);
 
   return (
-    <>
+    <div className="u-flex-gap-24">
       {/* Header */}
-        <div className="analytics__header">
-          <div>
-            <div className="analytics__subtitle">Finanzas</div>
-            <div className="analytics__title">Analítica</div>
-          </div>
-          <div className="analytics__period-pills">
-            {PERIODS.map(p => (
-              <button
-                key={p}
-                className={`analytics__period-btn ${activePeriod === p ? 'analytics__period-btn--active' : ''}`}
-                onClick={() => setActivePeriod(p)}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+      <div className="analytics__header">
+        <div>
+          <div className="analytics__subtitle">Finanzas</div>
+          <div className="analytics__title">Analítica</div>
         </div>
+        <div className="analytics__period-pills">
+          {PERIODS.map(p => (
+            <button
+              key={p}
+              className={`analytics__period-btn ${activePeriod === p ? 'analytics__period-btn--active' : ''}`}
+              onClick={() => setActivePeriod(p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Content */}
-        <div className="analytics__content">
-          {/* Chart card */}
-          <div className="analytics__chart-card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div className="analytics__chart-title">Evolución mensual</div>
-              <div className="analytics__legend">
-                {(['samuel', 'maria', 'shared'] as const).map(owner => (
-                  <div key={owner} className="analytics__legend-item">
-                    <div
-                      className="analytics__legend-dot"
-                      style={{ background: OWNER_THEMES[owner].base }}
-                    />
-                    <span className="analytics__legend-label">
-                      {owner === 'samuel' ? 'Samuel' : owner === 'maria' ? 'María' : 'Compartido'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="analytics__chart-area">
-              <svg
-                viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-                width="100%"
-                height="100%"
-                preserveAspectRatio="none"
-                style={{ display: 'block' }}
-              >
-                <defs>
-                  <linearGradient id="gradSamuel" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8bdc6b" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#8bdc6b" stopOpacity="0.02" />
-                  </linearGradient>
-                  <linearGradient id="gradMaria" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ff8c6b" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#ff8c6b" stopOpacity="0.02" />
-                  </linearGradient>
-                  <linearGradient id="gradShared" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#7cb5e8" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#7cb5e8" stopOpacity="0.02" />
-                  </linearGradient>
-                </defs>
-
-                {/* Area fills */}
-                <path d={paths.samuel.areaPath} fill="url(#gradSamuel)" />
-                <path d={paths.maria.areaPath} fill="url(#gradMaria)" />
-                <path d={paths.shared.areaPath} fill="url(#gradShared)" />
-
-                {/* Lines */}
-                <path
-                  d={paths.samuel.linePath}
-                  fill="none"
-                  stroke={OWNER_THEMES.samuel.base}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d={paths.maria.linePath}
-                  fill="none"
-                  stroke={OWNER_THEMES.maria.base}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d={paths.shared.linePath}
-                  fill="none"
-                  stroke={OWNER_THEMES.shared.base}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-
-            <div className="analytics__chart-months">
-              {MOCK_MONTHS.map(m => (
-                <span key={m} className="analytics__chart-month">{m}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Right panel */}
-          <div className="analytics__right-panel">
-            {/* Stat cards */}
-            <div className="analytics__stats">
-              {MOCK_STATS.map(stat => (
-                <div key={stat.label} className="analytics__stat-card">
-                  <span className="analytics__stat-label">{stat.label}</span>
-                  <span className="analytics__stat-value">{stat.value}</span>
-                  <span
-                    className="analytics__stat-delta"
-                    style={{ color: stat.up ? 'var(--color-samuel)' : 'var(--color-maria)' }}
-                  >
-                    {stat.up ? '↑' : '↓'} {stat.delta}
+      {/* Content */}
+      <div className="analytics__content">
+        <div className="analytics__chart-card">
+          <div className="settings__header-main">
+            <div className="analytics__chart-title">Evolución mensual</div>
+            <div className="analytics__legend">
+              {(['samuel', 'maria', 'shared'] as const).map(owner => (
+                <div key={owner} className="analytics__legend-item">
+                  <div
+                    className="analytics__legend-dot"
+                    style={{ '--theme-base': OWNER_THEMES[owner].base } as React.CSSProperties}
+                  />
+                  <span className="analytics__legend-label">
+                    {owner === 'samuel' ? 'Samuel' : owner === 'maria' ? 'María' : 'Compartido'}
                   </span>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Categories card */}
-            <div className="analytics__categories-card">
-              <div className="analytics__cat-title">Por categoría</div>
-              {MOCK_CATEGORIES.map(cat => (
-                <div key={cat.name} className="analytics__cat-item">
-                  <div className="analytics__cat-row">
-                    <div className="analytics__cat-name">
-                      <span>{cat.emoji}</span>
-                      <span>{cat.name}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="analytics__cat-amount">€{cat.amount.toLocaleString('es-ES')}</span>
-                      <span className="analytics__cat-pct" style={{ color: cat.color }}>
-                        {cat.pct}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="analytics__cat-track">
-                    <div
-                      className="analytics__cat-fill"
-                      style={{
-                        width: `${cat.pct}%`,
-                        background: cat.color,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="analytics__chart-area">
+            <svg
+              viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+              className="analytics__svg"
+            >
+              <defs>
+                <linearGradient id="gradSamuel" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8bdc6b" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#8bdc6b" stopOpacity="0.02" />
+                </linearGradient>
+                <linearGradient id="gradMaria" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ff8c6b" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#ff8c6b" stopOpacity="0.02" />
+                </linearGradient>
+                <linearGradient id="gradShared" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7cb5e8" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#7cb5e8" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
+
+              <path d={paths.samuel.areaPath} fill="url(#gradSamuel)" />
+              <path d={paths.maria.areaPath} fill="url(#gradMaria)" />
+              <path d={paths.shared.areaPath} fill="url(#gradShared)" />
+
+              <path
+                d={paths.samuel.linePath}
+                fill="none"
+                stroke={OWNER_THEMES.samuel.base}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d={paths.maria.linePath}
+                fill="none"
+                stroke={OWNER_THEMES.maria.base}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d={paths.shared.linePath}
+                fill="none"
+                stroke={OWNER_THEMES.shared.base}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div className="analytics__chart-months">
+            {MOCK_MONTHS.map(m => (
+              <span key={m} className="analytics__chart-month">{m}</span>
+            ))}
           </div>
         </div>
-    </>
+
+        <div className="analytics__right-panel">
+          <div className="analytics__stats">
+            {MOCK_STATS.map(stat => (
+              <div key={stat.label} className="analytics__stat-card">
+                <span className="analytics__stat-label">{stat.label}</span>
+                <span className="analytics__stat-value">{stat.value}</span>
+                <span
+                  className="analytics__stat-delta"
+                  style={{ '--theme-base': stat.up ? 'var(--color-samuel)' : 'var(--color-maria)' } as React.CSSProperties}
+                >
+                  {stat.up ? '↑' : '↓'} {stat.delta}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="analytics__categories-card">
+            <div className="analytics__cat-title">Por categoría</div>
+            {MOCK_CATEGORIES.map(cat => (
+              <div key={cat.name} className="analytics__cat-item">
+                <div className="analytics__cat-row">
+                  <div className="analytics__cat-name">
+                    <span>{cat.emoji}</span>
+                    <span>{cat.name}</span>
+                  </div>
+                  <div className="u-flex-center">
+                    <span className="analytics__cat-amount">€{cat.amount.toLocaleString('es-ES')}</span>
+                    <span className="analytics__cat-pct" style={{ '--theme-base': cat.color } as React.CSSProperties}>
+                      {cat.pct}%
+                    </span>
+                  </div>
+                </div>
+                <div className="analytics__cat-track">
+                  <div
+                    className="analytics__cat-fill"
+                    style={{
+                      '--progress-width': `${cat.pct}%`,
+                      '--theme-base': cat.color,
+                    } as React.CSSProperties}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
