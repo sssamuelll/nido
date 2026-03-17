@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { Plus, Trash2, AlertCircle, Download, LogOut, Key, Lock, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, AlertCircle, Download, LogOut, Key, Lock, Shield } from 'lucide-react';
 import { Button } from '../components/Button';
 import { InputField } from '../components/InputField';
 
@@ -28,7 +28,7 @@ interface BudgetData {
 
 export const Settings: React.FC = () => {
   const { user, logout } = useAuth();
-  const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+  const currentMonth = format(new Date(), 'yyyy-MM');
   const [budget, setBudget] = useState<BudgetData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -44,7 +44,7 @@ export const Settings: React.FC = () => {
 
   useEffect(() => { 
     loadData(); 
-  }, [currentMonth]);
+  }, []);
 
   useEffect(() => {
     if (toast) {
@@ -151,18 +151,6 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const navigateMonth = (dir: -1 | 1) => {
-    const [y, m] = currentMonth.split('-').map(Number);
-    const d = new Date(y, m - 1 + dir, 1);
-    setCurrentMonth(format(d, 'yyyy-MM'));
-  };
-
-  const formatMonthName = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return `${months[parseInt(month) - 1]} ${year}`;
-  };
-
   const exportToCSV = async () => {
     try {
       const expenses = await Api.getExpenses(currentMonth);
@@ -215,21 +203,7 @@ export const Settings: React.FC = () => {
       {/* Header */}
       <div className="settings__header">
         <div className="settings__subtitle">Ajustes del hogar</div>
-        <div className="settings__header-main">
-          <h1 className="settings__title">Configuración</h1>
-          
-          <div className="settings__month-nav">
-            <button onClick={() => navigateMonth(-1)} className="btn btn--sm settings__month-btn">
-              <ChevronLeft size={18} />
-            </button>
-            <span className="settings__month-label">
-              {formatMonthName(currentMonth)}
-            </span>
-            <button onClick={() => navigateMonth(1)} className="btn btn--sm settings__month-btn">
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
+        <h1 className="settings__title">Configuración</h1>
       </div>
 
       <div className="settings__columns">
@@ -416,13 +390,6 @@ export const Settings: React.FC = () => {
                 Cerrar sesión
               </button>
             </div>
-          </div>
-
-          {/* Info Footer */}
-          <div className="settings__footer-info">
-            <p className="settings__footer-version">
-              NIDO v1.2 · 2026
-            </p>
           </div>
         </div>
       </div>
