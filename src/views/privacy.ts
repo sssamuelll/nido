@@ -33,6 +33,44 @@ export interface VisibleBudgetFormData {
   categories: Record<string, number>;
 }
 
+export interface VisibleExpense {
+  id: number;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  paid_by: string;
+  type: string;
+  created_at?: string;
+}
+
+export interface PersonalCategorySnapshot {
+  category: string;
+  total: number;
+  count: number;
+  budgetShare: number;
+  monthShare: number;
+}
+
+export interface PersonalAnalyticsPoint {
+  label: string;
+  total: number;
+}
+
+export interface PersonalDetailViewModel {
+  owner: 'samuel' | 'maria';
+  name: string;
+  personalBudget: number;
+  personalSpent: number;
+  remaining: number;
+  progress: number;
+  averageExpense: number;
+  topCategory: string;
+  categories: PersonalCategorySnapshot[];
+  recentExpenses: VisibleExpense[];
+  chart: PersonalAnalyticsPoint[];
+}
+
 const toNum = (value: unknown, fallback = 0) =>
   Number.isFinite(Number(value)) ? Number(value) : fallback;
 
@@ -66,3 +104,90 @@ export const toVisibleBudgetFormData = (
   personal_budget: Number(data?.personal_budget ?? fallbackPersonalBudget),
   categories: data?.categories && typeof data.categories === 'object' ? data.categories : {},
 });
+
+const compareByNewest = (a: VisibleExpense, b: VisibleExpense) =>
+  new Date(b.created_at ?? b.date).getTime() - new Date(a.created_at ?? a.date).getTime();
+
+const buildWeeklyChart = (expenses: VisibleExpense[]): PersonalAnalyticsPoint[] => {
+  const buckets = [
+    { label: 'Sem 1', total: 0 },
+    { label: 'Sem 2', total: 0 },
+    { label: 'Sem 3', total: 0 },
+    { label: 'Sem 4', total: 0 },
+    { label: 'Sem 5', total: 0 },
+  ];
+
+  expenses.forEach((expense) => {
+    const date = new Date(`${expense.date}T12:00:00`);
+    const bucketIndex = Math.min(4, Math.floor((date.getDate() - 1) / 7));
+    buckets[bucketIndex].total += toNum(expense.amount);
+  });
+
+  return buckets;
+};
+
+export const getPrivateExpensesForUser = (
+  expenses: VisibleExpense[],
+  username: string
+): VisibleExpense[] =>
+  (Array.isArray(expenses) ? expenses : [])
+    .filter((expense) => expense?.type === 'personal' && expense?.paid_by === username)
+    .sort(compareByNewest);
+
+export const buildPersonalDetailModel = ({
+  summary,
+  budget,
+  expenses,
+  username,
+}: {
+  summary?: DashboardSummaryData | null;
+  budget?: VisibleBudgetFormData | null;
+  expenses?: VisibleExpense[] | null;
+  username: string;
+}): PersonalDetailViewModel => {
+  const owner = summary?.personal?.owner === 'maria' || username === 'maria' ? 'maria' : 'samuel';
+  const personalBudget = toNum(summary?.personal?.budget ?? budget?.personal_budget ?? summary?.budget?.personal);
+  const privateExpenses = getPrivateExpensesForUser(expenses ?? [], username);
+  const personalSpent = privateExpenses.reduce((sum, expense) => sum + toNum(expense.amount), 0);
+  const remaining = personalBudget - personalSpent;
+  const progress = personalBudget > 0 ? Math.min(100, Math.round((personalSpent / personalBudget) * 100)) : 0;
+
+  const categoryTotals = privateExpenses.reduce<Record<string, PersonalCategorySnapshot>>((acc, expense) => {
+    const category = expense.category || 'Otros';
+    if (!acc[category]) {
+      acc[category] = {
+        category,
+        total: 0,
+        count: 0,
+        budgetShare: 0,
+        monthShare: 0,
+      };
+    }
+
+    acc[category].total += toNum(expense.amount);
+    acc[category].count += 1;
+    return acc;
+  }, {});
+
+  const categories = Object.values(categoryTotals)
+    .map((entry) => ({
+      ...entry,
+      budgetShare: personalBudget > 0 ? Math.min(100, Math.round((entry.total / personalBudget) * 100)) : 0,
+      monthShare: personalSpent > 0 ? Math.round((entry.total / personalSpent) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return {
+    owner,
+    name: owner === 'maria' ? 'María' : 'Samuel',
+    personalBudget,
+    personalSpent,
+    remaining,
+    progress,
+    averageExpense: privateExpenses.length > 0 ? personalSpent / privateExpenses.length : 0,
+    topCategory: categories[0]?.category ?? 'Sin gastos',
+    categories,
+    recentExpenses: privateExpenses.slice(0, 6),
+    chart: buildWeeklyChart(privateExpenses),
+  };
+};
