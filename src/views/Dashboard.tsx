@@ -136,7 +136,8 @@ export const Dashboard: React.FC = () => {
 
   const personalCard = getPersonalBalanceCardModel(data);
 
-  const userName = user?.username === 'maria' ? 'María' : 'Samuel';
+  const normalizedUser = user?.username?.toLowerCase().trim() || '';
+  const userName = normalizedUser === 'maria' ? 'María' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
   const greeting = `Hola, ${userName} 👋`;
 
   // Group recent transactions by date for the date pill display
