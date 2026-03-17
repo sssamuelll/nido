@@ -32,6 +32,7 @@ export const Settings: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [budget, setBudget] = useState<BudgetData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   
   const [saving, setSaving] = useState(false);
   const [newPin, setNewPin] = useState('');
@@ -56,9 +57,10 @@ export const Settings: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [budgetData, categoriesData] = await Promise.all([
+      const [budgetData, categoriesData, membersData] = await Promise.all([
         Api.getBudget(currentMonth),
-        Api.getCategories()
+        Api.getCategories(),
+        Api.getMembers()
       ]);
       
       // If there's a pending shared budget change requested by ME, 
@@ -69,6 +71,7 @@ export const Settings: React.FC = () => {
       
       setBudget(budgetData);
       setCategories(categoriesData);
+      setMembers(membersData);
     } catch {
       setToast({ type: 'error', msg: 'Error al cargar datos' });
     } finally {
@@ -199,8 +202,8 @@ export const Settings: React.FC = () => {
     );
   }
 
-  const normalizedUsername = user?.username?.toLowerCase().trim() || '';
-  const partnerName = normalizedUsername === 'samuel' ? 'María' : 'Samuel';
+  const partner = members.find(m => m.id !== user?.id);
+  const partnerName = partner ? (partner.username === 'maria' ? 'María' : partner.username === 'samuel' ? 'Samuel' : partner.username) : 'Pareja';
   const isPendingByMe = budget.pending_approval?.requested_by_user_id === user?.id;
 
   return (

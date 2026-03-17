@@ -225,6 +225,10 @@ export class Api {
     });
   }
 
+  static async getMembers(): Promise<any[]> {
+    return this.request('/household/members');
+  }
+
   static async health() {
     return this.request('/health');
   }
