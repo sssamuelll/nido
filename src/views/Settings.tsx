@@ -240,7 +240,7 @@ export const Settings: React.FC = () => {
             
             <div className="settings__row">
               <div>
-                <div className="settings__row-label">Disponible compartido</div>
+                <div className="settings__row-label">Presupuesto compartido</div>
                 <div className="settings__row-desc">Cambios requieren aprobación de {partnerName}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -249,8 +249,12 @@ export const Settings: React.FC = () => {
                   type="number" 
                   className="input-field__input"
                   style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
-                  value={budget.shared_available}
-                  onChange={e => setBudget({...budget, shared_available: parseFloat(e.target.value) || 0})}
+                  value={budget.shared_available || ''}
+                  onChange={e => {
+                    const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    setBudget({...budget, shared_available: val});
+                  }}
+                  onFocus={e => e.target.value === '0' && (e.target.value = '')}
                 />
               </div>
             </div>
@@ -266,8 +270,12 @@ export const Settings: React.FC = () => {
                   type="number" 
                   className="input-field__input"
                   style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
-                  value={budget.personal_budget}
-                  onChange={e => setBudget({...budget, personal_budget: parseFloat(e.target.value) || 0})}
+                  value={budget.personal_budget || ''}
+                  onChange={e => {
+                    const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    setBudget({...budget, personal_budget: val});
+                  }}
+                  onFocus={e => e.target.value === '0' && (e.target.value = '')}
                 />
               </div>
             </div>
@@ -279,18 +287,29 @@ export const Settings: React.FC = () => {
                   <strong style={{ fontSize: 13, color: 'var(--color-shared)' }}>Cambio pendiente</strong>
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
-                  {budget.pending_approval.requested_by === user?.username 
+                  {budget.pending_approval.requested_by.toLowerCase() === user?.username?.toLowerCase() 
                     ? `Esperando aprobación de ${partnerName} para €${budget.pending_approval.shared_available}`
                     : `${partnerName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
                 </p>
-                {budget.pending_approval.requested_by !== user?.username && (
+                {budget.pending_approval.requested_by.toLowerCase() !== user?.username?.toLowerCase() && (
                   <Button label="Aprobar cambio" size="sm" variant="shared" onClick={handleApproveBudget} disabled={saving} />
                 )}
               </div>
             )}
 
             <div style={{ padding: '16px 24px 24px' }}>
-              <Button label={saving ? 'Guardando...' : 'Guardar presupuesto'} fullWidth onClick={handleSaveBudget} disabled={saving} />
+              <Button 
+                label={saving ? 'Guardando...' : 'Guardar presupuesto'} 
+                fullWidth 
+                onClick={() => {
+                  if (budget.shared_available < 100 || budget.personal_budget < 100) {
+                    setToast({ type: 'error', msg: 'Los montos deben ser de al menos 3 dígitos' });
+                    return;
+                  }
+                  handleSaveBudget();
+                }} 
+                disabled={saving} 
+              />
             </div>
           </div>
 
@@ -375,6 +394,30 @@ export const Settings: React.FC = () => {
                   <div className="settings__row-desc">Salir de tu cuenta en este dispositivo</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="settings__danger-zone">
+            <div className="settings__danger-title">Zona de peligro</div>
+            <div className="settings__danger-text" style={{ fontSize: 13, color: 'var(--color-danger)', opacity: 0.8 }}>
+              Estas acciones son permanentes y no se pueden deshacer. Procede con cuidado.
+            </div>
+            <div className="settings__danger-actions" style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <button 
+                className="btn btn--sm" 
+                style={{ flex: 1, background: 'transparent', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', boxShadow: 'none' }}
+                onClick={() => window.confirm('¿Estás seguro de que quieres borrar todos tus datos?')}
+              >
+                Borrar datos
+              </button>
+              <button 
+                className="btn btn--sm" 
+                style={{ flex: 1, background: 'var(--color-danger)', color: '#fff', boxShadow: 'none' }}
+                onClick={() => logout()}
+              >
+                Cerrar sesión
+              </button>
             </div>
           </div>
 
