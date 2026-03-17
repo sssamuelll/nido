@@ -162,47 +162,6 @@ export const PersonalDashboard: React.FC = () => {
       </div>
 
       <div className="personal-dashboard__grid">
-        <section className="personal-dashboard__card personal-dashboard__card--wide">
-          <div className="personal-dashboard__section-header">
-            <div>
-              <div className="personal-dashboard__section-kicker">Analítica</div>
-              <div className="personal-dashboard__section-title">Resumen de gasto personal</div>
-            </div>
-            <div className="personal-dashboard__inline-stats">
-              <span>{detail.recentExpenses.length} movimientos recientes</span>
-              <span>{detail.categories.length} categorías activas</span>
-            </div>
-          </div>
-
-          <div className="personal-dashboard__chart">
-            <svg viewBox="0 0 520 220" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id={chartGradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={ownerTheme.base} stopOpacity="0.32" />
-                  <stop offset="100%" stopColor={ownerTheme.base} stopOpacity="0.04" />
-                </linearGradient>
-              </defs>
-              <path d={chartPaths.areaPath} fill={`url(#${chartGradientId})`} />
-              <path
-                d={chartPaths.linePath}
-                fill="none"
-                stroke={ownerTheme.base}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <div className="personal-dashboard__chart-labels">
-              {detail.chart.map((point) => (
-                <div key={point.label} className="personal-dashboard__chart-label">
-                  <span>{point.label}</span>
-                  <strong>{toCurrency(point.total)}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section className="personal-dashboard__card">
           <div className="personal-dashboard__section-header">
             <div>
@@ -274,6 +233,78 @@ export const PersonalDashboard: React.FC = () => {
                 );
               })
             )}
+          </div>
+        </section>
+
+        <section className="personal-dashboard__card">
+          <div className="personal-dashboard__section-header">
+            <div>
+              <div className="personal-dashboard__section-kicker">Últimos gastos</div>
+              <div className="personal-dashboard__section-title">Solo tus movimientos privados</div>
+            </div>
+          </div>
+
+          <div className="personal-dashboard__transactions">
+            {detail.recentExpenses.length === 0 ? (
+              <div className="personal-dashboard__empty">No hay gastos personales registrados este mes.</div>
+            ) : (
+              detail.recentExpenses.map((expense) => {
+                const categoryDef = CATEGORIES.find((item) => item.id === expense.category);
+                return (
+                  <TransactionRow
+                    key={expense.id}
+                    emoji={categoryDef?.emoji ?? '🦋'}
+                    name={expense.description}
+                    payer="Privado"
+                    amount={`-€${expense.amount.toFixed(2)}`}
+                    date={expense.date}
+                    indicatorColor={ownerTheme.base}
+                    isPositive={false}
+                  />
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        <section className="personal-dashboard__card personal-dashboard__card--wide">
+          <div className="personal-dashboard__section-header">
+            <div>
+              <div className="personal-dashboard__section-kicker">Analítica</div>
+              <div className="personal-dashboard__section-title">Resumen de gasto personal</div>
+            </div>
+            <div className="personal-dashboard__inline-stats">
+              <span>{detail.recentExpenses.length} movimientos recientes</span>
+              <span>{detail.categories.length} categorías activas</span>
+            </div>
+          </div>
+
+          <div className="personal-dashboard__chart">
+            <svg viewBox="0 0 520 220" width="100%" height="100%" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id={chartGradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={ownerTheme.base} stopOpacity="0.32" />
+                  <stop offset="100%" stopColor={ownerTheme.base} stopOpacity="0.04" />
+                </linearGradient>
+              </defs>
+              <path d={chartPaths.areaPath} fill={`url(#${chartGradientId})`} />
+              <path
+                d={chartPaths.linePath}
+                fill="none"
+                stroke={ownerTheme.base}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <div className="personal-dashboard__chart-labels">
+              {detail.chart.map((point) => (
+                <div key={point.label} className="personal-dashboard__chart-label">
+                  <span>{point.label}</span>
+                  <strong>{toCurrency(point.total)}</strong>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </div>
