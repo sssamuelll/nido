@@ -339,6 +339,18 @@ app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, re
   }
 });
 
+// Household members
+app.get('/api/household/members', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    // In this app, we assume all users in the 'users' table belong to the same household for now
+    const members = await db.all('SELECT id, username FROM users');
+    res.json(members);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
