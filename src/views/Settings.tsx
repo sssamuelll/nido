@@ -192,7 +192,7 @@ export const Settings: React.FC = () => {
     );
   }
 
-  const partnerName = user?.username === 'samuel' ? 'María' : 'Samuel';
+  const partnerName = user?.username?.toLowerCase() === 'samuel' ? 'María' : 'Samuel';
 
   return (
     <div className="settings">
@@ -249,12 +249,12 @@ export const Settings: React.FC = () => {
                   type="number" 
                   className="input-field__input"
                   style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
-                  value={budget.shared_available || ''}
+                  value={budget.shared_available === 0 ? '' : budget.shared_available}
                   onChange={e => {
                     const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
                     setBudget({...budget, shared_available: val});
                   }}
-                  onFocus={e => e.target.value === '0' && (e.target.value = '')}
+                  placeholder="0"
                 />
               </div>
             </div>
@@ -270,12 +270,12 @@ export const Settings: React.FC = () => {
                   type="number" 
                   className="input-field__input"
                   style={{ width: 100, textAlign: 'right', background: 'var(--color-bg)', padding: '8px', borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-neu-xs)' }}
-                  value={budget.personal_budget || ''}
+                  value={budget.personal_budget === 0 ? '' : budget.personal_budget}
                   onChange={e => {
                     const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
                     setBudget({...budget, personal_budget: val});
                   }}
-                  onFocus={e => e.target.value === '0' && (e.target.value = '')}
+                  placeholder="0"
                 />
               </div>
             </div>
