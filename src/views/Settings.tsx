@@ -199,7 +199,8 @@ export const Settings: React.FC = () => {
     );
   }
 
-  const partnerName = user?.username?.toLowerCase() === 'samuel' ? 'María' : 'Samuel';
+  const normalizedUsername = user?.username?.toLowerCase().trim() || '';
+  const partnerName = normalizedUsername === 'samuel' ? 'María' : 'Samuel';
   const isPendingByMe = budget.pending_approval?.requested_by_user_id === user?.id;
 
   return (
