@@ -63,7 +63,7 @@ export const Settings: React.FC = () => {
       
       // If there's a pending shared budget change requested by ME, 
       // show THAT value in the input instead of the old approved one
-      if (budgetData.pending_approval && budgetData.pending_approval.requested_by.toLowerCase() === user?.username?.toLowerCase()) {
+      if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
         budgetData.shared_available = budgetData.pending_approval.shared_available;
       }
       
@@ -200,8 +200,7 @@ export const Settings: React.FC = () => {
   }
 
   const partnerName = user?.username?.toLowerCase() === 'samuel' ? 'María' : 'Samuel';
-  const myUsernameLower = user?.username?.toLowerCase() || '';
-  const isPendingByMe = budget.pending_approval?.requested_by?.toLowerCase() === myUsernameLower;
+  const isPendingByMe = budget.pending_approval?.requested_by_user_id === user?.id;
 
   return (
     <div className="settings">
