@@ -196,6 +196,8 @@ export const Dashboard: React.FC = () => {
             monthChange={personalCard.monthChange}
             progress={personalCard.progress}
             sparkline={personalCard.sparkline}
+            onClick={() => navigate('/personal')}
+            ariaLabel="Abrir detalle personal"
           />
           <BalanceCard
             owner="shared"
@@ -205,6 +207,8 @@ export const Dashboard: React.FC = () => {
             monthChange={-totalSharedSpent}
             progress={sharedProgress}
             sparkline={[availableShared * 0.3, availableShared * 0.5, availableShared * 0.4, availableShared * 0.6, availableShared * 0.7, totalSharedSpent]}
+            onClick={() => navigate('/')}
+            ariaLabel="Abrir dashboard compartido"
           />
         </div>
 

@@ -3,6 +3,8 @@ import { OWNER_THEMES, type BalanceData } from '../types';
 
 interface BalanceCardProps extends BalanceData {
   className?: string;
+  onClick?: () => void;
+  ariaLabel?: string;
 }
 
 export const BalanceCard: React.FC<BalanceCardProps> = ({
@@ -14,13 +16,19 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   progress,
   sparkline,
   className = '',
+  onClick,
+  ariaLabel,
 }) => {
   const theme = OWNER_THEMES[owner];
   const maxBar = Math.max(...sparkline, 1);
+  const TagName = onClick ? 'button' : 'div';
 
   return (
-    <div
-      className={`balance-card balance-card--${owner} ${className}`}
+    <TagName
+      className={`balance-card balance-card--${owner} ${onClick ? 'balance-card--interactive' : ''} ${className}`}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      type={onClick ? 'button' : undefined}
       style={{
         '--card-gradient': theme.gradientDiag,
         '--card-glow': theme.glow,
@@ -69,6 +77,6 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
           );
         })}
       </div>
-    </div>
+    </TagName>
   );
 };
