@@ -30,17 +30,13 @@ export const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [budget, setBudget] = useState<BudgetData | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  
+
   const [saving, setSaving] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  
-  // Category editor state
-  const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
   useEffect(() => { 
     loadData(); 
@@ -56,18 +52,16 @@ export const Settings: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [budgetData, categoriesData, membersData] = await Promise.all([
+      const [budgetData, membersData] = await Promise.all([
         Api.getBudget(currentMonth),
-        Api.getCategories(),
         Api.getMembers()
       ]);
-      
+
       if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
         budgetData.shared_available = budgetData.pending_approval.shared_available;
       }
-      
+
       setBudget(budgetData);
-      setCategories(categoriesData);
       setMembers(membersData);
     } catch {
       setToast({ type: 'error', msg: 'Error al cargar datos' });
@@ -114,27 +108,6 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const handleSaveCategory = async () => {
-    if (!editingCategory?.name) return;
-    try {
-      await Api.saveCategory(editingCategory);
-      setEditingCategory(null);
-      loadData();
-      setToast({ type: 'success', msg: '✓ Categoría guardada' });
-    } catch {
-      setToast({ type: 'error', msg: 'Error al guardar categoría' });
-    }
-  };
-
-  const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm('¿Borrar esta categoría?')) return;
-    try {
-      await Api.deleteCategory(id);
-      loadData();
-    } catch {
-      setToast({ type: 'error', msg: 'Error al borrar' });
-    }
-  };
 
   const handlePinSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,35 +261,6 @@ export const Settings: React.FC = () => {
             </div>
           </div>
 
-          {/* Categories Card */}
-          <div className="settings__card">
-            <div className="settings__card-title settings__category-header">
-              <div className="settings__card-title--flex">
-                <Plus size={18} /> Categorías
-              </div>
-              <button className="settings__category-add-btn" onClick={() => setEditingCategory({ name: '', emoji: '🦋', color: '#a89e94' })}>
-                <Plus size={20} />
-              </button>
-            </div>
-
-            <div className="settings__category-list-inner">
-              {categories.map(cat => (
-                <div key={cat.id} className="settings__row">
-                  <div className="settings__category-info-row">
-                    <span className="settings__category-emoji-large">{cat.emoji}</span>
-                    <div>
-                      <div className="settings__row-label">{cat.name}</div>
-                      <div className="settings__row-desc settings__category-color-dot" style={{ color: cat.color }}>Color: {cat.color}</div>
-                    </div>
-                  </div>
-                  <div className="settings__category-actions-row">
-                    <button onClick={() => setEditingCategory(cat)} className="btn btn--sm settings__action-btn"><Shield size={14} /></button>
-                    <button onClick={() => handleDeleteCategory(cat.id)} className="btn btn--sm settings__action-btn settings__action-btn--danger"><Trash2 size={14} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="settings__col-right">
@@ -394,31 +338,6 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Modal */}
-      {editingCategory && (
-        <div className="settings__modal-overlay">
-          <div className="settings__card settings__modal-card">
-            <h3 className="settings__modal-title">{editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}</h3>
-            
-            <div className="settings__modal-form">
-              <InputField label="Nombre" value={editingCategory.name || ''} onChange={v => setEditingCategory({...editingCategory, name: v})} />
-              <div className="settings__modal-row">
-                <div className="settings__modal-emoji">
-                  <InputField label="Emoji" value={editingCategory.emoji || ''} onChange={v => setEditingCategory({...editingCategory, emoji: v})} />
-                </div>
-                <div className="settings__modal-color">
-                  <InputField label="Color" type="color" value={editingCategory.color || ''} onChange={v => setEditingCategory({...editingCategory, color: v})} />
-                </div>
-              </div>
-            </div>
-
-            <div className="settings__modal-footer">
-              <Button label="Cancelar" variant="maria" fullWidth onClick={() => setEditingCategory(null)} />
-              <Button label="Guardar" fullWidth onClick={handleSaveCategory} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

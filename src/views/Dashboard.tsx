@@ -52,6 +52,7 @@ export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
   useEffect(() => {
     loadDashboardData();
@@ -186,30 +187,43 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Balance Cards */}
-        <div className="dashboard__balances">
-          <BalanceCard
-            owner="shared"
-            name="Compartido"
-            avatar="🏠"
-            balance={remainingShared}
-            monthChange={-totalSharedSpent}
-            progress={sharedProgress}
-            sparkline={[availableShared * 0.3, availableShared * 0.5, availableShared * 0.4, availableShared * 0.6, availableShared * 0.7, totalSharedSpent]}
-            onClick={() => navigate('/')}
-            ariaLabel="Abrir dashboard compartido"
-          />
-          <BalanceCard
-            owner={personalCard.owner}
-            name={userName}
-            avatar={personalCard.avatar}
-            balance={personalCard.balance}
-            monthChange={personalCard.monthChange}
-            progress={personalCard.progress}
-            sparkline={personalCard.sparkline}
-            onClick={() => navigate('/personal')}
-            ariaLabel="Abrir detalle personal"
-          />
+        {/* Context Tabs */}
+        <div className="dashboard__context-tabs">
+          <button
+            className={`dashboard__context-tab ${activeContext === 'shared' ? 'dashboard__context-tab--active' : ''}`}
+            onClick={() => setActiveContext('shared')}
+          >
+            Compartido
+          </button>
+          <button
+            className={`dashboard__context-tab ${activeContext === 'personal' ? 'dashboard__context-tab--active' : ''}`}
+            onClick={() => setActiveContext('personal')}
+          >
+            Personal
+          </button>
+        </div>
+
+        {/* Insight Strip */}
+        <div className="dashboard__insight-strip">
+          {activeContext === 'shared'
+            ? 'Gastos compartidos del mes'
+            : 'Tus gastos personales del mes'}
+        </div>
+
+        {/* Metric Cards */}
+        <div className="dashboard__metric-cards">
+          <div className="balance-card">
+            <div className="balance-card__label">Presupuesto Total</div>
+            <div className="balance-card__value">€{toNum(data?.budget?.total).toFixed(2)}</div>
+          </div>
+          <div className="balance-card">
+            <div className="balance-card__label">Gastado este mes</div>
+            <div className="balance-card__value">€{(activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent)).toFixed(2)}</div>
+          </div>
+          <div className="balance-card">
+            <div className="balance-card__label">Ticket promedio</div>
+            <div className="balance-card__value">€{(recentTransactions.length > 0 ? recentTransactions.reduce((sum, t) => sum + toNum(t.amount), 0) / recentTransactions.length : 0).toFixed(0)}</div>
+          </div>
         </div>
 
         {/* Bottom split */}
@@ -259,23 +273,30 @@ export const Dashboard: React.FC = () => {
                   No hay gastos registrados
                 </div>
               ) : (
-                groupedTransactions.map(({ date, items }) => (
-                  <React.Fragment key={date}>
-                    <div className="dashboard__date-pill">{formatDatePill(date)}</div>
-                    {items.map(tx => (
-                      <TransactionRow
-                        key={tx.id}
-                        emoji={getCategoryEmoji(tx.category)}
-                        name={tx.description}
-                        payer={tx.paid_by}
-                        amount={`-€${toNum(tx.amount).toFixed(2)}`}
-                        date={tx.date}
-                        indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
-                        isPositive={false}
-                      />
-                    ))}
-                  </React.Fragment>
-                ))
+                groupedTransactions.map(({ date, items }) => {
+                  const filteredItems = items.filter(tx => {
+                    if (activeContext === 'shared') return tx.type === 'shared';
+                    return tx.type === 'personal';
+                  });
+                  if (filteredItems.length === 0) return null;
+                  return (
+                    <React.Fragment key={date}>
+                      <div className="dashboard__date-pill">{formatDatePill(date)}</div>
+                      {filteredItems.map(tx => (
+                        <TransactionRow
+                          key={tx.id}
+                          emoji={getCategoryEmoji(tx.category)}
+                          name={tx.description}
+                          payer={tx.paid_by}
+                          amount={`-€${toNum(tx.amount).toFixed(2)}`}
+                          date={tx.date}
+                          indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
+                          isPositive={false}
+                        />
+                      ))}
+                    </React.Fragment>
+                  );
+                })
               )}
             </div>
           </div>

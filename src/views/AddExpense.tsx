@@ -15,11 +15,12 @@ export const AddExpense: React.FC = () => {
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Gastos');
   const [type, setType] = useState<'shared' | 'personal'>('shared');
-  const [split, setSplit] = useState(50);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
   useEffect(() => {
     Api.getCategories().then(setCategories).catch(console.error);
@@ -98,18 +99,55 @@ export const AddExpense: React.FC = () => {
 
             <div className="add-expense__field-group">
               <label className="input-field__label">Categoría</label>
-              <div className="add-expense__categories">
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`add-expense__cat-pill ${category === cat.name ? 'add-expense__cat-pill--active' : ''}`}
-                    onClick={() => setCategory(cat.name)}
-                  >
-                    <span>{cat.emoji}</span>
-                    <span>{cat.name}</span>
-                  </button>
-                ))}
+              <div className="add-expense__category-search-wrapper">
+                <input
+                  type="text"
+                  placeholder="Busca o selecciona categoría"
+                  value={categorySearch}
+                  onChange={e => setCategorySearch(e.target.value)}
+                  onFocus={() => setCategoryDropdownOpen(true)}
+                  className="add-expense__category-search-input"
+                />
+                {category && (
+                  <div className="add-expense__category-tag">
+                    {categories.find(c => c.name === category)?.emoji} {category}
+                  </div>
+                )}
+                {categoryDropdownOpen && (
+                  <div className="add-expense__category-dropdown">
+                    {categories
+                      .filter(cat =>
+                        cat.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+                        categorySearch === ''
+                      )
+                      .map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          className={`add-expense__category-option ${category === cat.name ? 'add-expense__category-option--active' : ''}`}
+                          onClick={() => {
+                            setCategory(cat.name);
+                            setCategorySearch('');
+                            setCategoryDropdownOpen(false);
+                          }}
+                        >
+                          <span>{cat.emoji}</span>
+                          <span>{cat.name}</span>
+                        </button>
+                      ))}
+                    <button
+                      type="button"
+                      className="add-expense__category-create-link"
+                      onClick={() => {
+                        setCategory(categorySearch || 'Nueva categoría');
+                        setCategorySearch('');
+                        setCategoryDropdownOpen(false);
+                      }}
+                    >
+                      Crear nueva categoría...
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -132,33 +170,6 @@ export const AddExpense: React.FC = () => {
                 </button>
               </div>
             </div>
-
-            {type === 'shared' && (
-              <div className="add-expense__field-group">
-                <div className="add-expense__split-label-row">
-                  <label className="input-field__label">Reparto</label>
-                  <div className="add-expense__split-badges">
-                    <div className="add-expense__split-badge add-expense__split-badge--samuel">
-                      <span className="add-expense__split-icon">👨‍💻</span>
-                      <span className="add-expense__split-pct u-color-samuel">{split}%</span>
-                    </div>
-                    <div className="add-expense__split-badge add-expense__split-badge--maria">
-                      <span className="add-expense__split-pct u-color-maria">{100 - split}%</span>
-                      <span className="add-expense__split-icon">👩‍🎨</span>
-                    </div>
-                  </div>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={split}
-                  onChange={e => setSplit(parseInt(e.target.value))}
-                  className="add-expense__range-input"
-                />
-              </div>
-            )}
           </div>
         </div>
 

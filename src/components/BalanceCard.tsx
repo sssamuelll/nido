@@ -67,19 +67,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
         <span className="balance-card__progress-label">{progress}%</span>
       </div>
 
-      <div className="balance-card__sparkline">
-        {sparkline.map((v, i) => {
-          const isLast = i === sparkline.length - 1;
-          const isSecondLast = i === sparkline.length - 2;
-          return (
-            <div
-              key={i}
-              className={`balance-card__spark-bar ${isLast ? 'balance-card__spark-bar--current' : isSecondLast ? 'balance-card__spark-bar--prev' : ''}`}
-              style={{ '--bar-height': `${(v / maxBar) * 100}%` } as React.CSSProperties}
-            />
-          );
-        })}
-      </div>
+      <div className="balance-card__accent" style={{ background: theme.base, boxShadow: `0 0 8px ${theme.glow}` }} />
     </TagName>
   );
 };

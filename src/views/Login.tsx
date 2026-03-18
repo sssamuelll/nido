@@ -47,7 +47,8 @@ export const Login: React.FC = () => {
 
   return (
     <div className="login">
-      <div className="login__hero">
+      {/* Left Side - Branding */}
+      <div className="login__left">
         <div className="login__orb login__orb--1" />
         <div className="login__orb login__orb--2" />
         <div className="login__orb login__orb--3" />
@@ -55,7 +56,7 @@ export const Login: React.FC = () => {
           <div className="login__logo-icon"><span>N</span></div>
           <span className="login__logo-text">nido</span>
         </div>
-        <h1 className="login__tagline">Tu hogar financiero<br />como pareja</h1>
+        <h1 className="login__tagline">Tu hogar financiero como pareja</h1>
         <p className="login__subtitle">
           Gestiona gastos compartidos, ahorra juntos<br />y alcanza vuestras metas financieras
         </p>
@@ -66,7 +67,8 @@ export const Login: React.FC = () => {
         </div>
       </div>
 
-      <div className="login__form-side">
+      {/* Right Side - Forms */}
+      <div className="login__right">
         <div className="login__form-container">
           <div>
             <h2 className="login__form-title">Bienvenido de vuelta</h2>
@@ -100,6 +102,8 @@ export const Login: React.FC = () => {
               />
             </form>
           )}
+
+          {isMagicLinkEnabled && <div className="login__divider">O</div>}
 
           <form className="login__form" onSubmit={handleLegacySubmit}>
             <InputField

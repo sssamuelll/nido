@@ -53,18 +53,6 @@ export const Sidebar: React.FC = () => {
           />
         ))}
       </nav>
-
-      <div className="sidebar__profile">
-        <div className="sidebar__profile-avatar">
-          <span>{user?.username?.slice(0, 2).toUpperCase() || 'NI'}</span>
-        </div>
-        <div className="sidebar__profile-info">
-          <span className="sidebar__profile-name">
-            {user?.username === 'samuel' ? 'Samuel' : user?.username === 'maria' ? 'María' : user?.username || 'Usuario'}
-          </span>
-          <span className="sidebar__profile-sub">Pareja</span>
-        </div>
-      </div>
     </aside>
   );
 };

@@ -11,6 +11,7 @@ export const History: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
   useEffect(() => {
     loadExpenses();
@@ -41,10 +42,12 @@ export const History: React.FC = () => {
     return `${months[parseInt(month) - 1]} ${year}`;
   };
 
-  const filteredExpenses = expenses.filter(e => 
-    e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredExpenses = expenses.filter(e => {
+    const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesContext = activeContext === 'shared' ? e.type === 'shared' : e.type === 'personal';
+    return matchesSearch && matchesContext;
+  });
 
   const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
   const average = filteredExpenses.length > 0 ? total / filteredExpenses.length : 0;
@@ -89,14 +92,30 @@ export const History: React.FC = () => {
 
         <div className="dashboard__search">
           <Search size={16} color="var(--color-text-tertiary)" />
-          <input 
-            type="text" 
-            placeholder="Buscar..." 
+          <input
+            type="text"
+            placeholder="Buscar..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="dashboard__search-input"
           />
         </div>
+      </div>
+
+      {/* Context Tabs */}
+      <div className="history__context-tabs">
+        <button
+          className={`history__context-tab ${activeContext === 'shared' ? 'history__context-tab--active' : ''}`}
+          onClick={() => setActiveContext('shared')}
+        >
+          Compartido
+        </button>
+        <button
+          className={`history__context-tab ${activeContext === 'personal' ? 'history__context-tab--active' : ''}`}
+          onClick={() => setActiveContext('personal')}
+        >
+          Personal
+        </button>
       </div>
 
       <div className="u-flex-gap-12">

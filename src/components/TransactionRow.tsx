@@ -9,6 +9,7 @@ interface TransactionRowProps {
   indicatorColor?: string;
   isPositive?: boolean;
   onDelete?: () => void;
+  payerColor?: string;
 }
 
 export const TransactionRow: React.FC<TransactionRowProps> = ({
@@ -20,6 +21,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
   indicatorColor = '#8bdc6b',
   isPositive = false,
   onDelete,
+  payerColor,
 }) => {
   return (
     <div
@@ -36,6 +38,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
         <span className={`transaction-row__amount ${isPositive ? 'transaction-row__amount--positive' : ''}`}>
           {amount}
         </span>
+        {payer && <span className="transaction-row__payer-badge" style={{ background: payerColor ? `${payerColor}15` : undefined, color: payerColor }}>{payer}</span>}
         <span className="transaction-row__date">{date}</span>
       </div>
       {onDelete && (

@@ -39,62 +39,62 @@ export const Goals: React.FC = () => {
   return (
     <div className="u-flex-gap-24">
       {/* Header */}
-        <div className="goals__header">
-          <div>
-            <div className="goals__subtitle">Finanzas</div>
-            <div className="goals__title">Objetivos</div>
-          </div>
-          <Button
-            label="Nuevo Objetivo"
-            variant="samuel"
-            size="sm"
-          />
+      <div className="goals__header">
+        <div>
+          <div className="goals__subtitle">Finanzas</div>
+          <div className="goals__title">Objetivos</div>
         </div>
+        <Button
+          label="Nuevo Objetivo"
+          variant="samuel"
+          size="sm"
+        />
+      </div>
 
-        {/* Stats */}
-        <div className="goals__stats">
-          {SUMMARY_STATS.map(stat => (
-            <div key={stat.label} className="goals__stat-card">
-              <span className="goals__stat-label">{stat.label}</span>
-              <span className="goals__stat-value" style={{ color: stat.color } as React.CSSProperties}>
-                {stat.value}
-              </span>
-              <span className="goals__stat-sub">{stat.sub}</span>
-            </div>
+      {/* Stats */}
+      <div className="goals__stats">
+        {SUMMARY_STATS.map(stat => (
+          <div key={stat.label} className="goals__stat-card">
+            <span className="goals__stat-label">{stat.label}</span>
+            <span className="goals__stat-value" style={{ color: stat.color } as React.CSSProperties}>
+              {stat.value}
+            </span>
+            <span className="goals__stat-sub">{stat.sub}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Goals grid */}
+      <div className="goals__grid">
+        {/* Column 1 */}
+        <div className="goals__column">
+          {col1Goals.map(goal => (
+            <GoalCard
+              key={goal.id}
+              {...goal}
+              onContribute={() => handleContribute(goal.id)}
+              onEdit={() => handleEdit(goal.id)}
+            />
           ))}
         </div>
 
-        {/* Goals grid */}
-        <div className="goals__grid">
-          {/* Column 1 */}
-          <div className="goals__column">
-            {col1Goals.map(goal => (
-              <GoalCard
-                key={goal.id}
-                {...goal}
-                onContribute={() => handleContribute(goal.id)}
-                onEdit={() => handleEdit(goal.id)}
-              />
-            ))}
-          </div>
-
-          {/* Column 2 */}
-          <div className="goals__column">
-            {col2Goals.map(goal => (
-              <GoalCard
-                key={goal.id}
-                {...goal}
-                onContribute={() => handleContribute(goal.id)}
-                onEdit={() => handleEdit(goal.id)}
-              />
-            ))}
-            {/* Add placeholder */}
-            <div className="goals__add-placeholder">
-              <span className="goals__plus-icon">+</span>
-              <span className="goals__add-text">Añadir objetivo</span>
-            </div>
+        {/* Column 2 */}
+        <div className="goals__column">
+          {col2Goals.map(goal => (
+            <GoalCard
+              key={goal.id}
+              {...goal}
+              onContribute={() => handleContribute(goal.id)}
+              onEdit={() => handleEdit(goal.id)}
+            />
+          ))}
+          {/* Add placeholder */}
+          <div className="goals__add-placeholder">
+            <span className="goals__plus-icon">+</span>
+            <span className="goals__add-text">Añadir objetivo</span>
           </div>
         </div>
+      </div>
     </div>
   );
 };

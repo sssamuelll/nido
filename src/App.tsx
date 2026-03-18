@@ -12,7 +12,6 @@ import { Settings } from './views/Settings';
 import { AddExpense } from './views/AddExpense';
 import { Analytics } from './views/Analytics';
 import { Goals } from './views/Goals';
-import { PersonalDashboard } from './views/PersonalDashboard';
 import './styles/global.css';
 
 const AppRoutes: React.FC = () => {
@@ -57,7 +56,7 @@ const AppRoutes: React.FC = () => {
       <div className="content-area">
         <Routes>
           <Route path="/" element={<Dashboard key={refreshKey} />} />
-          <Route path="/personal" element={<PersonalDashboard />} />
+          <Route path="/personal" element={<Navigate to="/" replace />} />
           <Route path="/history" element={<History key={refreshKey} />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/add" element={<AddExpense />} />

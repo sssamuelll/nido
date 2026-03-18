@@ -63,12 +63,18 @@ function buildAreaChartPaths(
 
 export const Analytics: React.FC = () => {
   const [activePeriod, setActivePeriod] = useState('6M');
+  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
   const SVG_W = 500;
   const SVG_H = 220;
   const PAD = 24;
 
-  const paths = buildAreaChartPaths(MOCK_CHART_DATA, SVG_W, SVG_H, PAD);
+  // Filter chart data by context
+  const filteredChartData = {
+    [activeContext]: MOCK_CHART_DATA[activeContext]
+  };
+
+  const paths = buildAreaChartPaths(filteredChartData, SVG_W, SVG_H, PAD);
 
   return (
     <div className="u-flex-gap-24">
@@ -91,23 +97,37 @@ export const Analytics: React.FC = () => {
         </div>
       </div>
 
+      {/* Context Tabs */}
+      <div className="analytics__context-tabs">
+        <button
+          className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`}
+          onClick={() => setActiveContext('shared')}
+        >
+          Compartido
+        </button>
+        <button
+          className={`analytics__context-tab ${activeContext === 'personal' ? 'analytics__context-tab--active' : ''}`}
+          onClick={() => setActiveContext('personal')}
+        >
+          Personal
+        </button>
+      </div>
+
       {/* Content */}
       <div className="analytics__content">
         <div className="analytics__chart-card">
           <div className="settings__header-main">
             <div className="analytics__chart-title">Evolución mensual</div>
             <div className="analytics__legend">
-              {(['samuel', 'maria', 'shared'] as const).map(owner => (
-                <div key={owner} className="analytics__legend-item">
-                  <div
-                    className="analytics__legend-dot"
-                    style={{ '--theme-base': OWNER_THEMES[owner].base } as React.CSSProperties}
-                  />
-                  <span className="analytics__legend-label">
-                    {owner === 'samuel' ? 'Samuel' : owner === 'maria' ? 'María' : 'Compartido'}
-                  </span>
-                </div>
-              ))}
+              <div className="analytics__legend-item">
+                <div
+                  className="analytics__legend-dot"
+                  style={{ '--theme-base': OWNER_THEMES[activeContext].base } as React.CSSProperties}
+                />
+                <span className="analytics__legend-label">
+                  {activeContext === 'samuel' ? 'Samuel' : activeContext === 'maria' ? 'María' : 'Compartido'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -131,34 +151,45 @@ export const Analytics: React.FC = () => {
                 </linearGradient>
               </defs>
 
-              <path d={paths.samuel.areaPath} fill="url(#gradSamuel)" />
-              <path d={paths.maria.areaPath} fill="url(#gradMaria)" />
-              <path d={paths.shared.areaPath} fill="url(#gradShared)" />
-
-              <path
-                d={paths.samuel.linePath}
-                fill="none"
-                stroke={OWNER_THEMES.samuel.base}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d={paths.maria.linePath}
-                fill="none"
-                stroke={OWNER_THEMES.maria.base}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d={paths.shared.linePath}
-                fill="none"
-                stroke={OWNER_THEMES.shared.base}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              {activeContext === 'samuel' && (
+                <>
+                  <path d={paths.samuel.areaPath} fill="url(#gradSamuel)" />
+                  <path
+                    d={paths.samuel.linePath}
+                    fill="none"
+                    stroke={OWNER_THEMES.samuel.base}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </>
+              )}
+              {activeContext === 'maria' && (
+                <>
+                  <path d={paths.maria.areaPath} fill="url(#gradMaria)" />
+                  <path
+                    d={paths.maria.linePath}
+                    fill="none"
+                    stroke={OWNER_THEMES.maria.base}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </>
+              )}
+              {activeContext === 'shared' && (
+                <>
+                  <path d={paths.shared.areaPath} fill="url(#gradShared)" />
+                  <path
+                    d={paths.shared.linePath}
+                    fill="none"
+                    stroke={OWNER_THEMES.shared.base}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </>
+              )}
             </svg>
           </div>
 
@@ -171,18 +202,20 @@ export const Analytics: React.FC = () => {
 
         <div className="analytics__right-panel">
           <div className="analytics__stats">
-            {MOCK_STATS.map(stat => (
-              <div key={stat.label} className="analytics__stat-card">
-                <span className="analytics__stat-label">{stat.label}</span>
-                <span className="analytics__stat-value">{stat.value}</span>
-                <span
-                  className="analytics__stat-delta"
-                  style={{ '--theme-base': stat.up ? 'var(--color-samuel)' : 'var(--color-maria)' } as React.CSSProperties}
-                >
-                  {stat.up ? '↑' : '↓'} {stat.delta}
-                </span>
-              </div>
-            ))}
+            <div className="analytics__stat-card">
+              <span className="analytics__stat-label">Período actual</span>
+              <span className="analytics__stat-value">{activePeriod}</span>
+              <span className="analytics__stat-delta" style={{ '--theme-base': 'var(--color-samuel)' } as React.CSSProperties}>
+                Contexto: {activeContext === 'shared' ? 'Compartido' : activeContext === 'samuel' ? 'Samuel' : 'María'}
+              </span>
+            </div>
+            <div className="analytics__stat-card">
+              <span className="analytics__stat-label">Análisis</span>
+              <span className="analytics__stat-value">€2.450</span>
+              <span className="analytics__stat-delta" style={{ '--theme-base': 'var(--color-maria)' } as React.CSSProperties}>
+                ↓ 5% vs período anterior
+              </span>
+            </div>
           </div>
 
           <div className="analytics__categories-card">
