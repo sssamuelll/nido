@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { VerifyErrors, JwtPayload } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
@@ -23,7 +23,9 @@ export interface AuthUser {
 
 export interface AuthRequest extends Request {
   user?: AuthUser;
-  validatedData?: any;
+  // Populated by validation middleware with the Zod-parsed result.
+  // Typed as Record<string, unknown>; route handlers narrow via assertion.
+  validatedData?: Record<string, unknown>;
   validatedMonth?: string;
 }
 
@@ -107,10 +109,10 @@ const rateLimitErrorCodes = new Set([
 ]);
 
 const parseSupabaseError = async (response: globalThis.Response) => {
-  let payload: any = null;
+  let payload: Record<string, unknown> | null = null;
 
   try {
-    payload = await response.json();
+    payload = await response.json() as Record<string, unknown>;
   } catch {
     payload = null;
   }
@@ -214,8 +216,8 @@ export const createAppSession = async (appUserId: number, req: Request) => {
 
   try {
     await insertSession();
-  } catch (error: any) {
-    const message = typeof error?.message === 'string' ? error.message : '';
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : '';
     if (!message.includes('table sessions has no column named user_agent')) {
       throw error;
     }
@@ -470,7 +472,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
           return;
         }
 
-        jwt.verify(token, jwtSecret, (err: any, decoded: any) => {
+        jwt.verify(token, jwtSecret, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
           if (err) {
             res.status(401).json({ error: 'Session expired' });
             return;
@@ -496,7 +498,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  jwt.verify(token, jwtSecret, (err: any, decoded: any) => {
+  jwt.verify(token, jwtSecret, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
     if (err) {
       return res.status(401).json({ error: 'Session expired' });
     }

@@ -92,7 +92,7 @@ export const getPersonalBalanceCardModel = (data: DashboardSummaryData): Persona
 };
 
 export const toVisibleBudgetFormData = (
-  data: any,
+  data: { shared_available?: number; personal_budget?: number; categories?: Record<string, number> } | null | undefined,
   month: string,
   fallbackPersonalBudget = 500
 ): VisibleBudgetFormData => ({

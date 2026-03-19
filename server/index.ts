@@ -62,7 +62,7 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const csrfCheck = (req: any, res: any, next: any) => {
+const csrfCheck = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }

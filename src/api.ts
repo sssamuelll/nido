@@ -2,7 +2,7 @@ const API_BASE = '/api';
 
 interface ApiOptions {
   method?: string;
-  body?: any;
+  body?: Record<string, unknown>;
   headers?: Record<string, string>;
 }
 
@@ -168,7 +168,15 @@ export class Api {
     });
   }
 
-  static async updateExpense(id: number, expense: any) {
+  static async updateExpense(id: number, expense: {
+    description: string;
+    amount: number;
+    category: string;
+    date: string;
+    paid_by?: string;
+    type: string;
+    status?: string;
+  }) {
     return this.request(`/expenses/${id}`, {
       method: 'PUT',
       body: expense,
@@ -185,11 +193,11 @@ export class Api {
     return this.request(`/expenses/summary?month=${month}`);
   }
 
-  static async getCategories(): Promise<any[]> {
+  static async getCategories(): Promise<Array<{ id: number; name: string; emoji: string; color: string }>> {
     return this.request('/categories');
   }
 
-  static async saveCategory(category: any) {
+  static async saveCategory(category: { id?: number; name: string; emoji: string; color: string }) {
     return this.request('/categories', {
       method: 'POST',
       body: category,
@@ -225,7 +233,7 @@ export class Api {
     });
   }
 
-  static async getMembers(): Promise<any[]> {
+  static async getMembers(): Promise<Array<{ id: number; username: string }>> {
     return this.request('/household/members');
   }
 

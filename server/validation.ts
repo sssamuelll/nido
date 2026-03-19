@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Request, Response, NextFunction } from 'express';
 
 // Common schemas
 export const monthSchema = z.string()
@@ -71,26 +72,26 @@ export type GoalContributeInput = z.infer<typeof goalContributeSchema>;
 
 // Validation middleware factory
 export function validate(schema: z.ZodSchema) {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       if (schema === monthSchema) {
         const result = schema.safeParse(req.query.month);
         if (!result.success) {
-          return res.status(400).json({ 
-            error: 'Validation error', 
-            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+          return res.status(400).json({
+            error: 'Validation error',
+            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
           });
         }
-        (req as any).validatedMonth = result.data;
+        (req as Request & { validatedMonth?: string }).validatedMonth = result.data as string;
       } else {
         const result = schema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({ 
-            error: 'Validation error', 
-            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+          return res.status(400).json({
+            error: 'Validation error',
+            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
           });
         }
-        (req as any).validatedData = result.data;
+        (req as Request & { validatedData?: unknown }).validatedData = result.data;
       }
       next();
     } catch (error) {

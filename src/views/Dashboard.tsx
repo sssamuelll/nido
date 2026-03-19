@@ -8,9 +8,18 @@ import { TransactionRow } from '../components/TransactionRow';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
 import { CATEGORIES, INDICATOR_COLORS } from '../types';
-import { getPersonalBalanceCardModel } from './privacy';
+import { getPersonalBalanceCardModel, VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
+
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 interface DashboardData {
   budget: {
@@ -36,10 +45,10 @@ interface DashboardData {
     budget: number;
     count: number;
   }>;
-  recentTransactions: any[];
+  recentTransactions: VisibleExpense[];
 }
 
-const toNum = (v: any, fallback = 0) =>
+const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
 const getCategoryEmoji = (categoryId: string): string => {
@@ -66,7 +75,7 @@ export const Dashboard: React.FC = () => {
   const recentTxRaw = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
   const metricBudgetTarget = activeContext === 'shared' ? availableSharedRaw : personalBudgetRaw;
   const metricSpentTarget = activeContext === 'shared' ? totalSharedSpentRaw : personalSpentRaw;
-  const metricAvgTarget = recentTxRaw.length > 0 ? Math.round(recentTxRaw.reduce((sum: number, t: any) => sum + toNum(t.amount), 0) / recentTxRaw.length) : 0;
+  const metricAvgTarget = recentTxRaw.length > 0 ? Math.round(recentTxRaw.reduce((sum: number, t: VisibleExpense) => sum + toNum(t.amount), 0) / recentTxRaw.length) : 0;
   const animBudget = useCountUp(metricBudgetTarget);
   const animSpent = useCountUp(metricSpentTarget);
   const animAvg = useCountUp(metricAvgTarget);
@@ -77,7 +86,7 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     Api.getNotifications()
-      .then((data: any[]) => setUnreadCount(data.filter((n: any) => !n.is_read).length))
+      .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
       .catch(() => {});
   }, []);
 
@@ -90,7 +99,7 @@ export const Dashboard: React.FC = () => {
         Api.getExpenses(currentMonth),
       ]);
       setData(summary);
-    } catch (err: any) {
+    } catch {
       setError('Error al cargar los datos');
     } finally {
       setLoading(false);
@@ -164,8 +173,8 @@ export const Dashboard: React.FC = () => {
   const userName = normalizedUser === 'maria' ? 'María' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
 
   // Group recent transactions by date for the date pill display
-  const groupedTransactions: { date: string; items: any[] }[] = [];
-  const dateMap = new Map<string, any[]>();
+  const groupedTransactions: { date: string; items: VisibleExpense[] }[] = [];
+  const dateMap = new Map<string, VisibleExpense[]>();
   recentTransactions.slice(0, 10).forEach(tx => {
     if (!dateMap.has(tx.date)) dateMap.set(tx.date, []);
     dateMap.get(tx.date)!.push(tx);
@@ -366,7 +375,7 @@ export const Dashboard: React.FC = () => {
               setShowNotifications(false);
               // Refresh unread count when closing
               Api.getNotifications()
-                .then((data: any[]) => setUnreadCount(data.filter((n: any) => !n.is_read).length))
+                .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
                 .catch(() => {});
             }}
           />

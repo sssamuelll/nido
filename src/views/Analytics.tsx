@@ -92,8 +92,8 @@ export const Analytics: React.FC = () => {
       const result = await Api.getAnalytics(months, activeContext);
       setData(result);
       setTimeout(() => setBarsAnimated(true), 50);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar analíticas');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al cargar analíticas');
     } finally {
       setLoading(false);
     }

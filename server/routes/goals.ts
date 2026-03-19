@@ -6,7 +6,12 @@ import {
   goalUpdateSchema,
   goalContributeSchema,
   validate,
+  GoalInput,
+  GoalContributeInput,
 } from '../validation.js';
+import type { z } from 'zod';
+
+type GoalUpdateInput = z.infer<typeof goalUpdateSchema>;
 
 const router = Router();
 
@@ -41,7 +46,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
 // Create goal
 router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
-  const { name, icon, target, deadline, owner_type } = req.validatedData;
+  const { name, icon, target, deadline, owner_type } = req.validatedData as GoalInput;
 
   try {
     const db = getDatabase();
@@ -79,7 +84,7 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
 // Update goal
 router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { name, icon, target, deadline } = req.validatedData;
+  const { name, icon, target, deadline } = req.validatedData as GoalUpdateInput;
 
   try {
     const db = getDatabase();
@@ -173,7 +178,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 // Contribute to goal
 router.post('/:id/contribute', validate(goalContributeSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { amount } = req.validatedData;
+  const { amount } = req.validatedData as GoalContributeInput;
 
   try {
     const db = getDatabase();
