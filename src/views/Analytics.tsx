@@ -38,7 +38,7 @@ export const Analytics: React.FC = () => {
   return (
     <div className="u-flex-gap-24">
       {/* Header */}
-      <div className="analytics__header">
+      <div className="analytics__header an d1">
         <div>
           <div className="analytics__subtitle">Análisis detallado de gastos</div>
           <div className="analytics__title">Analítica</div>
@@ -57,7 +57,7 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* Context Tabs */}
-      <div className="analytics__context-tabs">
+      <div className="analytics__context-tabs an d1">
         <button
           className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`}
           onClick={() => setActiveContext('shared')}
@@ -88,7 +88,7 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="analytics-grid">
+      <div className="analytics-grid an d3">
         <div className="analytics__chart-card">
           <div className="sh">
             <div className="st">{chartTitle}</div>
@@ -102,6 +102,7 @@ export const Analytics: React.FC = () => {
                 style={{
                   height: barsAnimated ? `${h}%` : '0%',
                   background: 'linear-gradient(180deg, var(--blue), rgba(96,165,250,.2))',
+                  transitionDelay: `${i * 150}ms`,
                 }}
               />
             ))}
