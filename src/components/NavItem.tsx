@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import * as LucideIcons from 'lucide-react';
 
 interface NavItemProps {
@@ -17,22 +17,14 @@ const getIcon = (name: string): React.FC<{ size?: number; color?: string }> | nu
 };
 
 export const NavItem: React.FC<NavItemProps> = ({ icon, label, active = false, onClick }) => {
-  const [hovered, setHovered] = useState(false);
   const IconComponent = getIcon(icon);
 
   return (
     <button
       className={`nav-item ${active ? 'nav-item--active' : ''}`}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
-      {IconComponent && (
-        <IconComponent
-          size={22}
-          color={active ? '#FFFFFF' : hovered ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.6)'}
-        />
-      )}
+      {IconComponent && <IconComponent size={22} />}
       <span className="nav-item__label">{label}</span>
     </button>
   );
