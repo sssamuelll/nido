@@ -75,7 +75,7 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* KPI Row */}
-      <div className="stats-row an d2" style={{ gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="stats-row kpi-row-4 an d2">
         {MOCK_KPI.map(kpi => (
           <div key={kpi.label} className="card" style={{ textAlign: 'center', padding: '20px' }}>
             <div className="stat-value">{kpi.value}</div>
