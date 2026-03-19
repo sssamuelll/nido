@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+
+const THEME_KEY = 'nido-theme';
 
 export const ThemeToggle: React.FC = () => {
-  const toggle = () => document.documentElement.classList.toggle('light');
+  useEffect(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  }, []);
+
+  const toggle = () => {
+    const isLight = document.documentElement.classList.toggle('light');
+    localStorage.setItem(THEME_KEY, isLight ? 'light' : 'dark');
+  };
+
   return (
     <div className="theme-toggle" onClick={toggle} title="Cambiar tema">
       <svg className="sun" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

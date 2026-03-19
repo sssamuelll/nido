@@ -1448,10 +1448,10 @@ a:hover { color: var(--text) }
 .goals__column { display: flex; flex-direction: column; gap: var(--spacing-lg) }
 
 .goals__add-placeholder {
-  border-radius: var(--r); border: 2px dashed var(--border);
+  border-radius: 20px; border: 2px dashed var(--glass-border);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   cursor: pointer; transition: all 0.2s ease;
-  background: var(--surface); padding: 40px;
+  background: var(--surface); padding: 40px; min-height: 140px;
 }
 .goals__add-placeholder:hover { border-color: var(--blue); background: var(--surface2) }
 .goals__add-text { font-size: var(--font-size-sm); color: var(--ts); transition: color 0.2s ease }
