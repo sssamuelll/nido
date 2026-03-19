@@ -35,13 +35,6 @@ const CATEGORY_ICONS: Record<string, React.FC<any>> = {
   Otros: MoreHorizontal,
 };
 
-const SHORTCUT_MAP: Record<string, string> = {
-  Restaurant: 'Alt+1',
-  Supermercado: 'Alt+2',
-  Servicios: 'Alt+3',
-  Ocio: 'Alt+4',
-  'Inversión': 'Alt+5',
-};
 
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
@@ -202,7 +195,7 @@ export const AddExpense: React.FC = () => {
           {/* Command palette category picker */}
           <div className="an d3 cmd-palette" ref={cmdRef}>
             <div className="label">Categoria</div>
-            <div className="cmd-input-wrap" onClick={() => setCmdOpen(true)}>
+            <div className="cmd-input-wrap">
               <TagIcon />
               {category && (() => {
                 const catDef = getCatDef(category);
@@ -234,10 +227,12 @@ export const AddExpense: React.FC = () => {
               })()}
               <input
                 className="cmd-input"
-                placeholder="Buscar o crear categoria..."
+                placeholder="Buscar o crear categoría..."
                 value={categorySearch}
-                onChange={e => setCategorySearch(e.target.value)}
-                onFocus={() => setCmdOpen(true)}
+                onChange={e => {
+                  setCategorySearch(e.target.value);
+                  setCmdOpen(e.target.value.length > 0);
+                }}
               />
             </div>
             <div className={`cmd-dropdown ${cmdOpen ? 'open' : ''}`}>
@@ -261,24 +256,21 @@ export const AddExpense: React.FC = () => {
                       })()}
                     </div>
                     {cat.name}
-                    {SHORTCUT_MAP[cat.name] && (
-                      <span className="cmd-shortcut">{SHORTCUT_MAP[cat.name]}</span>
-                    )}
                   </div>
                 ))}
               </div>
-              <div
-                className="cmd-create"
-                onClick={() => {
-                  if (categorySearch.trim()) {
+              {categorySearch.trim() && !CATEGORIES.some(c => c.name.toLowerCase() === categorySearch.trim().toLowerCase()) && (
+                <div
+                  className="cmd-create"
+                  onClick={() => {
                     setCategory(categorySearch.trim());
-                  }
-                  setCategorySearch('');
-                  setCmdOpen(false);
-                }}
-              >
-                <PlusIcon /> Crear nueva categoria...
-              </div>
+                    setCategorySearch('');
+                    setCmdOpen(false);
+                  }}
+                >
+                  <PlusIcon /> Crear &ldquo;{categorySearch.trim()}&rdquo;
+                </div>
+              )}
             </div>
           </div>
 
