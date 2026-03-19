@@ -229,6 +229,26 @@ export class Api {
     return this.request('/household/members');
   }
 
+  static async getGoals() {
+    return this.request('/goals');
+  }
+
+  static async createGoal(data: { name: string; icon?: string; target: number; deadline?: string; owner_type: 'shared' | 'personal' }) {
+    return this.request('/goals', { method: 'POST', body: data });
+  }
+
+  static async updateGoal(id: number, data: Partial<{ name: string; icon: string; target: number; deadline: string | null }>) {
+    return this.request(`/goals/${id}`, { method: 'PUT', body: data });
+  }
+
+  static async deleteGoal(id: number) {
+    return this.request(`/goals/${id}`, { method: 'DELETE' });
+  }
+
+  static async contributeToGoal(id: number, amount: number) {
+    return this.request(`/goals/${id}/contribute`, { method: 'POST', body: { amount } });
+  }
+
   static async health() {
     return this.request('/health');
   }
