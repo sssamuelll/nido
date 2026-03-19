@@ -1,12 +1,8 @@
-import React, { useState } from 'react';
-import { CATEGORIES, OWNER_THEMES } from '../types';
+import React, { useState, useEffect } from 'react';
+import { CATEGORIES } from '../types';
 
-const MOCK_CHART_DATA = {
-  samuel: [2100, 1800, 2400, 1950, 2200, 2450],
-  maria: [1600, 1900, 1700, 2100, 1800, 1890],
-  shared: [3200, 2900, 3500, 3100, 3400, 3200],
-};
 const MOCK_MONTHS = ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar'];
+const MOCK_BAR_HEIGHTS = [65, 82, 70, 90, 75, 55];
 
 const PERIODS = ['3M', '6M', '1A', 'Todo'];
 
@@ -25,66 +21,26 @@ const MOCK_CATEGORIES = [
   { name: 'Inversión', amount: 360, pct: 10, color: CATEGORIES.find(c => c.id === 'Inversión')?.color ?? '#34D399' },
 ];
 
-// Build SVG area chart paths
-function buildAreaChartPaths(
-  dataMap: Record<string, number[]>,
-  width: number,
-  height: number,
-  padding: number
-) {
-  const allValues = Object.values(dataMap).flat();
-  const maxVal = Math.max(...allValues, 1);
-  const minVal = 0;
-  const numPoints = MOCK_MONTHS.length;
-  const xStep = (width - padding * 2) / (numPoints - 1);
-  const yRange = height - padding * 2;
-
-  const toX = (i: number) => padding + i * xStep;
-  const toY = (v: number) => padding + yRange - ((v - minVal) / (maxVal - minVal)) * yRange;
-
-  const result: Record<string, { linePath: string; areaPath: string }> = {};
-
-  Object.entries(dataMap).forEach(([owner, values]) => {
-    const points = values.map((v, i) => ({ x: toX(i), y: toY(v) }));
-
-    // Smooth line using cubic bezier
-    let linePath = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const cpX = (points[i - 1].x + points[i].x) / 2;
-      linePath += ` C ${cpX} ${points[i - 1].y}, ${cpX} ${points[i].y}, ${points[i].x} ${points[i].y}`;
-    }
-
-    // Area: same line + close at bottom
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
-
-    result[owner] = { linePath, areaPath };
-  });
-
-  return result;
-}
-
 export const Analytics: React.FC = () => {
   const [activePeriod, setActivePeriod] = useState('6M');
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
+  const [barsAnimated, setBarsAnimated] = useState(false);
 
-  const SVG_W = 500;
-  const SVG_H = 220;
-  const PAD = 24;
+  useEffect(() => {
+    const timer = setTimeout(() => setBarsAnimated(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
-  // Filter chart data by context -- map 'personal' to samuel's data as a proxy
-  const chartKey = activeContext === 'personal' ? 'samuel' : activeContext;
-  const filteredChartData = {
-    [chartKey]: MOCK_CHART_DATA[chartKey]
-  };
-
-  const paths = buildAreaChartPaths(filteredChartData, SVG_W, SVG_H, PAD);
+  const chartTitle = activeContext === 'shared'
+    ? 'Evolución — Gastos compartidos'
+    : 'Evolución — Gastos personales';
 
   return (
     <div className="u-flex-gap-24">
       {/* Header */}
       <div className="analytics__header">
         <div>
-          <div className="analytics__subtitle">Finanzas</div>
+          <div className="analytics__subtitle">Análisis detallado de gastos</div>
           <div className="analytics__title">Analítica</div>
         </div>
         <div className="analytics__period-pills">
@@ -134,60 +90,26 @@ export const Analytics: React.FC = () => {
       {/* Content */}
       <div className="analytics-grid">
         <div className="analytics__chart-card">
-          <div className="settings__header-main">
-            <div className="analytics__chart-title">Evolución mensual</div>
-            <div className="analytics__legend">
-              <div className="analytics__legend-item">
-                <div
-                  className="analytics__legend-dot"
-                  style={{ '--theme-base': OWNER_THEMES[chartKey].base } as React.CSSProperties}
-                />
-                <span className="analytics__legend-label">
-                  {activeContext === 'personal' ? 'Personal' : 'Compartido'}
-                </span>
-              </div>
-            </div>
+          <div className="sh">
+            <div className="st">{chartTitle}</div>
           </div>
 
-          <div className="analytics__chart-area">
-            <svg
-              viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-              className="analytics__svg"
-            >
-              <defs>
-                <linearGradient id="gradSamuel" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8bdc6b" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#8bdc6b" stopOpacity="0.02" />
-                </linearGradient>
-                <linearGradient id="gradMaria" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ff8c6b" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#ff8c6b" stopOpacity="0.02" />
-                </linearGradient>
-                <linearGradient id="gradShared" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#7cb5e8" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#7cb5e8" stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-
-              {paths[chartKey] && (
-                <>
-                  <path d={paths[chartKey].areaPath} fill={`url(#grad${chartKey.charAt(0).toUpperCase() + chartKey.slice(1)})`} />
-                  <path
-                    d={paths[chartKey].linePath}
-                    fill="none"
-                    stroke={OWNER_THEMES[chartKey].base}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </>
-              )}
-            </svg>
+          <div className="chart-big">
+            {MOCK_BAR_HEIGHTS.map((h, i) => (
+              <div
+                key={MOCK_MONTHS[i]}
+                className="c-bar"
+                style={{
+                  height: barsAnimated ? `${h}%` : '0%',
+                  background: 'linear-gradient(180deg, var(--blue), rgba(96,165,250,.2))',
+                }}
+              />
+            ))}
           </div>
 
-          <div className="analytics__chart-months">
+          <div className="chart-labels">
             {MOCK_MONTHS.map(m => (
-              <span key={m} className="analytics__chart-month">{m}</span>
+              <span key={m}>{m}</span>
             ))}
           </div>
 
