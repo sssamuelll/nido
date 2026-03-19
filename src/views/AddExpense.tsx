@@ -1,28 +1,99 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { useAuth } from '../auth';
-import { Button } from '../components/Button';
-import { InputField } from '../components/InputField';
-import { NumpadKey } from '../components/NumpadKey';
-import { ChevronLeft } from 'lucide-react';
+import { CATEGORIES } from '../types';
+
+/* SVG icons matching design reference */
+const ChevronLeftIcon = () => (
+  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <path d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+const TagIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
+    <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <path d="M12 4v16m-8-8h16" />
+  </svg>
+);
+
+/* Category icon SVGs matching design reference */
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  Restaurant: (
+    <svg width="14" height="14" fill="none" stroke="#F87171" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M3 3h18v18H3z" />
+    </svg>
+  ),
+  Supermercado: (
+    <svg width="14" height="14" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
+    </svg>
+  ),
+  Servicios: (
+    <svg width="14" height="14" fill="none" stroke="#FBBF24" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
+  Ocio: (
+    <svg width="14" height="14" fill="none" stroke="#A78BFA" viewBox="0 0 24 24" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  ),
+  'Inversión': (
+    <svg width="14" height="14" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>
+  ),
+};
+
+const SHORTCUT_MAP: Record<string, string> = {
+  Restaurant: 'Alt+1',
+  Supermercado: 'Alt+2',
+  Servicios: 'Alt+3',
+  Ocio: 'Alt+4',
+  'Inversión': 'Alt+5',
+};
 
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
-  const [category, setCategory] = useState('Gastos');
+  const [category, setCategory] = useState('Restaurant');
   const [type, setType] = useState<'shared' | 'personal'>('shared');
-  const [split, setSplit] = useState(50);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Api.getCategories().then(setCategories).catch(console.error);
+    Api.getCategories()
+      .then(setCategories)
+      .catch(() => {
+        /* fallback to CATEGORIES from types */
+        setCategories(CATEGORIES.map(c => ({ id: c.id, name: c.name, emoji: c.emoji })));
+      });
+  }, []);
+
+  /* Close dropdown on outside click */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cmdRef.current && !cmdRef.current.contains(e.target as Node)) {
+        setCmdOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleKey = (key: string) => {
@@ -37,8 +108,8 @@ export const AddExpense: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parseFloat(amount) <= 0) return setError('Ingresa un monto válido');
-    if (!description) return setError('Ingresa una descripción');
+    if (parseFloat(amount) <= 0) return setError('Ingresa un monto valido');
+    if (!description) return setError('Ingresa una descripcion');
 
     try {
       setLoading(true);
@@ -60,12 +131,18 @@ export const AddExpense: React.FC = () => {
     }
   };
 
+  const getCatDef = (name: string) => CATEGORIES.find(c => c.name === name);
+
+  const filteredCategories = CATEGORIES.filter(cat =>
+    cat.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
+  );
+
   if (success) {
     return (
       <div className="u-vh-center">
         <div className="u-text-center">
-          <div className="add-expense__success-icon">✓</div>
-          <div className="settings__title">¡Gasto guardado!</div>
+          <div className="add-expense__success-icon">&#10003;</div>
+          <div className="settings__title">Gasto guardado!</div>
           <div className="settings__subtitle">Redirigiendo...</div>
         </div>
       </div>
@@ -74,123 +151,222 @@ export const AddExpense: React.FC = () => {
 
   return (
     <div className="add-expense">
-      <div className="add-expense__header">
-        <button onClick={() => navigate(-1)} className="add-expense__back">
-          <ChevronLeft size={24} />
-        </button>
-        <h1 className="add-expense__title">Nuevo Gasto</h1>
+      {/* Back link */}
+      <div
+        className="add-expense__back-link"
+        onClick={() => navigate(-1)}
+      >
+        <ChevronLeftIcon />
+        Volver
       </div>
 
-      <form onSubmit={handleSubmit} className="add-expense__form">
-        <div className="add-expense__main-card">
-          <div className="add-expense__display">
-            <span className="add-expense__currency">€</span>
-            <span className="add-expense__amount">{amount}</span>
+      <div className="topbar an d1">
+        <div><h1>Nuevo Gasto</h1></div>
+      </div>
+
+      <div style={{ maxWidth: 560, margin: '0 auto' }}>
+        <form onSubmit={handleSubmit}>
+          {/* Amount display */}
+          <div className="an d2" style={{ textAlign: 'center', padding: '40px 0 24px' }}>
+            <span style={{
+              fontSize: 20,
+              fontWeight: 600,
+              color: 'var(--tm)',
+              verticalAlign: 'super',
+            }}>
+              &euro;
+            </span>
+            <span style={{
+              fontSize: 56,
+              fontWeight: 700,
+              fontVariantNumeric: 'tabular-nums',
+              color: amount === '0' ? 'var(--tm)' : 'var(--text)',
+              transition: 'color .2s',
+            }}>
+              {amount}
+            </span>
           </div>
 
-          <div className="add-expense__fields">
-            <InputField
-              label="Descripción"
-              placeholder="¿En qué gastaste?"
+          {/* Description field */}
+          <div className="an d3" style={{ marginBottom: 24 }}>
+            <div className="label">Descripcion</div>
+            <input
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--rs)',
+                fontSize: 15,
+                fontFamily: 'inherit',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                transition: 'all .2s',
+                outline: 'none',
+              }}
+              placeholder="En que gastaste?"
               value={description}
-              onChange={setDescription}
+              onChange={e => setDescription(e.target.value)}
+              onFocus={e => {
+                e.currentTarget.style.borderColor = 'var(--green)';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
+              }}
+              onBlur={e => {
+                e.currentTarget.style.borderColor = 'var(--glass-border)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
+          </div>
 
-            <div className="add-expense__field-group">
-              <label className="input-field__label">Categoría</label>
-              <div className="add-expense__categories">
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`add-expense__cat-pill ${category === cat.name ? 'add-expense__cat-pill--active' : ''}`}
-                    onClick={() => setCategory(cat.name)}
+          {/* Command palette category picker */}
+          <div className="an d3 cmd-palette" ref={cmdRef}>
+            <div className="label">Categoria</div>
+            <div className="cmd-input-wrap" onClick={() => setCmdOpen(true)}>
+              <TagIcon />
+              {category && (
+                <span className="cmd-selected">
+                  <span className="icon-c" style={{
+                    background: getCatDef(category)?.iconBg ?? 'var(--gl)',
+                    width: 20,
+                    height: 20,
+                  }}>
+                    {CATEGORY_ICONS[category] || (
+                      <svg width="12" height="12" fill="none" stroke={getCatDef(category)?.color ?? 'var(--green)'} viewBox="0 0 24 24" strokeWidth={2}>
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                    )}
+                  </span>
+                  {category}
+                  <span
+                    className="cmd-x"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setCategory('');
+                    }}
                   >
-                    <span>{cat.emoji}</span>
-                    <span>{cat.name}</span>
-                  </button>
+                    &times;
+                  </span>
+                </span>
+              )}
+              <input
+                className="cmd-input"
+                placeholder="Buscar o crear categoria..."
+                value={categorySearch}
+                onChange={e => setCategorySearch(e.target.value)}
+                onFocus={() => setCmdOpen(true)}
+              />
+            </div>
+            <div className={`cmd-dropdown ${cmdOpen ? 'open' : ''}`}>
+              <div className="cmd-list">
+                {filteredCategories.map(cat => (
+                  <div
+                    key={cat.id}
+                    className={`cmd-option ${category === cat.name ? 'selected' : ''}`}
+                    onClick={() => {
+                      setCategory(cat.name);
+                      setCategorySearch('');
+                      setCmdOpen(false);
+                    }}
+                  >
+                    <div className="cmd-icon" style={{ background: cat.iconBg }}>
+                      {CATEGORY_ICONS[cat.name] || (
+                        <svg width="14" height="14" fill="none" stroke={cat.color} viewBox="0 0 24 24" strokeWidth={2}>
+                          <circle cx="12" cy="12" r="10" />
+                        </svg>
+                      )}
+                    </div>
+                    {cat.name}
+                    {SHORTCUT_MAP[cat.name] && (
+                      <span className="cmd-shortcut">{SHORTCUT_MAP[cat.name]}</span>
+                    )}
+                  </div>
                 ))}
               </div>
-            </div>
-
-            <div className="add-expense__field-group">
-              <label className="input-field__label">Tipo de Gasto</label>
-              <div className="add-expense__tabs">
-                <button
-                  type="button"
-                  className={`add-expense__tab ${type === 'shared' ? 'add-expense__tab--active' : ''}`}
-                  onClick={() => setType('shared')}
-                >
-                  Compartido
-                </button>
-                <button
-                  type="button"
-                  className={`add-expense__tab ${type === 'personal' ? 'add-expense__tab--active' : ''}`}
-                  onClick={() => setType('personal')}
-                >
-                  Personal
-                </button>
+              <div
+                className="cmd-create"
+                onClick={() => {
+                  if (categorySearch.trim()) {
+                    setCategory(categorySearch.trim());
+                  }
+                  setCategorySearch('');
+                  setCmdOpen(false);
+                }}
+              >
+                <PlusIcon /> Crear nueva categoria...
               </div>
             </div>
+          </div>
 
-            {type === 'shared' && (
-              <div className="add-expense__field-group">
-                <div className="add-expense__split-label-row">
-                  <label className="input-field__label">Reparto</label>
-                  <div className="add-expense__split-badges">
-                    <div className="add-expense__split-badge add-expense__split-badge--samuel">
-                      <span className="add-expense__split-icon">👨‍💻</span>
-                      <span className="add-expense__split-pct u-color-samuel">{split}%</span>
-                    </div>
-                    <div className="add-expense__split-badge add-expense__split-badge--maria">
-                      <span className="add-expense__split-pct u-color-maria">{100 - split}%</span>
-                      <span className="add-expense__split-icon">👩‍🎨</span>
-                    </div>
-                  </div>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={split}
-                  onChange={e => setSplit(parseInt(e.target.value))}
-                  className="add-expense__range-input"
-                />
+          {/* Type toggle */}
+          <div className="an d4" style={{ marginBottom: 24 }}>
+            <div className="label">Tipo de gasto</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div
+                className="type-sel"
+                onClick={() => setType('shared')}
+                style={type === 'shared'
+                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
+                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }
+                }
+              >
+                Compartido
               </div>
-            )}
+              <div
+                className="type-sel"
+                onClick={() => setType('personal')}
+                style={type === 'personal'
+                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
+                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }
+                }
+              >
+                Personal
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="add-expense__numpad">
-          <div className="add-expense__numpad-row">
-            {['1', '2', '3'].map(k => <NumpadKey key={k} value={k} onClick={() => handleKey(k)} />)}
-          </div>
-          <div className="add-expense__numpad-row">
-            {['4', '5', '6'].map(k => <NumpadKey key={k} value={k} onClick={() => handleKey(k)} />)}
-          </div>
-          <div className="add-expense__numpad-row">
-            {['7', '8', '9'].map(k => <NumpadKey key={k} value={k} onClick={() => handleKey(k)} />)}
-          </div>
-          <div className="add-expense__numpad-row">
-            <NumpadKey value="." onClick={() => handleKey('.')} />
-            <NumpadKey value="0" onClick={() => handleKey('0')} />
-            <NumpadKey value="del" onClick={() => handleKey('del')} isDelete />
-          </div>
-        </div>
+          {/* Numpad */}
+          <div className="an d5">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 8,
+              maxWidth: 320,
+              margin: '0 auto',
+            }}>
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(k => (
+                <button
+                  key={k}
+                  type="button"
+                  className="num-btn"
+                  onClick={() => handleKey(k)}
+                >
+                  {k}
+                </button>
+              ))}
+              <button type="button" className="num-btn action" onClick={() => handleKey('.')}>.</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('0')}>0</button>
+              <button type="button" className="num-btn action" onClick={() => handleKey('del')}>&larr;</button>
+            </div>
 
-        {error && <div className="add-expense__error-msg">{error}</div>}
+            {error && <div className="add-expense__error-msg">{error}</div>}
 
-        <div className="add-expense__cta">
-          <Button
-            label={loading ? 'Guardando...' : 'Añadir Gasto'}
-            variant={user?.username === 'maria' ? 'maria' : 'samuel'}
-            type="submit"
-            fullWidth
-            disabled={loading}
-          />
-        </div>
-      </form>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                maxWidth: 320,
+                margin: '20px auto 0',
+                display: 'block',
+                padding: 16,
+                fontSize: 16,
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Guardando...' : 'Anadir Gasto'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

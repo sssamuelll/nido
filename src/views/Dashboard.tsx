@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
-import { BalanceCard } from '../components/BalanceCard';
 import { BudgetCapsule } from '../components/BudgetCapsule';
 import { TransactionRow } from '../components/TransactionRow';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
 import { CATEGORIES, INDICATOR_COLORS } from '../types';
 import { getPersonalBalanceCardModel } from './privacy';
@@ -52,6 +52,7 @@ export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
   useEffect(() => {
     loadDashboardData();
@@ -75,8 +76,8 @@ export const Dashboard: React.FC = () => {
 
   const formatMonthName = (monthStr: string) => {
     const [year, month] = monthStr.split('-');
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     return `${months[parseInt(month) - 1]} ${year}`;
   };
 
@@ -138,7 +139,6 @@ export const Dashboard: React.FC = () => {
 
   const normalizedUser = user?.username?.toLowerCase().trim() || '';
   const userName = normalizedUser === 'maria' ? 'María' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
-  const greeting = `Hola, ${userName} 👋`;
 
   // Group recent transactions by date for the date pill display
   const groupedTransactions: { date: string; items: any[] }[] = [];
@@ -169,10 +169,11 @@ export const Dashboard: React.FC = () => {
     <>
       {/* Header */}
       <div className="dashboard__header">
-          <div>
-            <div className="dashboard__greeting">{greeting}</div>
-            <div className="dashboard__title">
-              {formatMonthName(currentMonth)}
+          <div className="nido-name">
+            <div className="couple-ring">🏠</div>
+            <div>
+              <h1>El Nido</h1>
+              <p style={{ fontSize: '13px', color: 'var(--ts)' }}>Samuel &amp; María — {formatMonthName(currentMonth)}</p>
             </div>
           </div>
           <div className="dashboard__actions">
@@ -180,42 +181,86 @@ export const Dashboard: React.FC = () => {
               <Search size={16} color="var(--color-text-tertiary)" />
               <span className="dashboard__search-text">Buscar...</span>
             </div>
+            <ThemeToggle />
             <button className="dashboard__notification-btn">
               <Bell size={18} color="var(--color-text-secondary)" />
             </button>
           </div>
         </div>
 
-        {/* Balance Cards */}
-        <div className="dashboard__balances">
-          <BalanceCard
-            owner="shared"
-            name="Compartido"
-            avatar="🏠"
-            balance={remainingShared}
-            monthChange={-totalSharedSpent}
-            progress={sharedProgress}
-            sparkline={[availableShared * 0.3, availableShared * 0.5, availableShared * 0.4, availableShared * 0.6, availableShared * 0.7, totalSharedSpent]}
-            onClick={() => navigate('/')}
-            ariaLabel="Abrir dashboard compartido"
-          />
-          <BalanceCard
-            owner={personalCard.owner}
-            name={userName}
-            avatar={personalCard.avatar}
-            balance={personalCard.balance}
-            monthChange={personalCard.monthChange}
-            progress={personalCard.progress}
-            sparkline={personalCard.sparkline}
-            onClick={() => navigate('/personal')}
-            ariaLabel="Abrir detalle personal"
-          />
+        {/* Context Tabs */}
+        <div className="dashboard__context-tabs">
+          <button
+            className={`dashboard__context-tab ${activeContext === 'shared' ? 'dashboard__context-tab--active' : ''}`}
+            onClick={() => setActiveContext('shared')}
+          >
+            <div className="dot sh-d" />
+            Compartido
+          </button>
+          <button
+            className={`dashboard__context-tab ${activeContext === 'personal' ? 'dashboard__context-tab--active' : ''}`}
+            onClick={() => setActiveContext('personal')}
+          >
+            <div className="dot ps-d" />
+            Personal
+          </button>
+        </div>
+
+        {/* Insight Strip */}
+        <div className="dashboard__insight-strip">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>
+            {activeContext === 'shared'
+              ? <>Este mes llevan <strong>12% menos</strong> en gastos compartidos vs. febrero</>
+              : <>Tu gasto personal está un <strong>5% por debajo</strong> de tu presupuesto</>}
+          </span>
+        </div>
+
+        {/* Metric Cards */}
+        <div className="dashboard__metric-cards">
+          <div className="card metric-card" style={{ '--metric-glow': 'rgba(96,165,250,.15)' } as React.CSSProperties}>
+            <div className="accent-bar" style={{ background: 'var(--blue)', boxShadow: '0 0 8px var(--blue)' }} />
+            <div className="label">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
+            <div style={{ fontSize: '32px', fontWeight: 700 }}>
+              €{(activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
+              <span style={{ color: 'var(--green)', fontWeight: 600 }}>
+                €{(activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent)).toLocaleString('es-ES', { maximumFractionDigits: 0 })} gastados
+              </span>
+              {' '}· {activeContext === 'shared' && availableShared > 0
+                ? `${Math.round(((availableShared - totalSharedSpent) / availableShared) * 100)}% disponible`
+                : `${Math.round(((toNum(data?.personal?.budget) - toNum(data?.personal?.spent)) / (toNum(data?.personal?.budget) || 1)) * 100)}% disponible`}
+            </div>
+          </div>
+          <div className="card metric-card" style={{ '--metric-glow': 'rgba(52,211,153,.15)' } as React.CSSProperties}>
+            <div className="accent-bar" style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
+            <div className="label">Gastado este mes</div>
+            <div style={{ fontSize: '32px', fontWeight: 700 }}>
+              €{(activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
+              <span style={{ color: 'var(--green)', fontWeight: 600 }}>↓ 12%</span> vs mes anterior
+            </div>
+          </div>
+          <div className="card metric-card" style={{ '--metric-glow': 'rgba(167,139,250,.15)' } as React.CSSProperties}>
+            <div className="accent-bar" style={{ background: 'var(--purple)', boxShadow: '0 0 8px var(--purple)' }} />
+            <div className="label">Ticket medio</div>
+            <div style={{ fontSize: '32px', fontWeight: 700 }}>
+              €{(recentTransactions.length > 0 ? Math.round(recentTransactions.reduce((sum, t) => sum + toNum(t.amount), 0) / recentTransactions.length) : 0).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
+              {recentTransactions.length} gastos registrados
+            </div>
+          </div>
         </div>
 
         {/* Bottom split */}
         <div className="dashboard__bottom">
           {/* Budget Capsules section */}
-          <div className="dashboard__section">
+          <div className="card dashboard__section">
             <div className="dashboard__section-header">
               <span className="dashboard__section-title">Presupuesto por categoría</span>
               <button className="dashboard__section-link" onClick={() => navigate('/settings')}>
@@ -243,10 +288,13 @@ export const Dashboard: React.FC = () => {
                   );
                 })
             )}
+            <div className="add-cat-row" onClick={() => { /* future */ }}>
+              + Añadir categoría
+            </div>
           </div>
 
           {/* Recent Transactions section */}
-          <div className="dashboard__section">
+          <div className="card dashboard__section">
             <div className="dashboard__section-header">
               <span className="dashboard__section-title">Últimos gastos</span>
               <button className="dashboard__section-link" onClick={() => navigate('/history')}>
@@ -259,23 +307,30 @@ export const Dashboard: React.FC = () => {
                   No hay gastos registrados
                 </div>
               ) : (
-                groupedTransactions.map(({ date, items }) => (
-                  <React.Fragment key={date}>
-                    <div className="dashboard__date-pill">{formatDatePill(date)}</div>
-                    {items.map(tx => (
-                      <TransactionRow
-                        key={tx.id}
-                        emoji={getCategoryEmoji(tx.category)}
-                        name={tx.description}
-                        payer={tx.paid_by}
-                        amount={`-€${toNum(tx.amount).toFixed(2)}`}
-                        date={tx.date}
-                        indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
-                        isPositive={false}
-                      />
-                    ))}
-                  </React.Fragment>
-                ))
+                groupedTransactions.map(({ date, items }) => {
+                  const filteredItems = items.filter(tx => {
+                    if (activeContext === 'shared') return tx.type === 'shared';
+                    return tx.type === 'personal';
+                  });
+                  if (filteredItems.length === 0) return null;
+                  return (
+                    <React.Fragment key={date}>
+                      <div className="dashboard__date-pill">{formatDatePill(date)}</div>
+                      {filteredItems.map(tx => (
+                        <TransactionRow
+                          key={tx.id}
+                          emoji={getCategoryEmoji(tx.category)}
+                          name={tx.description}
+                          payer={tx.paid_by}
+                          amount={`-€${toNum(tx.amount).toFixed(2)}`}
+                          date={tx.date}
+                          indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
+                          isPositive={false}
+                        />
+                      ))}
+                    </React.Fragment>
+                  );
+                })
               )}
             </div>
           </div>
