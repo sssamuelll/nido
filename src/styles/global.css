@@ -2042,76 +2042,58 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 
 /* ============================================
    SECTION 49: Responsive Design
+   Matches design reference exactly
    ============================================ */
 
 @media (max-width: 768px) {
-  /* Navigation */
-  .sidebar { display: none !important }
-  .rail { display: none !important }
+  /* Navigation: hide rail, show bottom nav */
+  .sidebar, .rail { display: none !important }
   .content-area { margin-left: 0; padding: 20px 16px 100px }
   .main { margin-left: 0 !important; padding: 20px 16px 100px !important }
   .bottom-nav { display: block }
 
   /* Login */
-  .login { flex-direction: column }
-  .login__left { padding: 40px 24px; min-height: 40vh; flex: none }
-  .login__tagline { font-size: 28px }
-  .login__subtitle { font-size: 13px; margin-bottom: 24px }
-  .login__badges { gap: 6px }
-  .login__badge { font-size: 11px; padding: 6px 12px }
-  .login__right { width: 100%; padding: 32px 24px; flex: 1 }
-  .login__logo-icon { width: 40px; height: 40px; font-size: 18px }
-  .login__logo-text { font-size: 22px }
-
-  /* Design ref login responsive */
-  .login-page.visible { flex-direction: column }
-  .login-left { padding: 40px 24px; min-height: 40vh; flex: none }
-  .login-headline { font-size: 28px }
-  .login-sub { font-size: 13px; margin-bottom: 24px }
-  .login-pills { gap: 6px }
-  .login-pill { font-size: 11px; padding: 6px 12px }
-  .login-right { width: 100%; padding: 32px 24px; flex: 1 }
-  .login-brand .brand-icon { width: 40px; height: 40px; font-size: 18px }
-  .login-brand span { font-size: 22px }
+  .login-page.visible, .login { flex-direction: column }
+  .login-left, .login__left { padding: 40px 24px; min-height: 40vh; flex: none }
+  .login-headline, .login__tagline { font-size: 28px }
+  .login-sub, .login__subtitle { font-size: 13px; margin-bottom: 24px }
+  .login-pills, .login__badges { gap: 6px }
+  .login-pill, .login__badge { font-size: 11px; padding: 6px 12px }
+  .login-right, .login__right { width: 100%; padding: 32px 24px; flex: 1 }
+  .login-brand .brand-icon, .login__logo-icon { width: 40px; height: 40px; font-size: 18px }
+  .login-brand span, .login__logo-text { font-size: 22px }
 
   /* Topbar */
   .topbar { flex-direction: row; align-items: center; gap: 12px }
-  .topbar h1 { font-size: 22px }
-  .dashboard__header h1 { font-size: 22px }
+  .topbar h1, .dashboard__header h1 { font-size: 22px }
   .search-desktop { display: none !important }
   .search-mobile { display: flex }
   .topbar-actions { margin-left: auto }
   .nido-name .couple-ring { width: 30px; height: 30px; font-size: 12px }
   .nido-name h1 { font-size: 20px }
 
-  /* Grids to single column */
-  .dashboard__metric-cards { grid-template-columns: 1fr !important }
-  .dashboard__bottom { grid-template-columns: 1fr !important }
+  /* Grids to single/two column */
+  .balance-row-3,
+  .dashboard__metric-cards,
   .dashboard__balances { grid-template-columns: 1fr !important }
-  .balance-row-3 { grid-template-columns: 1fr !important }
-  .content-2col { grid-template-columns: 1fr !important }
+  .content-2col,
+  .dashboard__bottom { grid-template-columns: 1fr !important }
   .goals-grid, .goals__grid { grid-template-columns: 1fr }
-  .stats-row, .goals__stats { grid-template-columns: 1fr 1fr }
+  .stats-row, .goals__stats { display: grid; grid-template-columns: 1fr 1fr }
   .analytics-grid, .analytics__content { grid-template-columns: 1fr }
   .settings-grid, .settings__columns { grid-template-columns: 1fr }
   .kpi-row-4 { grid-template-columns: 1fr 1fr !important }
   .kpi-row-3 { grid-template-columns: 1fr !important }
-  .personal-dashboard__grid { grid-template-columns: 1fr }
-  .personal-dashboard__card--wide { grid-column: 1 }
 
   /* Cards */
   .card { padding: 18px; border-radius: 16px }
   .metric-card { padding: 18px }
 
-  /* Context tabs */
-  .ctx-tabs,
-  .dashboard__context-tabs,
-  .analytics__context-tabs,
-  .history__context-tabs { width: 100% }
-  .ctx-tab,
-  .dashboard__context-tab,
-  .analytics__context-tab,
-  .history__context-tab { flex: 1; justify-content: center; padding: 10px 14px }
+  /* Context tabs — full width */
+  .ctx-tabs, .dashboard__context-tabs,
+  .analytics__context-tabs, .history__context-tabs { width: 100% }
+  .ctx-tab, .dashboard__context-tab,
+  .analytics__context-tab, .history__context-tab { flex: 1; justify-content: center; padding: 10px 14px }
 
   /* Chart */
   .chart-big { height: 180px }
@@ -2121,10 +2103,8 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
   .goal-card .btn { font-size: 13px; padding: 10px }
 
   /* Add expense */
-  .add-expense__amount { font-size: 44px !important }
-  .cat-grid-3 { grid-template-columns: 1fr 1fr !important }
-  .numpad-key { height: 52px !important; font-size: 20px !important }
-  .num-btn { height: 52px !important; font-size: 20px !important }
+  #amt { font-size: 44px !important }
+  .num-btn, .numpad-key { height: 52px !important; font-size: 20px !important }
 
   /* History */
   .month-controls { flex-wrap: wrap; gap: 12px }
@@ -2135,15 +2115,6 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
   .form-row-s label { min-width: auto }
   .pin-dot { width: 36px; height: 36px }
 
-  /* Pages */
-  .dashboard,
-  .add-expense,
-  .history,
-  .settings,
-  .analytics,
-  .goals,
-  .personal-dashboard { padding: var(--spacing-lg) }
-
   /* Modal */
   .modal { width: calc(100vw - 32px); padding: 24px; max-height: 90vh; overflow-y: auto }
   .modal .form-row { flex-direction: column; align-items: flex-start; gap: 6px }
@@ -2151,25 +2122,15 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 
   /* Theme toggle */
   .theme-toggle { width: 36px; height: 36px }
-
-  /* Goals stats */
-  .goals__stats { flex-direction: row; flex-wrap: wrap }
 }
 
 @media (max-width: 380px) {
+  .content-area { padding: 16px 12px 100px }
   .main { padding: 16px 12px 100px !important }
   .stats-row, .goals__stats { grid-template-columns: 1fr 1fr; gap: 8px }
   .stat-card, .goals__stat-card { padding: 14px }
   .stat-value, .goals__stat-value { font-size: 20px }
   .login-right, .login__right { padding: 24px 20px }
-}
-
-@media (max-width: 640px) {
-  .page-title { font-size: var(--font-size-2xl) }
-  .balance-card__amount { font-size: var(--font-size-2xl) }
-  .text-display { font-size: var(--font-size-2xl) }
-  .goals__stats { flex-direction: column }
-  .analytics__period-pills { overflow-x: auto; gap: var(--spacing-xs) }
 }
 
 /* ============================================
