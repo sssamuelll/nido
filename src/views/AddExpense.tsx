@@ -13,7 +13,7 @@ export const AddExpense: React.FC = () => {
   const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
-  const [category, setCategory] = useState('Gastos');
+  const [category, setCategory] = useState('Supermercado');
   const [type, setType] = useState<'shared' | 'personal'>('shared');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

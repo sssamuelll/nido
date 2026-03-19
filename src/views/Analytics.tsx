@@ -17,7 +17,7 @@ const MOCK_STATS = [
 
 const MOCK_CATEGORIES = [
   { emoji: '🍽️', name: 'Restaurant', amount: 1240, pct: 35, color: CATEGORIES.find(c => c.id === 'Restaurant')?.color ?? '#ff8c6b' },
-  { emoji: '🛒', name: 'Gastos', amount: 890, pct: 25, color: CATEGORIES.find(c => c.id === 'Gastos')?.color ?? '#7cb5e8' },
+  { emoji: '🛒', name: 'Supermercado', amount: 890, pct: 25, color: CATEGORIES.find(c => c.id === 'Supermercado')?.color ?? '#7cb5e8' },
   { emoji: '💡', name: 'Servicios', amount: 620, pct: 18, color: CATEGORIES.find(c => c.id === 'Servicios')?.color ?? '#c4a0e8' },
   { emoji: '🎉', name: 'Ocio', amount: 430, pct: 12, color: CATEGORIES.find(c => c.id === 'Ocio')?.color ?? '#e87ca0' },
   { emoji: '📈', name: 'Inversión', amount: 360, pct: 10, color: CATEGORIES.find(c => c.id === 'Inversión')?.color ?? '#a6c79c' },
@@ -69,9 +69,10 @@ export const Analytics: React.FC = () => {
   const SVG_H = 220;
   const PAD = 24;
 
-  // Filter chart data by context
+  // Filter chart data by context — map 'personal' to samuel's data as a proxy
+  const chartKey = activeContext === 'personal' ? 'samuel' : activeContext;
   const filteredChartData = {
-    [activeContext]: MOCK_CHART_DATA[activeContext]
+    [chartKey]: MOCK_CHART_DATA[chartKey]
   };
 
   const paths = buildAreaChartPaths(filteredChartData, SVG_W, SVG_H, PAD);
@@ -122,10 +123,10 @@ export const Analytics: React.FC = () => {
               <div className="analytics__legend-item">
                 <div
                   className="analytics__legend-dot"
-                  style={{ '--theme-base': OWNER_THEMES[activeContext].base } as React.CSSProperties}
+                  style={{ '--theme-base': OWNER_THEMES[chartKey].base } as React.CSSProperties}
                 />
                 <span className="analytics__legend-label">
-                  {activeContext === 'samuel' ? 'Samuel' : activeContext === 'maria' ? 'María' : 'Compartido'}
+                  {activeContext === 'personal' ? 'Personal' : 'Compartido'}
                 </span>
               </div>
             </div>
@@ -151,39 +152,13 @@ export const Analytics: React.FC = () => {
                 </linearGradient>
               </defs>
 
-              {activeContext === 'samuel' && (
+              {paths[chartKey] && (
                 <>
-                  <path d={paths.samuel.areaPath} fill="url(#gradSamuel)" />
+                  <path d={paths[chartKey].areaPath} fill={`url(#grad${chartKey.charAt(0).toUpperCase() + chartKey.slice(1)})`} />
                   <path
-                    d={paths.samuel.linePath}
+                    d={paths[chartKey].linePath}
                     fill="none"
-                    stroke={OWNER_THEMES.samuel.base}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </>
-              )}
-              {activeContext === 'maria' && (
-                <>
-                  <path d={paths.maria.areaPath} fill="url(#gradMaria)" />
-                  <path
-                    d={paths.maria.linePath}
-                    fill="none"
-                    stroke={OWNER_THEMES.maria.base}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </>
-              )}
-              {activeContext === 'shared' && (
-                <>
-                  <path d={paths.shared.areaPath} fill="url(#gradShared)" />
-                  <path
-                    d={paths.shared.linePath}
-                    fill="none"
-                    stroke={OWNER_THEMES.shared.base}
+                    stroke={OWNER_THEMES[chartKey].base}
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -206,7 +181,7 @@ export const Analytics: React.FC = () => {
               <span className="analytics__stat-label">Período actual</span>
               <span className="analytics__stat-value">{activePeriod}</span>
               <span className="analytics__stat-delta" style={{ '--theme-base': 'var(--color-samuel)' } as React.CSSProperties}>
-                Contexto: {activeContext === 'shared' ? 'Compartido' : activeContext === 'samuel' ? 'Samuel' : 'María'}
+                Contexto: {activeContext === 'shared' ? 'Compartido' : 'Personal'}
               </span>
             </div>
             <div className="analytics__stat-card">

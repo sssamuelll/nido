@@ -6,11 +6,12 @@ export const BottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
+  const context = new URLSearchParams(location.search).get('context');
 
   return (
     <nav className="bottom-nav">
       <button
-        className={`bottom-nav__item ${isActive('/') ? 'bottom-nav__item--active' : ''}`}
+        className={`bottom-nav__item ${isActive('/') && context !== 'personal' ? 'bottom-nav__item--active' : ''}`}
         onClick={() => navigate('/')}
         data-context="shared"
       >
@@ -31,8 +32,8 @@ export const BottomNav: React.FC = () => {
       </button>
 
       <button
-        className={`bottom-nav__item ${isActive('/') ? 'bottom-nav__item--active' : ''}`}
-        onClick={() => navigate('/')}
+        className={`bottom-nav__item ${isActive('/') && context === 'personal' ? 'bottom-nav__item--active' : ''}`}
+        onClick={() => navigate('/?context=personal')}
         data-context="personal"
       >
         <User size={22} />

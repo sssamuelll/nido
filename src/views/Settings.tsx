@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { Plus, Trash2, AlertCircle, Download, LogOut, Key, Lock, Shield } from 'lucide-react';
+import { AlertCircle, Download, LogOut, Key, Lock } from 'lucide-react';
 import { Button } from '../components/Button';
 import { InputField } from '../components/InputField';
 

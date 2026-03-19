@@ -107,12 +107,12 @@ export const OWNER_THEMES: Record<Owner, OwnerTheme> = {
 };
 
 export const CATEGORIES = [
-  { id: 'Restaurant', name: 'Restaurant', emoji: 'utensils', color: '#F87171', iconBg: 'rgba(248,113,113,0.1)' },
-  { id: 'Supermercado', name: 'Supermercado', emoji: 'shopping-cart', color: '#60A5FA', iconBg: 'rgba(96,165,250,0.1)' },
-  { id: 'Servicios', name: 'Servicios', emoji: 'zap', color: '#FBBF24', iconBg: 'rgba(251,191,36,0.1)' },
-  { id: 'Ocio', name: 'Ocio', emoji: 'smile', color: '#A78BFA', iconBg: 'rgba(167,139,250,0.1)' },
-  { id: 'Inversión', name: 'Inversión', emoji: 'trending-up', color: '#34D399', iconBg: 'rgba(52,211,153,0.1)' },
-  { id: 'Otros', name: 'Otros', emoji: 'more-horizontal', color: '#6B7280', iconBg: 'rgba(107,114,128,0.1)' },
+  { id: 'Restaurant', name: 'Restaurant', emoji: '🍽️', color: '#F87171', iconBg: 'rgba(248,113,113,0.1)' },
+  { id: 'Supermercado', name: 'Supermercado', emoji: '🛒', color: '#60A5FA', iconBg: 'rgba(96,165,250,0.1)' },
+  { id: 'Servicios', name: 'Servicios', emoji: '💡', color: '#FBBF24', iconBg: 'rgba(251,191,36,0.1)' },
+  { id: 'Ocio', name: 'Ocio', emoji: '🎉', color: '#A78BFA', iconBg: 'rgba(167,139,250,0.1)' },
+  { id: 'Inversión', name: 'Inversión', emoji: '📈', color: '#34D399', iconBg: 'rgba(52,211,153,0.1)' },
+  { id: 'Otros', name: 'Otros', emoji: '📦', color: '#6B7280', iconBg: 'rgba(107,114,128,0.1)' },
 ];
 
 export const INDICATOR_COLORS: Record<string, string> = {
