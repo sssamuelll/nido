@@ -1,3 +1,5 @@
+import type React from 'react';
+
 export type Owner = 'samuel' | 'maria' | 'shared';
 
 export interface User {
@@ -40,7 +42,11 @@ export interface BudgetCategory {
 export interface Goal {
   id: string;
   name: string;
-  emoji: string;
+  emoji?: string;
+  icon?: React.ReactNode;
+  iconBg?: string;
+  iconColor?: string;
+  themeColor?: string;
   current: number;
   target: number;
   deadline: string;
@@ -78,52 +84,45 @@ export interface AnalyticsData {
 
 export const OWNER_THEMES: Record<Owner, OwnerTheme> = {
   samuel: {
-    base: '#8bdc6b',
-    light: '#9de382',
-    deep: '#6bc98b',
-    gradient: 'linear-gradient(180deg, #8bdc6b, #6bc98b)',
-    gradientDiag: 'linear-gradient(225deg, #8bdc6b, #6bc98b)',
-    glow: 'rgba(139, 220, 107, 0.25)',
-    dot: '#9de382',
+    base: '#34D399',
+    light: '#6EE7B7',
+    deep: '#10B981',
+    gradient: 'linear-gradient(135deg, #34D399, #2DD4BF)',
+    gradientDiag: 'linear-gradient(225deg, #34D399, #10B981)',
+    glow: 'rgba(52, 211, 153, 0.2)',
+    dot: '#34D399',
   },
   maria: {
-    base: '#ff8c6b',
-    light: '#ffaa8c',
-    deep: '#e87c7c',
-    gradient: 'linear-gradient(180deg, #ff8c6b, #e87c7c)',
-    gradientDiag: 'linear-gradient(225deg, #ff8c6b, #e87c7c)',
-    glow: 'rgba(255, 140, 107, 0.25)',
-    dot: '#ffaa8c',
+    base: '#A78BFA',
+    light: '#C4B5FD',
+    deep: '#8B5CF6',
+    gradient: 'linear-gradient(135deg, #A78BFA, #8B5CF6)',
+    gradientDiag: 'linear-gradient(225deg, #A78BFA, #8B5CF6)',
+    glow: 'rgba(167, 139, 250, 0.2)',
+    dot: '#A78BFA',
   },
   shared: {
-    base: '#7cb5e8',
-    light: '#96c8f0',
-    deep: '#5a9ecc',
-    gradient: 'linear-gradient(180deg, #7cb5e8, #5a9ecc)',
-    gradientDiag: 'linear-gradient(225deg, #7cb5e8, #5a9ecc)',
-    glow: 'rgba(124, 181, 232, 0.25)',
-    dot: '#96c8f0',
+    base: '#60A5FA',
+    light: '#93C5FD',
+    deep: '#3B82F6',
+    gradient: 'linear-gradient(135deg, #60A5FA, #3B82F6)',
+    gradientDiag: 'linear-gradient(225deg, #60A5FA, #3B82F6)',
+    glow: 'rgba(96, 165, 250, 0.2)',
+    dot: '#60A5FA',
   },
 };
 
 export const CATEGORIES = [
-  { id: 'Restaurant', name: 'Restaurant', emoji: '🍽️', color: '#ff8c6b' },
-  { id: 'Gastos', name: 'Gastos', emoji: '🛒', color: '#7cb5e8' },
-  { id: 'Servicios', name: 'Servicios', emoji: '💡', color: '#c4a0e8' },
-  { id: 'Ocio', name: 'Ocio', emoji: '🎉', color: '#e87ca0' },
-  { id: 'Inversión', name: 'Inversión', emoji: '📈', color: '#a6c79c' },
-  { id: 'Otros', name: 'Otros', emoji: '🦋', color: '#a89e94' },
+  { id: 'Restaurant', name: 'Restaurant', emoji: '🍽️', color: '#F87171', iconBg: 'rgba(248,113,113,0.1)' },
+  { id: 'Supermercado', name: 'Supermercado', emoji: '🛒', color: '#60A5FA', iconBg: 'rgba(96,165,250,0.1)' },
+  { id: 'Servicios', name: 'Servicios', emoji: '💡', color: '#FBBF24', iconBg: 'rgba(251,191,36,0.1)' },
+  { id: 'Ocio', name: 'Ocio', emoji: '🎉', color: '#A78BFA', iconBg: 'rgba(167,139,250,0.1)' },
+  { id: 'Inversión', name: 'Inversión', emoji: '📈', color: '#34D399', iconBg: 'rgba(52,211,153,0.1)' },
+  { id: 'Otros', name: 'Otros', emoji: '📦', color: '#6B7280', iconBg: 'rgba(107,114,128,0.1)' },
 ];
 
-export const NEU_SHADOW = {
-  xs: '2px 2px 5px #D4D7E3, -2px -2px 5px #FFFFFF',
-  sm: '2px 2px 6px #D4D7E3, -2px -2px 6px #FFFFFF',
-  md: '4px 4px 10px #D4D7E3, -4px -4px 10px #FFFFFF',
-  lg: '6px 6px 14px #D4D7E3, -6px -6px 14px #FFFFFF',
-};
-
 export const INDICATOR_COLORS: Record<string, string> = {
-  samuel: '#8bdc6b',
-  maria: '#ff8c6b',
-  shared: '#7cb5e8',
+  samuel: '#34D399',
+  maria: '#A78BFA',
+  shared: '#60A5FA',
 };

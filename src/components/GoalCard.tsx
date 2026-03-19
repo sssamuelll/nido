@@ -9,6 +9,9 @@ interface GoalCardProps extends Goal {
 export const GoalCard: React.FC<GoalCardProps> = ({
   name,
   emoji,
+  icon,
+  iconBg,
+  themeColor,
   current,
   target,
   deadline,
@@ -18,20 +21,30 @@ export const GoalCard: React.FC<GoalCardProps> = ({
 }) => {
   const theme = OWNER_THEMES[owner];
   const pct = target > 0 ? Math.round((current / target) * 100) : 0;
+  const barColor = themeColor || theme.base;
 
   return (
     <div className="goal-card">
       <div className="goal-card__header">
-        <span className="goal-card__emoji">{emoji}</span>
+        <div className="goal-card__title-row">
+          {icon ? (
+            <div className="icon-c" style={{ background: iconBg || theme.glow }}>
+              {icon}
+            </div>
+          ) : (
+            <span className="goal-card__emoji">{emoji}</span>
+          )}
+          <span className="goal-card__name-inline">{name}</span>
+        </div>
         <div className="goal-card__header-meta">
-          <span className="goal-card__pct" style={{ '--theme-base': theme.base } as React.CSSProperties}>{pct}%</span>
+          <span className="goal-card__pct" style={{ color: barColor }}>
+            {pct}%
+          </span>
           {onEdit && (
             <button className="goal-card__edit" onClick={onEdit}>···</button>
           )}
         </div>
       </div>
-
-      <div className="goal-card__name">{name}</div>
 
       <div className="goal-card__amounts">
         €{current.toLocaleString('es-ES')} / €{target.toLocaleString('es-ES')}
@@ -42,7 +55,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({
           className="goal-card__track-fill"
           style={{
             '--progress-width': `${Math.min(pct, 100)}%`,
-            '--theme-base': theme.base,
+            '--theme-base': barColor,
+            background: barColor,
+            color: barColor,
           } as React.CSSProperties}
         />
       </div>
@@ -51,12 +66,8 @@ export const GoalCard: React.FC<GoalCardProps> = ({
 
       {onContribute && (
         <button
-          className="goal-card__contribute-btn btn--dynamic"
+          className="goal-card__contribute-btn btn btn-primary btn-sm"
           onClick={onContribute}
-          style={{
-            '--btn-gradient': theme.gradient,
-            '--btn-glow': theme.glow,
-          } as React.CSSProperties}
         >
           + Contribuir
         </button>

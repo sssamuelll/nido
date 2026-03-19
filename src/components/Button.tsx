@@ -2,7 +2,7 @@ import React from 'react';
 import { OWNER_THEMES, type Owner } from '../types';
 
 interface ButtonProps {
-  label: string;
+  label: React.ReactNode;
   variant?: Owner;
   onClick?: () => void;
   fullWidth?: boolean;

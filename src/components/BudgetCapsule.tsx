@@ -1,4 +1,5 @@
 import React from 'react';
+import { Pencil } from 'lucide-react';
 
 interface BudgetCapsuleProps {
   emoji: string;
@@ -6,6 +7,7 @@ interface BudgetCapsuleProps {
   current: number;
   max: number;
   gradientColors?: [string, string];
+  onEdit?: () => void;
 }
 
 export const BudgetCapsule: React.FC<BudgetCapsuleProps> = ({
@@ -14,6 +16,7 @@ export const BudgetCapsule: React.FC<BudgetCapsuleProps> = ({
   current,
   max,
   gradientColors = ['#8bdc6b', '#6bc98b'],
+  onEdit,
 }) => {
   const pct = max > 0 ? Math.round((current / max) * 100) : 0;
   const isWarning = pct > 90;
@@ -42,6 +45,7 @@ export const BudgetCapsule: React.FC<BudgetCapsuleProps> = ({
           />
         </div>
       </div>
+      {onEdit && <button className="budget-capsule__edit" onClick={onEdit}><Pencil size={14} /></button>}
     </div>
   );
 };
