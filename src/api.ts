@@ -249,6 +249,10 @@ export class Api {
     return this.request(`/goals/${id}/contribute`, { method: 'POST', body: { amount } });
   }
 
+  static async getAnalytics(months: number, context: 'shared' | 'personal') {
+    return this.request(`/analytics?months=${months}&context=${context}`);
+  }
+
   static async health() {
     return this.request('/health');
   }
