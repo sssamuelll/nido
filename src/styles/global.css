@@ -973,10 +973,12 @@ a:hover { color: var(--text) }
 }
 .goal-card:hover { border-color: rgba(255, 255, 255, .12); box-shadow: var(--shm) }
 
-.goal-card__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md) }
+.goal-card__header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px }
+.goal-card__title-row { display: flex; align-items: center; gap: 10px }
+.goal-card__name-inline { font-size: 16px; font-weight: 600; color: var(--text) }
 .goal-card__header-meta { display: flex; align-items: center; gap: var(--spacing-sm) }
 .goal-card__emoji { font-size: var(--font-size-2xl) }
-.goal-card__pct { font-size: 14px; font-weight: 600; color: var(--theme-base, var(--blue)) }
+.goal-card__pct { font-size: 14px; font-weight: 700 }
 .goal-card__edit {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 0.375rem 0.75rem;
@@ -985,7 +987,7 @@ a:hover { color: var(--text) }
 .goal-card__edit:hover { background: var(--surface2); color: var(--text) }
 
 .goal-card__name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: var(--spacing-sm) }
-.goal-card__amounts { display: flex; gap: var(--spacing-sm); font-size: var(--font-size-xs); color: var(--tm); margin-bottom: var(--spacing-md) }
+.goal-card__amounts { font-size: 14px; color: var(--ts) }
 
 .goal-card__track {
   height: 4px; background: var(--surface2); border-radius: 2px;
@@ -1609,6 +1611,12 @@ a:hover { color: var(--text) }
    ============================================ */
 
 .add-expense { padding: var(--spacing-xl) }
+.add-expense__back-link {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--ts); cursor: pointer;
+  margin-bottom: 8px; font-weight: 500;
+}
+.add-expense__back-link:hover { color: var(--text) }
 .add-expense__header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px }
 .add-expense__back {
   width: 40px; height: 40px; border-radius: var(--rs);

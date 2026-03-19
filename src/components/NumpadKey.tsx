@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Delete } from 'lucide-react';
+import React from 'react';
 
 interface NumpadKeyProps {
   label?: string;
@@ -16,17 +15,14 @@ export const NumpadKey: React.FC<NumpadKeyProps> = ({
   variant = 'default',
   isDelete = false,
 }) => {
-  const [active, setActive] = useState(false);
-
+  const isAction = variant === 'action' || variant === 'delete' || isDelete || value === '.';
   return (
     <button
-      className={`numpad-key ${variant !== 'default' ? `numpad-key--${variant}` : ''}`}
+      type="button"
+      className={`num-btn${isAction ? ' action' : ''}`}
       onClick={onClick}
-      onPointerDown={() => setActive(true)}
-      onPointerUp={() => setActive(false)}
-      onPointerLeave={() => setActive(false)}
     >
-      {(variant === 'delete' || isDelete) ? <Delete size={20} /> : (label || value)}
+      {isDelete ? '\u2190' : (label || value)}
     </button>
   );
 };
