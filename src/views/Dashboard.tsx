@@ -221,7 +221,7 @@ export const Dashboard: React.FC = () => {
         {/* Metric Cards */}
         <div className="dashboard__metric-cards">
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(96,165,250,.15)' } as React.CSSProperties}>
-            <div className="accent-bar" style={{ background: 'var(--blue)', boxShadow: '0 0 8px var(--blue)' }} />
+            <div className="accent-bar" style={{ background: '#60A5FA', boxShadow: '0 0 8px #60A5FA' }} />
             <div className="label">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
               €{(activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
@@ -236,7 +236,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(52,211,153,.15)' } as React.CSSProperties}>
-            <div className="accent-bar" style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
+            <div className="accent-bar" style={{ background: '#34D399', boxShadow: '0 0 8px #34D399' }} />
             <div className="label">Gastado este mes</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
               €{(activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
@@ -246,7 +246,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(167,139,250,.15)' } as React.CSSProperties}>
-            <div className="accent-bar" style={{ background: 'var(--purple)', boxShadow: '0 0 8px var(--purple)' }} />
+            <div className="accent-bar" style={{ background: '#A78BFA', boxShadow: '0 0 8px #A78BFA' }} />
             <div className="label">Ticket medio</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
               €{(recentTransactions.length > 0 ? Math.round(recentTransactions.reduce((sum, t) => sum + toNum(t.amount), 0) / recentTransactions.length) : 0).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
@@ -262,10 +262,7 @@ export const Dashboard: React.FC = () => {
           {/* Budget Capsules section */}
           <div className="card dashboard__section">
             <div className="dashboard__section-header">
-              <span className="dashboard__section-title">Presupuesto por categoría</span>
-              <button className="dashboard__section-link" onClick={() => navigate('/settings')}>
-                Editar →
-              </button>
+              <span className="dashboard__section-title">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</span>
             </div>
             {categoryBreakdown.length === 0 ? (
               <div className="empty-view">
@@ -284,6 +281,7 @@ export const Dashboard: React.FC = () => {
                       current={toNum(cat.total)}
                       max={toNum(cat.budget)}
                       gradientColors={[catDef?.color ?? '#8bdc6b', catDef?.color ?? '#6bc98b']}
+                      onEdit={() => {}}
                     />
                   );
                 })

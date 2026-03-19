@@ -131,7 +131,7 @@ export const Goals: React.FC = () => {
             />
           ))}
           {/* Add placeholder */}
-          <div className="goals__add-placeholder">
+          <div className="goals__add-placeholder" onClick={() => { /* future modal */ }}>
             <span className="goals__plus-icon">+</span>
             <span className="goals__add-text">Añadir objetivo</span>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import { Login } from './views/Login';
@@ -75,6 +75,13 @@ const AppRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  useEffect(() => {
+    const saved = localStorage.getItem('nido-theme');
+    if (saved === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

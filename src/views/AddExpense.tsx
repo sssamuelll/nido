@@ -4,6 +4,7 @@ import { Api } from '../api';
 import { format } from 'date-fns';
 import { useAuth } from '../auth';
 import { CATEGORIES } from '../types';
+import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
 
 /* SVG icons matching design reference */
 const ChevronLeftIcon = () => (
@@ -24,33 +25,14 @@ const PlusIcon = () => (
   </svg>
 );
 
-/* Category icon SVGs matching design reference */
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  Restaurant: (
-    <svg width="14" height="14" fill="none" stroke="#F87171" viewBox="0 0 24 24" strokeWidth={2}>
-      <path d="M3 3h18v18H3z" />
-    </svg>
-  ),
-  Supermercado: (
-    <svg width="14" height="14" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth={2}>
-      <path d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
-    </svg>
-  ),
-  Servicios: (
-    <svg width="14" height="14" fill="none" stroke="#FBBF24" viewBox="0 0 24 24" strokeWidth={2}>
-      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-    </svg>
-  ),
-  Ocio: (
-    <svg width="14" height="14" fill="none" stroke="#A78BFA" viewBox="0 0 24 24" strokeWidth={2}>
-      <circle cx="12" cy="12" r="10" />
-    </svg>
-  ),
-  'Inversión': (
-    <svg width="14" height="14" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2}>
-      <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-    </svg>
-  ),
+/* Lucide icon map per category */
+const CATEGORY_ICONS: Record<string, React.FC<any>> = {
+  Restaurant: Utensils,
+  Supermercado: ShoppingCart,
+  Servicios: Zap,
+  Ocio: Smile,
+  'Inversión': TrendingUp,
+  Otros: MoreHorizontal,
 };
 
 const SHORTCUT_MAP: Record<string, string> = {
@@ -222,31 +204,34 @@ export const AddExpense: React.FC = () => {
             <div className="label">Categoria</div>
             <div className="cmd-input-wrap" onClick={() => setCmdOpen(true)}>
               <TagIcon />
-              {category && (
-                <span className="cmd-selected">
-                  <span className="icon-c" style={{
-                    background: getCatDef(category)?.iconBg ?? 'var(--gl)',
-                    width: 20,
-                    height: 20,
-                  }}>
-                    {CATEGORY_ICONS[category] || (
-                      <svg width="12" height="12" fill="none" stroke={getCatDef(category)?.color ?? 'var(--green)'} viewBox="0 0 24 24" strokeWidth={2}>
-                        <circle cx="12" cy="12" r="10" />
-                      </svg>
-                    )}
+              {category && (() => {
+                const catDef = getCatDef(category);
+                const IconComp = CATEGORY_ICONS[category];
+                return (
+                  <span className="cmd-selected">
+                    <div className="cmd-icon" style={{
+                      background: catDef?.iconBg ?? 'var(--gl)',
+                      width: 20,
+                      height: 20,
+                    }}>
+                      {IconComp
+                        ? <IconComp size={12} color={catDef?.color ?? 'var(--green)'} strokeWidth={2} />
+                        : <MoreHorizontal size={12} color={catDef?.color ?? 'var(--green)'} strokeWidth={2} />
+                      }
+                    </div>
+                    {category}
+                    <span
+                      className="cmd-x"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setCategory('');
+                      }}
+                    >
+                      &times;
+                    </span>
                   </span>
-                  {category}
-                  <span
-                    className="cmd-x"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setCategory('');
-                    }}
-                  >
-                    &times;
-                  </span>
-                </span>
-              )}
+                );
+              })()}
               <input
                 className="cmd-input"
                 placeholder="Buscar o crear categoria..."
@@ -268,11 +253,12 @@ export const AddExpense: React.FC = () => {
                     }}
                   >
                     <div className="cmd-icon" style={{ background: cat.iconBg }}>
-                      {CATEGORY_ICONS[cat.name] || (
-                        <svg width="14" height="14" fill="none" stroke={cat.color} viewBox="0 0 24 24" strokeWidth={2}>
-                          <circle cx="12" cy="12" r="10" />
-                        </svg>
-                      )}
+                      {(() => {
+                        const IconComp = CATEGORY_ICONS[cat.name];
+                        return IconComp
+                          ? <IconComp size={14} color={cat.color} strokeWidth={2} />
+                          : <MoreHorizontal size={14} color={cat.color} strokeWidth={2} />;
+                      })()}
                     </div>
                     {cat.name}
                     {SHORTCUT_MAP[cat.name] && (
