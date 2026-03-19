@@ -42,6 +42,7 @@ export const Goals: React.FC = () => {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [activeContext, setActiveContext] = useState<'all' | 'shared' | 'personal'>('all');
 
   const fetchGoals = async () => {
     try {
@@ -145,8 +146,9 @@ export const Goals: React.FC = () => {
     { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
   ];
 
-  const col1Goals = goals.filter((_, i) => i % 2 === 0);
-  const col2Goals = goals.filter((_, i) => i % 2 === 1);
+  const filteredGoals = activeContext === 'all' ? goals : goals.filter(g => g.owner_type === activeContext);
+  const col1Goals = filteredGoals.filter((_, i) => i % 2 === 0);
+  const col2Goals = filteredGoals.filter((_, i) => i % 2 === 1);
 
   if (loading) {
     return (
@@ -189,7 +191,22 @@ export const Goals: React.FC = () => {
         ))}
       </div>
 
-      {/* Goals grid — no "añadir objetivo" placeholder */}
+      {/* Context filter */}
+      <div className="dashboard__context-tabs an d2">
+        <button className={`dashboard__context-tab ${activeContext === 'all' ? 'dashboard__context-tab--active' : ''}`} onClick={() => setActiveContext('all')}>
+          Todos
+        </button>
+        <button className={`dashboard__context-tab ${activeContext === 'shared' ? 'dashboard__context-tab--active' : ''}`} onClick={() => setActiveContext('shared')}>
+          <div className="dot sh-d" />
+          Compartido
+        </button>
+        <button className={`dashboard__context-tab ${activeContext === 'personal' ? 'dashboard__context-tab--active' : ''}`} onClick={() => setActiveContext('personal')}>
+          <div className="dot ps-d" />
+          Personal
+        </button>
+      </div>
+
+      {/* Goals grid */}
       <div className="goals__grid">
         <div className="goals__column">
           {col1Goals.map((goal, i) => (
