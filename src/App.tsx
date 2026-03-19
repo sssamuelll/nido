@@ -56,7 +56,7 @@ const AppRoutes: React.FC = () => {
     <MeshBackground />
     <div className="app-layout">
       <Sidebar />
-      <div className="content-area">
+      <div className="content-area" key={location.pathname}>
         <Routes>
           <Route path="/" element={<Dashboard key={refreshKey} />} />
           <Route path="/personal" element={<Navigate to="/" replace />} />
@@ -69,6 +69,13 @@ const AppRoutes: React.FC = () => {
         </Routes>
       </div>
       {!isAddView && <BottomNav />}
+    </div>
+    <div id="confetti-container" className="confetti-container" />
+    <div className="toast" id="global-toast">
+      <div className="toast-icon">
+        <svg width="16" height="16" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M5 13l4 4L19 7" /></svg>
+      </div>
+      <span id="global-toast-msg"></span>
     </div>
     </>
   );
