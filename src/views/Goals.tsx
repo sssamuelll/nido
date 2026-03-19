@@ -133,6 +133,7 @@ export const Goals: React.FC = () => {
   const summaryStats = [
     { label: 'TOTAL AHORRADO', value: `\u20AC${totalSaved.toLocaleString('es-ES')}`, color: 'var(--green)' },
     { label: 'OBJ. ACTIVOS', value: String(activeGoals), color: undefined },
+    { label: 'MEJOR RACHA', value: '8 sem', color: 'var(--orange)' },
     { label: 'PR\u00D3XIMO HITO', value: nextDeadline, color: 'var(--red)' },
   ];
 
@@ -219,100 +220,46 @@ export const Goals: React.FC = () => {
 
       {/* Create / Edit Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
-              {editingGoal ? 'Editar Objetivo' : 'Nuevo Objetivo'}
-            </h2>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ flex: '0 0 60px' }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Icono</label>
-                  <input
-                    type="text"
-                    value={formData.icon}
-                    onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                    style={{ width: '100%', padding: '8px', fontSize: 20, textAlign: 'center', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}
-                    maxLength={4}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Nombre</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Ej: Vacaciones Verano"
-                    required
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}
-                  />
-                </div>
+        <div className="modal-overlay open" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>{editingGoal ? 'Editar Objetivo' : 'Nuevo Objetivo'}</h3>
+            <p>{editingGoal ? 'Modifica los datos del objetivo' : 'Crea una nueva meta de ahorro'}</p>
+            <form onSubmit={handleSubmit}>
+              <div className="form-row">
+                <label>Icono</label>
+                <input className="form-input" type="text" value={formData.icon} onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))} maxLength={4} style={{ flex: '0 0 60px', fontSize: 20, textAlign: 'center' }} />
               </div>
-
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Objetivo (\u20AC)</label>
-                <input
-                  type="number"
-                  value={formData.target}
-                  onChange={e => setFormData(prev => ({ ...prev, target: e.target.value }))}
-                  placeholder="5000"
-                  required
-                  min="1"
-                  step="any"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}
-                />
+              <div className="form-row">
+                <label>Nombre</label>
+                <input className="form-input" type="text" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Vacaciones Verano" required />
               </div>
-
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Fecha l\u00edmite</label>
-                <input
-                  type="text"
-                  value={formData.deadline}
-                  onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                  placeholder="Ej: Jul 2026"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}
-                />
+              <div className="form-row">
+                <label>Objetivo</label>
+                <input className="form-input" type="number" value={formData.target} onChange={e => setFormData(prev => ({ ...prev, target: e.target.value }))} placeholder="5000" required min="1" step="any" />
               </div>
-
+              <div className="form-row">
+                <label>Fecha</label>
+                <input className="form-input" type="text" value={formData.deadline} onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))} placeholder="Ej: Jul 2026" />
+              </div>
               {!editingGoal && (
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Tipo</label>
-                  <select
-                    value={formData.owner_type}
-                    onChange={e => setFormData(prev => ({ ...prev, owner_type: e.target.value as 'shared' | 'personal' }))}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}
-                  >
+                <div className="form-row">
+                  <label>Tipo</label>
+                  <select className="form-input" value={formData.owner_type} onChange={e => setFormData(prev => ({ ...prev, owner_type: e.target.value as 'shared' | 'personal' }))}>
                     <option value="shared">Compartido</option>
                     <option value="personal">Personal</option>
                   </select>
                 </div>
               )}
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <div className="modal-actions">
                 {editingGoal && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(editingGoal.id)}
-                    className="btn btn-sm"
-                    style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent' }}
-                  >
+                  <button type="button" onClick={() => handleDelete(editingGoal.id)} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>
                     Eliminar
                   </button>
                 )}
-                <div style={{ flex: 1 }} />
-                <button
-                  type="button"
-                  onClick={() => { setShowCreateModal(false); setEditingGoal(null); }}
-                  className="btn btn-sm"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                >
+                <button type="button" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }} className="btn btn-sm" style={{ background: 'var(--surface)', border: '1px solid var(--glass-border)' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn btn-primary btn-sm"
-                >
+                <button type="submit" disabled={submitting} className="btn btn-primary btn-sm">
                   {submitting ? 'Guardando...' : editingGoal ? 'Actualizar' : 'Crear'}
                 </button>
               </div>
