@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabase } from '../db.js';
+import { getDatabase, createNotification } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import {
   goalCreateSchema,
@@ -213,7 +213,43 @@ router.post('/:id/contribute', validate(goalContributeSchema), async (req: AuthR
       id
     );
 
-    const updatedGoal = await db.get('SELECT * FROM goals WHERE id = ?', id);
+    const updatedGoal = await db.get<{ id: number; current: number; target: number; name: string }>(
+      'SELECT * FROM goals WHERE id = ?', id
+    );
+
+    // Notify other user about contribution
+    try {
+      const otherUser = await db.get<{ id: number }>(
+        'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
+        user.household_id, req.user!.id
+      );
+      if (otherUser) {
+        const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+        await createNotification({
+          household_id: String(user.household_id),
+          recipient_user_id: otherUser.id,
+          type: 'goal_contribution',
+          title: 'Contribución a objetivo',
+          body: `${displayName} aportó €${amount} a ${existing.name}`,
+          metadata: { goal_id: existing.id },
+        });
+      }
+
+      // If goal reached
+      if (updatedGoal && updatedGoal.current >= updatedGoal.target) {
+        await createNotification({
+          household_id: String(user.household_id),
+          recipient_user_id: null,
+          type: 'goal_reached',
+          title: '¡Objetivo completado!',
+          body: `¡El objetivo '${existing.name}' ha sido alcanzado!`,
+          metadata: { goal_id: existing.id },
+        });
+      }
+    } catch (notifErr) {
+      console.error('Error creating goal notification:', notifErr);
+    }
+
     res.json(updatedGoal);
   } catch (error) {
     console.error('Error contributing to goal:', error);

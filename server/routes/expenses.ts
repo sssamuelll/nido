@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { findAppUserIdByUsername, getDatabase } from '../db.js';
+import { findAppUserIdByUsername, getDatabase, createNotification } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { 
   expenseCreateSchema, 
@@ -55,6 +55,34 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
     `, description, amount, category, date, paid_by, paidByUserId, type, status);
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
+
+    // Notify the other user about the new expense
+    try {
+      const user = await db.get<{ household_id: string }>(
+        'SELECT household_id FROM app_users WHERE id = ?',
+        req.user!.id
+      );
+      if (user) {
+        const otherUser = await db.get<{ id: number }>(
+          'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
+          user.household_id, req.user!.id
+        );
+        if (otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'expense_added',
+            title: 'Nuevo gasto',
+            body: `${displayName} añadió €${amount} en ${category}`,
+            metadata: { expense_id: result.lastID },
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error creating expense notification:', notifErr);
+    }
+
     res.status(201).json(newExpense);
   } catch (error) {
     console.error('Error creating expense:', error);
