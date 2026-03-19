@@ -66,6 +66,11 @@ export const Dashboard: React.FC = () => {
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editBudgetValue, setEditBudgetValue] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatBudget, setNewCatBudget] = useState('');
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -103,6 +108,38 @@ export const Dashboard: React.FC = () => {
       setError('Error al cargar los datos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveCategoryBudget = async (categoryName: string, amount: number) => {
+    try {
+      const currentCategories: Record<string, number> = {};
+      categoryBreakdown.forEach(cat => { currentCategories[cat.category] = toNum(cat.budget); });
+      currentCategories[categoryName] = amount;
+      await Api.updateBudget({ month: currentMonth, categories: currentCategories });
+      setEditingCategory(null);
+      setEditBudgetValue('');
+      loadDashboardData();
+    } catch {
+      // silently fail — budget will reload on next navigation
+    }
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCatName.trim();
+    const amount = parseFloat(newCatBudget);
+    if (!name || !amount || amount <= 0) return;
+    const currentCategories: Record<string, number> = {};
+    categoryBreakdown.forEach(cat => { currentCategories[cat.category] = toNum(cat.budget); });
+    currentCategories[name] = amount;
+    try {
+      await Api.updateBudget({ month: currentMonth, categories: currentCategories });
+      setShowAddCategory(false);
+      setNewCatName('');
+      setNewCatBudget('');
+      loadDashboardData();
+    } catch {
+      // silently fail
     }
   };
 
@@ -309,21 +346,75 @@ export const Dashboard: React.FC = () => {
                 .map(cat => {
                   const catDef = CATEGORIES.find(c => c.id === cat.category);
                   return (
-                    <BudgetCapsule
-                      key={cat.category}
-                      emoji={catDef?.emoji ?? '🦋'}
-                      categoryName={cat.category}
-                      current={toNum(cat.total)}
-                      max={toNum(cat.budget)}
-                      gradientColors={[catDef?.color ?? '#8bdc6b', catDef?.color ?? '#6bc98b']}
-                      onEdit={() => {}}
-                    />
+                    <div key={cat.category}>
+                      <BudgetCapsule
+                        emoji={catDef?.emoji ?? '🦋'}
+                        categoryName={cat.category}
+                        current={toNum(cat.total)}
+                        max={toNum(cat.budget)}
+                        gradientColors={[catDef?.color ?? '#8bdc6b', catDef?.color ?? '#6bc98b']}
+                        onEdit={() => {
+                          setEditingCategory(cat.category);
+                          setEditBudgetValue(String(toNum(cat.budget)));
+                        }}
+                      />
+                      {editingCategory === cat.category && (
+                        <div className="cat-edit-row">
+                          <span style={{ color: 'var(--tm)', fontSize: 13 }}>€</span>
+                          <input
+                            className="cat-edit-input"
+                            type="number"
+                            value={editBudgetValue}
+                            onChange={e => setEditBudgetValue(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveCategoryBudget(cat.category, parseFloat(editBudgetValue) || 0);
+                              if (e.key === 'Escape') setEditingCategory(null);
+                            }}
+                            autoFocus
+                          />
+                          <button className="btn btn-primary btn-sm" onClick={() => handleSaveCategoryBudget(cat.category, parseFloat(editBudgetValue) || 0)}>
+                            Guardar
+                          </button>
+                          <button className="btn btn-outline btn-sm" onClick={() => setEditingCategory(null)}>
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })
             )}
-            <div className="add-cat-row" onClick={() => { /* future */ }}>
-              + Añadir categoría
-            </div>
+            {showAddCategory ? (
+              <div className="cat-edit-row" style={{ marginTop: 8 }}>
+                <select
+                  className="cat-edit-input"
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value="">Categoría...</option>
+                  {CATEGORIES
+                    .filter(c => !categoryBreakdown.some(cb => cb.category === c.id))
+                    .map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
+                </select>
+                <span style={{ color: 'var(--tm)', fontSize: 13 }}>€</span>
+                <input
+                  className="cat-edit-input"
+                  type="number"
+                  placeholder="Monto"
+                  value={newCatBudget}
+                  onChange={e => setNewCatBudget(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddCategory(); }}
+                  style={{ width: 80 }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleAddCategory}>+</button>
+                <button className="btn btn-outline btn-sm" onClick={() => { setShowAddCategory(false); setNewCatName(''); setNewCatBudget(''); }}>✕</button>
+              </div>
+            ) : (
+              <div className="add-cat-row" onClick={() => setShowAddCategory(true)}>
+                + Añadir categoría
+              </div>
+            )}
           </div>
 
           {/* Recent Transactions section */}
