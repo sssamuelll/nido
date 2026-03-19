@@ -324,10 +324,9 @@ a:hover { color: var(--text) }
 .sidebar:hover .nav-item__label { opacity: 1; width: auto }
 
 .sidebar__logo {
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 32px; padding: 0 12px; width: 100%;
+  display: flex; align-items: center;
+  margin-bottom: 32px; padding: 0 18px; width: 100%;
 }
-.sidebar:hover .sidebar__logo { justify-content: flex-start }
 
 .sidebar__logo-icon {
   width: 36px; height: 36px;
