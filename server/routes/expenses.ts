@@ -25,10 +25,10 @@ interface ExpenseRow {
 interface BudgetRow {
   id: number;
   month: string;
-  total_budget: number;
-  rent: number;
-  savings: number;
-  shared_available: number;
+  total_budget?: number;
+  rent?: number;
+  savings?: number;
+  shared_available?: number;
   personal_samuel: number;
   personal_maria: number;
 }
@@ -49,8 +49,16 @@ const visibleExpensesWhere = `
   )
 `;
 
-const getPersonalBudgetForUser = (budget: BudgetRow, username: string): number =>
+const getPersonalBudgetForUser = (budget: Pick<BudgetRow, 'personal_samuel' | 'personal_maria'>, username: string): number =>
   username === 'maria' ? budget.personal_maria : budget.personal_samuel;
+
+const emptyBudgetForMonth = (month: string): BudgetRow => ({
+  id: 0,
+  month,
+  shared_available: 0,
+  personal_samuel: 0,
+  personal_maria: 0,
+});
 
 // Get expenses for a specific month
 router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
@@ -194,15 +202,15 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     
-    // Get budget for the month
-    const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+    // Get budget for the month. If none exists yet, return a safe empty-state summary
+    // so the dashboard can load before the first production budget is configured.
+    const storedBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+    const budget = storedBudget ?? emptyBudgetForMonth(month);
 
-    if (!budget) {
-      return res.status(404).json({ error: 'Budget not found for this month' });
-    }
-
-    // Calculate available for shared expenses
-    const availableShared = budget.total_budget - budget.rent - budget.savings - budget.personal_samuel - budget.personal_maria;
+    // Support both legacy and current budget schemas.
+    const availableShared = typeof budget.shared_available === 'number'
+      ? budget.shared_available
+      : (budget.total_budget ?? 0) - (budget.rent ?? 0) - (budget.savings ?? 0) - budget.personal_samuel - budget.personal_maria;
 
     // Get expenses visible to the current user for the month
     const expenses = await db.all<ExpenseRow[]>(
@@ -260,9 +268,9 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
 
     res.json({
       budget: {
-        total: budget.total_budget,
-        rent: budget.rent,
-        savings: budget.savings,
+        total: budget.total_budget ?? 0,
+        rent: budget.rent ?? 0,
+        savings: budget.savings ?? 0,
         personal: personalBudget,
         availableShared
       },
