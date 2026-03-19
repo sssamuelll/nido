@@ -17,7 +17,7 @@ describe('privacy view models', () => {
     expect(card).toMatchObject({
       owner: 'samuel',
       name: 'Samuel',
-      avatar: '👨💻',
+      avatar: '👨‍💻',
       balance: 370,
       monthChange: -80,
       progress: 18,
@@ -27,20 +27,14 @@ describe('privacy view models', () => {
   it('maps budget payloads to a single visible personal budget field', () => {
     const budget = toVisibleBudgetFormData({
       month: '2026-03',
-      total_budget: 3000,
-      rent: 1000,
-      savings: 300,
+      shared_available: 2000,
       personal_budget: 650,
-      personal_samuel: 450,
-      personal_maria: 700,
       categories: { Restaurant: 250 },
     }, '2026-03');
 
     expect(budget).toEqual({
       month: '2026-03',
-      total_budget: 3000,
-      rent: 1000,
-      savings: 300,
+      shared_available: 2000,
       personal_budget: 650,
       categories: { Restaurant: 250 },
     });
