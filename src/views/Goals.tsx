@@ -42,7 +42,7 @@ export const Goals: React.FC = () => {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [activeContext, setActiveContext] = useState<'all' | 'shared' | 'personal'>('all');
+  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
   const fetchGoals = async () => {
     try {
@@ -146,7 +146,7 @@ export const Goals: React.FC = () => {
     { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
   ];
 
-  const filteredGoals = activeContext === 'all' ? goals : goals.filter(g => g.owner_type === activeContext);
+  const filteredGoals = goals.filter(g => g.owner_type === activeContext);
   const col1Goals = filteredGoals.filter((_, i) => i % 2 === 0);
   const col2Goals = filteredGoals.filter((_, i) => i % 2 === 1);
 
@@ -191,16 +191,13 @@ export const Goals: React.FC = () => {
         ))}
       </div>
 
-      {/* Context filter */}
-      <div className="dashboard__context-tabs an d2">
-        <button className={`dashboard__context-tab ${activeContext === 'all' ? 'dashboard__context-tab--active' : ''}`} onClick={() => setActiveContext('all')}>
-          Todos
-        </button>
-        <button className={`dashboard__context-tab ${activeContext === 'shared' ? 'dashboard__context-tab--active' : ''}`} onClick={() => setActiveContext('shared')}>
+      {/* Context tabs — same as Analytics/Dashboard */}
+      <div className="analytics__context-tabs an d1">
+        <button className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`} onClick={() => setActiveContext('shared')}>
           <div className="dot sh-d" />
           Compartido
         </button>
-        <button className={`dashboard__context-tab ${activeContext === 'personal' ? 'dashboard__context-tab--active' : ''}`} onClick={() => setActiveContext('personal')}>
+        <button className={`analytics__context-tab ${activeContext === 'personal' ? 'analytics__context-tab--active' : ''}`} onClick={() => setActiveContext('personal')}>
           <div className="dot ps-d" />
           Personal
         </button>
