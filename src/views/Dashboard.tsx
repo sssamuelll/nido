@@ -70,6 +70,8 @@ export const Dashboard: React.FC = () => {
   const [catModalMode, setCatModalMode] = useState<'add' | 'edit'>('add');
   const [catModalName, setCatModalName] = useState('');
   const [catModalBudget, setCatModalBudget] = useState('');
+  const [catModalIcon, setCatModalIcon] = useState(0);
+  const [catModalColor, setCatModalColor] = useState('#F87171');
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -121,6 +123,8 @@ export const Dashboard: React.FC = () => {
     setCatModalMode('add');
     setCatModalName('');
     setCatModalBudget('');
+    setCatModalIcon(0);
+    setCatModalColor('#F87171');
     setShowCatModal(true);
   };
 
@@ -436,19 +440,41 @@ export const Dashboard: React.FC = () => {
               <h3>{catModalMode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</h3>
               <p>{catModalMode === 'edit' ? 'Ajusta el límite de presupuesto' : 'Crea una categoría para organizar tus gastos'}</p>
 
-              {catModalMode === 'add' && (
+              {catModalMode === 'add' ? (<>
                 <div className="form-row">
                   <label>Nombre</label>
-                  <select className="form-input" value={catModalName} onChange={e => setCatModalName(e.target.value)}>
-                    <option value="">Seleccionar...</option>
-                    {CATEGORIES
-                      .filter(c => !categoryBreakdown.some(cb => cb.category === c.id))
-                      .map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-                  </select>
+                  <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
                 </div>
-              )}
-
-              {catModalMode === 'edit' && (
+                <div className="form-row">
+                  <label>Icono</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>,
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg>,
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3"/></svg>,
+                    ].map((icon, idx) => (
+                      <div key={idx} onClick={() => setCatModalIcon(idx)} style={{
+                        width: 36, height: 36, borderRadius: 'var(--rx)',
+                        border: catModalIcon === idx ? '2px solid var(--green)' : '1px solid var(--glass-border)',
+                        background: catModalIcon === idx ? 'var(--gl)' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                        color: catModalIcon === idx ? 'var(--green)' : 'var(--ts)',
+                      }}>{icon}</div>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-row">
+                  <label>Color</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'].map(c => (
+                      <div key={c} onClick={() => setCatModalColor(c)} style={{
+                        width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
+                        border: `3px solid ${catModalColor === c ? 'var(--text)' : 'transparent'}`,
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              </>) : (
                 <div className="form-row">
                   <label>Categoría</label>
                   <span style={{ fontSize: 14, fontWeight: 500 }}>{catModalName}</span>
@@ -458,15 +484,7 @@ export const Dashboard: React.FC = () => {
               <div className="form-row">
                 <label>Límite</label>
                 <span style={{ color: 'var(--tm)' }}>€</span>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="200"
-                  value={catModalBudget}
-                  onChange={e => setCatModalBudget(e.target.value)}
-                  style={{ width: 100, textAlign: 'right' }}
-                  autoFocus
-                />
+                <input className="form-input" type="number" placeholder="200" value={catModalBudget} onChange={e => setCatModalBudget(e.target.value)} style={{ width: 100, textAlign: 'right' }} autoFocus />
               </div>
 
               {activeContext === 'shared' && (
