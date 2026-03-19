@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { GoalCard } from '../components/GoalCard';
 import { Button } from '../components/Button';
 import { type Goal } from '../types';
+import { launchConfetti } from '../components/Confetti';
+import { showToast } from '../components/Toast';
 
 /* ---------- SVG Icons matching design reference ---------- */
 const SparkleIcon = (
@@ -68,6 +70,8 @@ export const Goals: React.FC = () => {
     setGoals(prev =>
       prev.map(g => g.id === id ? { ...g, current: Math.min(g.current + 50, g.target) } : g)
     );
+    launchConfetti();
+    showToast('\u00a1Contribuci\u00f3n registrada! Siguen avanzando juntos \ud83d\ude80');
   };
 
   const handleEdit = (id: string) => {
@@ -82,7 +86,7 @@ export const Goals: React.FC = () => {
   return (
     <div className="u-flex-gap-24">
       {/* Header */}
-      <div className="goals__header">
+      <div className="goals__header an d1">
         <div>
           <h1 className="goals__title">Objetivos</h1>
           <p className="goals__subtitle">Vuestras metas de ahorro</p>
@@ -95,7 +99,7 @@ export const Goals: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="goals__stats">
+      <div className="goals__stats an d2">
         {SUMMARY_STATS.map(stat => (
           <div key={stat.label} className="goals__stat-card">
             <span className="goals__stat-value" style={stat.color ? { color: stat.color } as React.CSSProperties : undefined}>
@@ -110,28 +114,30 @@ export const Goals: React.FC = () => {
       <div className="goals__grid">
         {/* Column 1 */}
         <div className="goals__column">
-          {col1Goals.map(goal => (
-            <GoalCard
-              key={goal.id}
-              {...goal}
-              onContribute={() => handleContribute(goal.id)}
-              onEdit={() => handleEdit(goal.id)}
-            />
+          {col1Goals.map((goal, i) => (
+            <div key={goal.id} className={`an d${3 + i * 2}`}>
+              <GoalCard
+                {...goal}
+                onContribute={() => handleContribute(goal.id)}
+                onEdit={() => handleEdit(goal.id)}
+              />
+            </div>
           ))}
         </div>
 
         {/* Column 2 */}
         <div className="goals__column">
-          {col2Goals.map(goal => (
-            <GoalCard
-              key={goal.id}
-              {...goal}
-              onContribute={() => handleContribute(goal.id)}
-              onEdit={() => handleEdit(goal.id)}
-            />
+          {col2Goals.map((goal, i) => (
+            <div key={goal.id} className={`an d${4 + i * 2}`}>
+              <GoalCard
+                {...goal}
+                onContribute={() => handleContribute(goal.id)}
+                onEdit={() => handleEdit(goal.id)}
+              />
+            </div>
           ))}
           {/* Add placeholder */}
-          <div className="goals__add-placeholder" onClick={() => { /* future modal */ }}>
+          <div className="goals__add-placeholder an d6" onClick={() => { /* future modal */ }}>
             <span className="goals__plus-icon">+</span>
             <span className="goals__add-text">Añadir objetivo</span>
           </div>

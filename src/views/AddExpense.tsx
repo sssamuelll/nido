@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../auth';
 import { CATEGORIES } from '../types';
 import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { showToast } from '../components/Toast';
 
 /* SVG icons matching design reference */
 const ChevronLeftIcon = () => (
@@ -98,6 +99,7 @@ export const AddExpense: React.FC = () => {
         paid_by: user?.username || 'samuel',
       });
       setSuccess(true);
+      showToast('Gasto a\u00f1adido correctamente \u2714');
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       setError('Error al guardar el gasto');

@@ -9,6 +9,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
 import { CATEGORIES, INDICATOR_COLORS } from '../types';
 import { getPersonalBalanceCardModel } from './privacy';
+import { useCountUp } from '../hooks/useCountUp';
 
 interface DashboardData {
   budget: {
@@ -165,10 +166,18 @@ export const Dashboard: React.FC = () => {
     return `${days[d.getDay()]} ${d.getDate()}`;
   };
 
+  // Animated counter values
+  const metricBudgetTarget = activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget);
+  const metricSpentTarget = activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent);
+  const metricAvgTarget = recentTransactions.length > 0 ? Math.round(recentTransactions.reduce((sum, t) => sum + toNum(t.amount), 0) / recentTransactions.length) : 0;
+  const animBudget = useCountUp(metricBudgetTarget);
+  const animSpent = useCountUp(metricSpentTarget);
+  const animAvg = useCountUp(metricAvgTarget);
+
   return (
     <>
       {/* Header */}
-      <div className="dashboard__header">
+      <div className="dashboard__header an d1">
           <div className="nido-name">
             <div className="couple-ring">🏠</div>
             <div>
@@ -189,7 +198,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Context Tabs */}
-        <div className="dashboard__context-tabs">
+        <div className="dashboard__context-tabs an d2">
           <button
             className={`dashboard__context-tab ${activeContext === 'shared' ? 'dashboard__context-tab--active' : ''}`}
             onClick={() => setActiveContext('shared')}
@@ -207,7 +216,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Insight Strip */}
-        <div className="dashboard__insight-strip">
+        <div className="dashboard__insight-strip an d3">
           <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -219,12 +228,12 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Metric Cards */}
-        <div className="dashboard__metric-cards">
+        <div className="dashboard__metric-cards an d3">
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(96,165,250,.15)' } as React.CSSProperties}>
             <div className="accent-bar" style={{ background: '#60A5FA', boxShadow: '0 0 8px #60A5FA' }} />
             <div className="label">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              €{(activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+              €{animBudget.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               <span style={{ color: 'var(--green)', fontWeight: 600 }}>
@@ -239,7 +248,7 @@ export const Dashboard: React.FC = () => {
             <div className="accent-bar" style={{ background: '#34D399', boxShadow: '0 0 8px #34D399' }} />
             <div className="label">Gastado este mes</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              €{(activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+              €{animSpent.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               <span style={{ color: 'var(--green)', fontWeight: 600 }}>↓ 12%</span> vs mes anterior
@@ -249,7 +258,7 @@ export const Dashboard: React.FC = () => {
             <div className="accent-bar" style={{ background: '#A78BFA', boxShadow: '0 0 8px #A78BFA' }} />
             <div className="label">Ticket medio</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              €{(recentTransactions.length > 0 ? Math.round(recentTransactions.reduce((sum, t) => sum + toNum(t.amount), 0) / recentTransactions.length) : 0).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+              €{animAvg.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               {recentTransactions.length} gastos registrados
@@ -260,7 +269,7 @@ export const Dashboard: React.FC = () => {
         {/* Bottom split */}
         <div className="dashboard__bottom">
           {/* Budget Capsules section */}
-          <div className="card dashboard__section">
+          <div className="card dashboard__section an d4">
             <div className="dashboard__section-header">
               <span className="dashboard__section-title">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</span>
             </div>
@@ -292,7 +301,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Recent Transactions section */}
-          <div className="card dashboard__section">
+          <div className="card dashboard__section an d5">
             <div className="dashboard__section-header">
               <span className="dashboard__section-title">Últimos gastos</span>
               <button className="dashboard__section-link" onClick={() => navigate('/history')}>
