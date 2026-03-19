@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
-import { BudgetCapsule } from '../components/BudgetCapsule';
+import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
 import { TransactionRow } from '../components/TransactionRow';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
@@ -66,11 +66,10 @@ export const Dashboard: React.FC = () => {
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
-  const [editBudgetValue, setEditBudgetValue] = useState('');
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatBudget, setNewCatBudget] = useState('');
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [catModalMode, setCatModalMode] = useState<'add' | 'edit'>('add');
+  const [catModalName, setCatModalName] = useState('');
+  const [catModalBudget, setCatModalBudget] = useState('');
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -111,36 +110,32 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSaveCategoryBudget = async (categoryName: string, amount: number) => {
-    try {
-      const currentCategories: Record<string, number> = {};
-      categoryBreakdown.forEach(cat => { currentCategories[cat.category] = toNum(cat.budget); });
-      currentCategories[categoryName] = amount;
-      await Api.updateBudget({ month: currentMonth, categories: currentCategories });
-      setEditingCategory(null);
-      setEditBudgetValue('');
-      loadDashboardData();
-    } catch {
-      // silently fail — budget will reload on next navigation
-    }
+  const openEditCatModal = (categoryName: string, budget: number) => {
+    setCatModalMode('edit');
+    setCatModalName(categoryName);
+    setCatModalBudget(String(budget));
+    setShowCatModal(true);
   };
 
-  const handleAddCategory = async () => {
-    const name = newCatName.trim();
-    const amount = parseFloat(newCatBudget);
+  const openNewCatModal = () => {
+    setCatModalMode('add');
+    setCatModalName('');
+    setCatModalBudget('');
+    setShowCatModal(true);
+  };
+
+  const handleSaveCatModal = async () => {
+    const name = catModalName.trim();
+    const amount = parseFloat(catModalBudget);
     if (!name || !amount || amount <= 0) return;
-    const currentCategories: Record<string, number> = {};
-    categoryBreakdown.forEach(cat => { currentCategories[cat.category] = toNum(cat.budget); });
-    currentCategories[name] = amount;
+    const cats: Record<string, number> = {};
+    categoryBreakdown.forEach(cat => { cats[cat.category] = toNum(cat.budget); });
+    cats[name] = amount;
     try {
-      await Api.updateBudget({ month: currentMonth, categories: currentCategories });
-      setShowAddCategory(false);
-      setNewCatName('');
-      setNewCatBudget('');
+      await Api.updateBudget({ month: currentMonth, categories: cats });
+      setShowCatModal(false);
       loadDashboardData();
-    } catch {
-      // silently fail
-    }
+    } catch { /* */ }
   };
 
   const formatMonthName = (monthStr: string) => {
@@ -331,90 +326,53 @@ export const Dashboard: React.FC = () => {
 
         {/* Bottom split */}
         <div className="dashboard__bottom">
-          {/* Budget Capsules section */}
-          <div className="card dashboard__section an d4">
-            <div className="dashboard__section-header">
-              <span className="dashboard__section-title">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</span>
+          {/* Budget section — 1:1 design reference */}
+          <div className="card an d4">
+            <div className="sh">
+              <div className="st">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
             </div>
             {categoryBreakdown.length === 0 ? (
-              <div className="empty-view">
-                Sin datos de categorías
-              </div>
+              <div className="empty-view">Sin datos de categorías</div>
             ) : (
-              categoryBreakdown
-                .filter(cat => toNum(cat?.budget) > 0)
-                .map(cat => {
-                  const catDef = CATEGORIES.find(c => c.id === cat.category);
-                  return (
-                    <div key={cat.category}>
-                      <BudgetCapsule
-                        emoji={catDef?.emoji ?? '🦋'}
-                        categoryName={cat.category}
-                        current={toNum(cat.total)}
-                        max={toNum(cat.budget)}
-                        gradientColors={[catDef?.color ?? '#8bdc6b', catDef?.color ?? '#6bc98b']}
-                        onEdit={() => {
-                          setEditingCategory(cat.category);
-                          setEditBudgetValue(String(toNum(cat.budget)));
-                        }}
-                      />
-                      {editingCategory === cat.category && (
-                        <div className="cat-edit-row">
-                          <span style={{ color: 'var(--tm)', fontSize: 13 }}>€</span>
-                          <input
-                            className="cat-edit-input"
-                            type="number"
-                            value={editBudgetValue}
-                            onChange={e => setEditBudgetValue(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleSaveCategoryBudget(cat.category, parseFloat(editBudgetValue) || 0);
-                              if (e.key === 'Escape') setEditingCategory(null);
-                            }}
-                            autoFocus
-                          />
-                          <button className="btn btn-primary btn-sm" onClick={() => handleSaveCategoryBudget(cat.category, parseFloat(editBudgetValue) || 0)}>
-                            Guardar
-                          </button>
-                          <button className="btn btn-outline btn-sm" onClick={() => setEditingCategory(null)}>
-                            ✕
-                          </button>
-                        </div>
-                      )}
+              categoryBreakdown.filter(cat => toNum(cat?.budget) > 0).map(cat => {
+                const catDef = CATEGORIES.find(c => c.id === cat.category);
+                const spent = toNum(cat.total);
+                const budget = toNum(cat.budget);
+                const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+                const color = catDef?.color ?? '#60A5FA';
+                const iconBg = color + '1A';
+                const ICON_MAP: Record<string, React.FC<{ size?: number; color?: string }>> = {
+                  Restaurant: Utensils, Supermercado: ShoppingCart, Servicios: Zap,
+                  Ocio: Smile, 'Inversión': TrendingUp, Otros: MoreHorizontal,
+                };
+                const IconComp = ICON_MAP[cat.category] ?? MoreHorizontal;
+                return (
+                  <div key={cat.category} className="budget-item">
+                    <div className="icon-c" style={{ background: iconBg }}>
+                      <IconComp size={18} color={color} />
                     </div>
-                  );
-                })
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500 }}>{cat.category}</div>
+                      <div className="budget-bar-wrap">
+                        <div className="budget-bar" style={{ width: `${Math.min(pct, 100)}%`, background: color, color }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                      €{spent.toLocaleString('es-ES')} <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/ €{budget.toLocaleString('es-ES')}</small>
+                    </div>
+                    <button className="budget-edit" onClick={() => openEditCatModal(cat.category, budget)}>
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })
             )}
-            {showAddCategory ? (
-              <div className="cat-edit-row" style={{ marginTop: 8 }}>
-                <select
-                  className="cat-edit-input"
-                  value={newCatName}
-                  onChange={e => setNewCatName(e.target.value)}
-                  style={{ flex: 1 }}
-                >
-                  <option value="">Categoría...</option>
-                  {CATEGORIES
-                    .filter(c => !categoryBreakdown.some(cb => cb.category === c.id))
-                    .map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-                </select>
-                <span style={{ color: 'var(--tm)', fontSize: 13 }}>€</span>
-                <input
-                  className="cat-edit-input"
-                  type="number"
-                  placeholder="Monto"
-                  value={newCatBudget}
-                  onChange={e => setNewCatBudget(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddCategory(); }}
-                  style={{ width: 80 }}
-                />
-                <button className="btn btn-primary btn-sm" onClick={handleAddCategory}>+</button>
-                <button className="btn btn-outline btn-sm" onClick={() => { setShowAddCategory(false); setNewCatName(''); setNewCatBudget(''); }}>✕</button>
-              </div>
-            ) : (
-              <div className="add-cat-row" onClick={() => setShowAddCategory(true)}>
-                + Añadir categoría
-              </div>
-            )}
+            <div className="add-cat-row" onClick={openNewCatModal}>
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>
+              {' '}Añadir categoría
+            </div>
           </div>
 
           {/* Recent Transactions section */}
@@ -464,12 +422,68 @@ export const Dashboard: React.FC = () => {
           <NotificationCenter
             onClose={() => {
               setShowNotifications(false);
-              // Refresh unread count when closing
               Api.getNotifications()
                 .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
                 .catch(() => {});
             }}
           />
+        )}
+
+        {/* Category modal — 1:1 design reference */}
+        {showCatModal && (
+          <div className="modal-overlay open" onClick={() => setShowCatModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h3>{catModalMode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</h3>
+              <p>{catModalMode === 'edit' ? 'Ajusta el límite de presupuesto' : 'Crea una categoría para organizar tus gastos'}</p>
+
+              {catModalMode === 'add' && (
+                <div className="form-row">
+                  <label>Nombre</label>
+                  <select className="form-input" value={catModalName} onChange={e => setCatModalName(e.target.value)}>
+                    <option value="">Seleccionar...</option>
+                    {CATEGORIES
+                      .filter(c => !categoryBreakdown.some(cb => cb.category === c.id))
+                      .map(c => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {catModalMode === 'edit' && (
+                <div className="form-row">
+                  <label>Categoría</label>
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>{catModalName}</span>
+                </div>
+              )}
+
+              <div className="form-row">
+                <label>Límite</label>
+                <span style={{ color: 'var(--tm)' }}>€</span>
+                <input
+                  className="form-input"
+                  type="number"
+                  placeholder="200"
+                  value={catModalBudget}
+                  onChange={e => setCatModalBudget(e.target.value)}
+                  style={{ width: 100, textAlign: 'right' }}
+                  autoFocus
+                />
+              </div>
+
+              {activeContext === 'shared' && (
+                <div className="approval-note">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  En compartido, este cambio necesita aprobación de {normalizedUser === 'maria' ? 'Samuel' : 'María'}.
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button className="btn btn-outline" onClick={() => setShowCatModal(false)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleSaveCatModal}>Guardar</button>
+              </div>
+            </div>
+          </div>
         )}
     </>
   );
