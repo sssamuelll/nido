@@ -94,6 +94,49 @@ describe('expenses routes privacy', () => {
     }));
   });
 
+  it('returns an empty-state summary instead of 404 when the month has no budget yet', async () => {
+    mockDb.get.mockResolvedValueOnce(undefined);
+    mockDb.all
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const handler = getRouteHandler('/summary', 'get');
+    const req: any = { validatedMonth: '2026-03', user: { id: 1, username: 'samuel' } };
+    const res = createResponse();
+
+    await handler(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      budget: {
+        total: 0,
+        rent: 0,
+        savings: 0,
+        personal: 0,
+        availableShared: 0,
+      },
+      spending: {
+        totalSpent: 0,
+        totalSharedSpent: 0,
+        remainingShared: 0,
+      },
+      personal: {
+        owner: 'samuel',
+        spent: 0,
+        budget: 0,
+      },
+      categoryBreakdown: [
+        { category: 'Restaurant', total: 0, budget: 0, count: 0 },
+        { category: 'Gastos', total: 0, budget: 0, count: 0 },
+        { category: 'Servicios', total: 0, budget: 0, count: 0 },
+        { category: 'Ocio', total: 0, budget: 0, count: 0 },
+        { category: 'Inversión', total: 0, budget: 0, count: 0 },
+        { category: 'Otros', total: 0, budget: 0, count: 0 },
+      ],
+      recentTransactions: [],
+    });
+  });
+
   it('allows deleting shared expenses for either user', async () => {
     mockDb.get.mockResolvedValue({ id: 7, paid_by: 'maria', type: 'shared' });
     mockDb.run.mockResolvedValue({ changes: 1 });
