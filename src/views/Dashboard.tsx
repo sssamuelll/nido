@@ -55,6 +55,19 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
+  // useCountUp hooks must be called unconditionally (before any early returns)
+  const availableSharedRaw = toNum(data?.budget?.availableShared);
+  const totalSharedSpentRaw = toNum(data?.spending?.totalSharedSpent);
+  const personalBudgetRaw = toNum(data?.personal?.budget);
+  const personalSpentRaw = toNum(data?.personal?.spent);
+  const recentTxRaw = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const metricBudgetTarget = activeContext === 'shared' ? availableSharedRaw : personalBudgetRaw;
+  const metricSpentTarget = activeContext === 'shared' ? totalSharedSpentRaw : personalSpentRaw;
+  const metricAvgTarget = recentTxRaw.length > 0 ? Math.round(recentTxRaw.reduce((sum: number, t: any) => sum + toNum(t.amount), 0) / recentTxRaw.length) : 0;
+  const animBudget = useCountUp(metricBudgetTarget);
+  const animSpent = useCountUp(metricSpentTarget);
+  const animAvg = useCountUp(metricAvgTarget);
+
   useEffect(() => {
     loadDashboardData();
   }, [currentMonth]);
