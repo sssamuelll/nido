@@ -25,6 +25,9 @@ import {
 } from './auth.js';
 import expensesRouter from './routes/expenses.js';
 import budgetsRouter from './routes/budgets.js';
+import goalsRouter from './routes/goals.js';
+import analyticsRouter from './routes/analytics.js';
+import notificationsRouter from './routes/notifications.js';
 import { port, appSessionCookieName } from './config.js';
 import { pinSchema } from './validation.js';
 
@@ -59,7 +62,7 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const csrfCheck = (req: any, res: any, next: any) => {
+const csrfCheck = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
@@ -295,6 +298,9 @@ app.post('/api/auth/logout', async (req, res) => {
 
 app.use('/api/expenses', authenticateToken, expensesRouter);
 app.use('/api/budgets', authenticateToken, budgetsRouter);
+app.use('/api/goals', authenticateToken, goalsRouter);
+app.use('/api/analytics', authenticateToken, analyticsRouter);
+app.use('/api/notifications', authenticateToken, notificationsRouter);
 
 // Categories routes
 app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {

@@ -80,27 +80,24 @@ describe('Database bootstrap', () => {
       },
     ]);
 
+    // On a fresh database with no legacy budget rows, syncBudgetAllocations
+    // has nothing to sync so no default budget or allocations are created.
     const defaultBudget = await database.get<{ id: number }>(
       `SELECT id FROM budgets WHERE month = ?`,
       currentMonth
     );
-    expect(defaultBudget).toBeTruthy();
+    expect(defaultBudget).toBeUndefined();
 
     const allocations = await database.all<{ username: string; amount: number }[]>(
       `
         SELECT app_users.username, budget_allocations.amount
         FROM budget_allocations
         JOIN app_users ON app_users.id = budget_allocations.app_user_id
-        WHERE budget_allocations.budget_id = ?
         ORDER BY app_users.username
-      `,
-      defaultBudget!.id
+      `
     );
 
-    expect(allocations).toEqual([
-      { username: 'maria', amount: 500 },
-      { username: 'samuel', amount: 500 },
-    ]);
+    expect(allocations).toEqual([]);
   });
 
   it('backfills expense user ids and normalized budget allocations from legacy rows', async () => {

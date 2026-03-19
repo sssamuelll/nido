@@ -34,14 +34,15 @@ describe('budgets routes privacy', () => {
   });
 
   it('returns only the authenticated user personal budget allocation', async () => {
-    mockDb.get.mockResolvedValue({
-      month: '2026-03',
-      total_budget: 3000,
-      rent: 1000,
-      savings: 300,
-      personal_samuel: 450,
-      personal_maria: 700,
-    });
+    mockDb.get
+      .mockResolvedValueOnce({
+        id: 1,
+        month: '2026-03',
+        shared_available: 2000,
+        personal_samuel: 450,
+        personal_maria: 700,
+      })
+      .mockResolvedValueOnce(null); // pending approval query
     mockDb.all.mockResolvedValue([{ category: 'Restaurant', amount: 200 }]);
     const handler = getRouteHandler('/', 'get');
     const req: any = { validatedMonth: '2026-03', user: { id: 2, username: 'maria' } };
@@ -50,21 +51,20 @@ describe('budgets routes privacy', () => {
     await handler(req, res);
 
     expect(res.json).toHaveBeenCalledWith({
+      id: 1,
       month: '2026-03',
-      total_budget: 3000,
-      rent: 1000,
-      savings: 300,
+      shared_available: 2000,
       personal_budget: 700,
+      pending_approval: null,
       categories: { Restaurant: 200 },
     });
   });
 
   it('updates only the authenticated user personal budget while preserving the partner allocation', async () => {
     mockDb.get.mockResolvedValue({
+      id: 1,
       month: '2026-03',
-      total_budget: 3000,
-      rent: 1000,
-      savings: 300,
+      shared_available: 2000,
       personal_samuel: 450,
       personal_maria: 700,
     });
@@ -73,9 +73,6 @@ describe('budgets routes privacy', () => {
     const req: any = {
       validatedData: {
         month: '2026-03',
-        total_budget: 3100,
-        rent: 1000,
-        savings: 300,
         personal_budget: 650,
         categories: { Restaurant: 250 },
       },
@@ -87,15 +84,11 @@ describe('budgets routes privacy', () => {
 
     expect(mockDb.run).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining('UPDATE budgets'),
-      3100,
-      1000,
-      300,
-      450,
+      expect.stringContaining('personal_maria'),
       650,
-      '2026-03'
+      1
     );
     expect(syncBudgetAllocationsForMonth).toHaveBeenCalledWith('2026-03');
-    expect(res.json).toHaveBeenCalledWith({ success: true });
+    expect(res.json).toHaveBeenCalledWith({ success: true, pending_approval: false });
   });
 });

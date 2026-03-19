@@ -1,39 +1,34 @@
 import React from 'react';
-import { OWNER_THEMES, type Goal } from '../types';
+import { type Goal } from '../types';
 
 interface GoalCardProps extends Goal {
   onContribute?: () => void;
   onEdit?: () => void;
 }
 
+const THEME_COLORS = {
+  shared: '#60A5FA',
+  personal: '#34D399',
+};
+
 export const GoalCard: React.FC<GoalCardProps> = ({
   name,
-  emoji,
   icon,
-  iconBg,
-  themeColor,
   current,
   target,
   deadline,
-  owner,
+  owner_type,
   onContribute,
   onEdit,
 }) => {
-  const theme = OWNER_THEMES[owner];
+  const barColor = THEME_COLORS[owner_type] || '#60A5FA';
   const pct = target > 0 ? Math.round((current / target) * 100) : 0;
-  const barColor = themeColor || theme.base;
 
   return (
     <div className="goal-card">
       <div className="goal-card__header">
         <div className="goal-card__title-row">
-          {icon ? (
-            <div className="icon-c" style={{ background: iconBg || theme.glow }}>
-              {icon}
-            </div>
-          ) : (
-            <span className="goal-card__emoji">{emoji}</span>
-          )}
+          <span className="goal-card__emoji">{icon}</span>
           <span className="goal-card__name-inline">{name}</span>
         </div>
         <div className="goal-card__header-meta">
@@ -62,7 +57,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({
         />
       </div>
 
-      <div className="goal-card__deadline">Proyección: {deadline}</div>
+      <div className="goal-card__deadline">
+        {deadline ? `Proyección: ${deadline}` : 'Sin fecha límite'}
+      </div>
 
       {onContribute && (
         <button

@@ -22,7 +22,7 @@ export const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [budget, setBudget] = useState<BudgetData | null>(null);
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -103,7 +103,7 @@ export const Settings: React.FC = () => {
       const expenses = await Api.getExpenses(currentMonth);
       const csv = [
         'Fecha,Descripción,Cantidad,Categoría,Pagado por,Tipo',
-        ...expenses.map((e: any) =>
+        ...expenses.map((e: { date: string; description: string; amount: number; category: string; paid_by: string; type: string }) =>
           `${e.date},"${e.description}",${e.amount},${e.category},${e.paid_by},${e.type}`
         )
       ].join('\n');

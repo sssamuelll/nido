@@ -1,12 +1,43 @@
 import { Router } from 'express';
-import { findAppUserIdByUsername, getDatabase } from '../db.js';
+import { findAppUserIdByUsername, getDatabase, createNotification } from '../db.js';
 import { AuthRequest } from '../auth.js';
-import { 
-  expenseCreateSchema, 
-  expenseUpdateSchema, 
-  validate, 
-  validateMonthParam 
+import {
+  expenseCreateSchema,
+  expenseUpdateSchema,
+  validate,
+  validateMonthParam,
+  ExpenseInput,
 } from '../validation.js';
+
+interface ExpenseRow {
+  id: number;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  paid_by: string;
+  paid_by_user_id: number | null;
+  type: string;
+  status: string;
+  created_at: string;
+}
+
+interface BudgetRow {
+  id: number;
+  month: string;
+  total_budget: number;
+  rent: number;
+  savings: number;
+  shared_available: number;
+  personal_samuel: number;
+  personal_maria: number;
+}
+
+interface CategoryBudgetRow {
+  month: string;
+  category: string;
+  amount: number;
+}
 
 const router = Router();
 const visibleExpensesWhere = `
@@ -18,7 +49,7 @@ const visibleExpensesWhere = `
   )
 `;
 
-const getPersonalBudgetForUser = (budget: any, username: string) =>
+const getPersonalBudgetForUser = (budget: BudgetRow, username: string): number =>
   username === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 // Get expenses for a specific month
@@ -42,7 +73,7 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
-  const { description, amount, category, date, type, status = 'paid' } = req.validatedData;
+  const { description, amount, category, date, type, status = 'paid' } = req.validatedData as ExpenseInput;
   // Security: Force paid_by to be the current authenticated user
   const paid_by = req.user!.username;
 
@@ -55,6 +86,34 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
     `, description, amount, category, date, paid_by, paidByUserId, type, status);
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
+
+    // Notify the other user about the new expense
+    try {
+      const user = await db.get<{ household_id: string }>(
+        'SELECT household_id FROM app_users WHERE id = ?',
+        req.user!.id
+      );
+      if (user) {
+        const otherUser = await db.get<{ id: number }>(
+          'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
+          user.household_id, req.user!.id
+        );
+        if (otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'expense_added',
+            title: 'Nuevo gasto',
+            body: `${displayName} añadió €${amount} en ${category}`,
+            metadata: { expense_id: result.lastID },
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error creating expense notification:', notifErr);
+    }
+
     res.status(201).json(newExpense);
   } catch (error) {
     console.error('Error creating expense:', error);
@@ -65,11 +124,11 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 // Update expense
 router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const validatedData = req.validatedData;
+  const validatedData = req.validatedData as ExpenseInput;
 
   try {
     const db = getDatabase();
-    const existing = await db.get('SELECT * FROM expenses WHERE id = ?', id);
+    const existing = await db.get<ExpenseRow>('SELECT * FROM expenses WHERE id = ?', id);
     if (!existing) {
       return res.status(404).json({ error: 'Expense not found' });
     }
@@ -136,8 +195,8 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const db = getDatabase();
     
     // Get budget for the month
-    const budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
-    
+    const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+
     if (!budget) {
       return res.status(404).json({ error: 'Budget not found for this month' });
     }
@@ -146,7 +205,7 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const availableShared = budget.total_budget - budget.rent - budget.savings - budget.personal_samuel - budget.personal_maria;
 
     // Get expenses visible to the current user for the month
-    const expenses = await db.all(
+    const expenses = await db.all<ExpenseRow[]>(
       `SELECT * FROM expenses WHERE ${visibleExpensesWhere}`,
       `${month}%`,
       req.user!.id,
@@ -154,18 +213,18 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     );
 
     // Calculate totals
-    const totalSpent = expenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
-    const sharedExpenses = expenses.filter((exp: any) => exp.type === 'shared');
-    const totalSharedSpent = sharedExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+    const totalSpent = expenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+    const sharedExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'shared');
+    const totalSharedSpent = sharedExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
 
     // Calculate who owes whom
     const samuelPaid = sharedExpenses
-      .filter((exp: any) => exp.paid_by === 'samuel')
-      .reduce((sum: number, exp: any) => sum + exp.amount, 0);
-    
+      .filter((exp: ExpenseRow) => exp.paid_by === 'samuel')
+      .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+
     const mariaPaid = sharedExpenses
-      .filter((exp: any) => exp.paid_by === 'maria')
-      .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+      .filter((exp: ExpenseRow) => exp.paid_by === 'maria')
+      .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
 
     const halfShared = totalSharedSpent / 2;
     const samuelBalance = samuelPaid - halfShared;
@@ -173,13 +232,13 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
 
     // Category breakdown with budgets
     const categories = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
-    const categoryBudgets = await db.all('SELECT * FROM category_budgets WHERE month = ?', month);
-    
+    const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+
     const categoryBreakdown = categories.map(category => {
-      const categoryExpenses = expenses.filter((exp: any) => exp.category === category);
-      const categoryTotal = categoryExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
-      const budgetEntry = categoryBudgets.find(b => b.category === category);
-      
+      const categoryExpenses = expenses.filter((exp: ExpenseRow) => exp.category === category);
+      const categoryTotal = categoryExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+      const budgetEntry = categoryBudgets.find((b: CategoryBudgetRow) => b.category === category);
+
       return {
         category,
         total: categoryTotal,
@@ -190,13 +249,13 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
 
     // Recent transactions (last 5)
     const recentTransactions = expenses
-      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .sort((a: ExpenseRow, b: ExpenseRow) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5);
 
     // Personal spending visible to the current user
     const personalSpent = expenses
-      .filter((exp: any) => exp.paid_by === req.user!.username && exp.type === 'personal')
-      .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+      .filter((exp: ExpenseRow) => exp.paid_by === req.user!.username && exp.type === 'personal')
+      .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
     const personalBudget = getPersonalBudgetForUser(budget, req.user!.username);
 
     res.json({
