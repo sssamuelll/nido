@@ -1726,6 +1726,9 @@ a:hover { color: var(--text) }
 .pending-chip { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: var(--ol); color: var(--orange); margin-left: 8px }
 .add-cat-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; cursor: pointer; color: var(--green); font-size: 13px; font-weight: 500; transition: all .2s }
 .add-cat-row:hover { text-shadow: 0 0 12px var(--green) }
+.cat-edit-row { display: flex; align-items: center; gap: 6px; padding: 8px 0; }
+.cat-edit-input { background: var(--surface); border: 1px solid var(--glass-border); border-radius: var(--rs); padding: 6px 10px; font-size: 13px; color: var(--text); font-family: inherit; outline: none; transition: border-color .2s; }
+.cat-edit-input:focus { border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.15); }
 
 /* ============================================
    SECTION 37: Personal Dashboard
