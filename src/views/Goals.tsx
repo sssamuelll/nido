@@ -133,9 +133,11 @@ export const Goals: React.FC = () => {
     setShowCreateModal(true);
   };
 
-  const totalSaved = goals.reduce((sum, g) => sum + g.current, 0);
-  const activeGoals = goals.length;
-  const nextDeadline = goals
+  const filteredGoals = goals.filter(g => g.owner_type === activeContext);
+
+  const totalSaved = filteredGoals.reduce((sum, g) => sum + g.current, 0);
+  const activeGoals = filteredGoals.length;
+  const nextDeadline = filteredGoals
     .filter(g => g.deadline)
     .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))[0]?.deadline || '-';
 
@@ -145,8 +147,6 @@ export const Goals: React.FC = () => {
     { label: 'MEJOR RACHA', value: '8 sem', color: 'var(--orange)' },
     { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
   ];
-
-  const filteredGoals = goals.filter(g => g.owner_type === activeContext);
   const col1Goals = filteredGoals.filter((_, i) => i % 2 === 0);
   const col2Goals = filteredGoals.filter((_, i) => i % 2 === 1);
 
@@ -179,18 +179,6 @@ export const Goals: React.FC = () => {
 
       {error && <div style={{ color: 'var(--red)', padding: '12px' }}>{error}</div>}
 
-      {/* Stats — 4 cards per design */}
-      <div className="goals__stats an d2">
-        {summaryStats.map(stat => (
-          <div key={stat.label} className="goals__stat-card">
-            <span className="goals__stat-value" style={stat.color ? { color: stat.color } : undefined}>
-              {stat.value}
-            </span>
-            <span className="goals__stat-label">{stat.label}</span>
-          </div>
-        ))}
-      </div>
-
       {/* Context tabs — same as Analytics/Dashboard */}
       <div className="analytics__context-tabs an d1">
         <button className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`} onClick={() => setActiveContext('shared')}>
@@ -201,6 +189,18 @@ export const Goals: React.FC = () => {
           <div className="dot ps-d" />
           Personal
         </button>
+      </div>
+
+      {/* Stats — reflect filtered context */}
+      <div className="goals__stats an d2">
+        {summaryStats.map(stat => (
+          <div key={stat.label} className="goals__stat-card">
+            <span className="goals__stat-value" style={stat.color ? { color: stat.color } : undefined}>
+              {stat.value}
+            </span>
+            <span className="goals__stat-label">{stat.label}</span>
+          </div>
+        ))}
       </div>
 
       {/* Goals grid */}
