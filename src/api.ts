@@ -253,6 +253,18 @@ export class Api {
     return this.request(`/analytics?months=${months}&context=${context}`);
   }
 
+  static async getNotifications() {
+    return this.request('/notifications');
+  }
+
+  static async markNotificationAsRead(id: number) {
+    return this.request(`/notifications/${id}/read`, { method: 'PUT' });
+  }
+
+  static async markAllNotificationsRead() {
+    return this.request('/notifications/read-all', { method: 'POST' });
+  }
+
   static async health() {
     return this.request('/health');
   }

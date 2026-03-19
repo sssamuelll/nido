@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { CATEGORIES, INDICATOR_COLORS } from '../types';
 import { getPersonalBalanceCardModel } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
+import { NotificationCenter } from '../components/NotificationCenter';
 
 interface DashboardData {
   budget: {
@@ -54,6 +55,8 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -71,6 +74,12 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     loadDashboardData();
   }, [currentMonth]);
+
+  useEffect(() => {
+    Api.getNotifications()
+      .then((data: any[]) => setUnreadCount(data.filter((n: any) => !n.is_read).length))
+      .catch(() => {});
+  }, []);
 
   const loadDashboardData = async () => {
     try {
@@ -196,8 +205,11 @@ export const Dashboard: React.FC = () => {
               <span className="dashboard__search-text">Buscar...</span>
             </div>
             <ThemeToggle />
-            <button className="dashboard__notification-btn">
+            <button className="dashboard__notification-btn" onClick={() => setShowNotifications(true)} style={{ position: 'relative' }}>
               <Bell size={18} color="var(--color-text-secondary)" />
+              {unreadCount > 0 && (
+                <span className="dashboard__notification-badge">{unreadCount}</span>
+              )}
             </button>
           </div>
         </div>
@@ -347,6 +359,18 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {showNotifications && (
+          <NotificationCenter
+            onClose={() => {
+              setShowNotifications(false);
+              // Refresh unread count when closing
+              Api.getNotifications()
+                .then((data: any[]) => setUnreadCount(data.filter((n: any) => !n.is_read).length))
+                .catch(() => {});
+            }}
+          />
+        )}
     </>
   );
 };
