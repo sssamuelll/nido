@@ -144,7 +144,7 @@ export const Goals: React.FC = () => {
   const summaryStats = [
     { label: 'TOTAL AHORRADO', value: `€${totalSaved.toLocaleString('es-ES')}`, color: 'var(--green)' },
     { label: 'OBJ. ACTIVOS', value: String(activeGoals), color: undefined },
-    { label: 'MEJOR RACHA', value: '8 sem', color: 'var(--orange)' },
+    { label: 'MEJOR RACHA', value: filteredGoals.length > 0 ? `${filteredGoals.length} obj` : '-', color: 'var(--orange)' },
     { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
   ];
   const col1Goals = filteredGoals.filter((_, i) => i % 2 === 0);
