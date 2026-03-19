@@ -63,9 +63,9 @@ describe('Validation Schemas', () => {
       expect(expenseCreateSchema.safeParse(invalid).success).toBe(false);
     });
 
-    it('should reject invalid category', () => {
-      const invalid = { ...validExpense, category: 'InvalidCategory' };
-      expect(expenseCreateSchema.safeParse(invalid).success).toBe(false);
+    it('should accept any category string', () => {
+      const valid = { ...validExpense, category: 'InvalidCategory' };
+      expect(expenseCreateSchema.safeParse(valid).success).toBe(true);
     });
 
     it('should reject invalid date format', () => {
@@ -113,9 +113,7 @@ describe('Validation Schemas', () => {
   describe('budgetUpdateSchema', () => {
     const validBudget = {
       month: '2024-12',
-      total_budget: 2800,
-      rent: 335,
-      savings: 300,
+      shared_available: 2000,
       personal_budget: 500
     };
 
@@ -123,67 +121,49 @@ describe('Validation Schemas', () => {
       expect(budgetUpdateSchema.safeParse(validBudget).success).toBe(true);
     });
 
-    it('should reject negative total_budget', () => {
-      const invalid = { ...validBudget, total_budget: -100 };
+    it('should reject negative shared_available', () => {
+      const invalid = { ...validBudget, shared_available: -100 };
       expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
     });
 
-    it('should reject zero total_budget', () => {
-      const invalid = { ...validBudget, total_budget: 0 };
-      expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
-    });
-
-    it('should reject negative component values', () => {
-      const invalid = { ...validBudget, rent: -10 };
-      expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
-    });
-
-    it('should accept zero component values', () => {
-      const valid = { ...validBudget, savings: 0 };
+    it('should accept zero shared_available', () => {
+      const valid = { ...validBudget, shared_available: 0 };
       expect(budgetUpdateSchema.safeParse(valid).success).toBe(true);
     });
 
-    it('should reject sum exceeding total_budget', () => {
-      const invalid = { 
-        ...validBudget, 
-        rent: 1000,
-        savings: 1000,
-        personal_budget: 900 
-      }; // Sum = 2900 > 2800
+    it('should reject negative personal values', () => {
+      const invalid = { ...validBudget, personal_budget: -10 };
       expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
     });
 
-    it('should accept sum equal to total_budget', () => {
-      const valid = { 
-        ...validBudget, 
-        rent: 800,
-        savings: 800,
-        personal_budget: 1200 
-      }; // Sum = 2800
-      expect(budgetUpdateSchema.safeParse(valid).success).toBe(true);
+    it('should accept all optional fields', () => {
+      const full = {
+        month: '2024-12',
+        shared_available: 2000,
+        personal_budget: 500,
+        personal_samuel: 450,
+        personal_maria: 550,
+        categories: { Restaurant: 200 }
+      };
+      expect(budgetUpdateSchema.safeParse(full).success).toBe(true);
     });
 
     it('should coerce string numbers', () => {
       const withStrings = {
         month: '2024-12',
-        total_budget: '2800',
-        rent: '335',
-        savings: '300',
+        shared_available: '2000',
         personal_budget: '500'
       };
       const result = budgetUpdateSchema.safeParse(withStrings);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.total_budget).toBe(2800);
+        expect(result.data.shared_available).toBe(2000);
       }
     });
 
-    it('should accept the legacy full personal budget payload', () => {
+    it('should accept legacy personal_samuel/personal_maria payload', () => {
       const legacyBudget = {
         month: '2024-12',
-        total_budget: 2800,
-        rent: 335,
-        savings: 300,
         personal_samuel: 500,
         personal_maria: 500,
       };

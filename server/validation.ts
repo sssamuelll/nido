@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Request, Response, NextFunction } from 'express';
 
 // Common schemas
 export const monthSchema = z.string()
@@ -45,28 +46,52 @@ export const pinSchema = z.object({
   pin: z.string().length(4, 'El PIN debe tener 4 dígitos').regex(/^\d+$/, 'El PIN debe ser numérico'),
 });
 
+// Goal schemas
+export const goalCreateSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido').max(100),
+  icon: z.string().max(10).optional().default('🎯'),
+  target: z.coerce.number().positive('El objetivo debe ser positivo'),
+  deadline: z.string().max(50).optional(),
+  owner_type: z.enum(['shared', 'personal']),
+  owner_user_id: z.coerce.number().optional(),
+});
+
+export const goalUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  icon: z.string().max(10).optional(),
+  target: z.coerce.number().positive().optional(),
+  deadline: z.string().max(50).optional().nullable(),
+});
+
+export const goalContributeSchema = z.object({
+  amount: z.coerce.number().positive('El monto debe ser positivo'),
+});
+
+export type GoalInput = z.infer<typeof goalCreateSchema>;
+export type GoalContributeInput = z.infer<typeof goalContributeSchema>;
+
 // Validation middleware factory
 export function validate(schema: z.ZodSchema) {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       if (schema === monthSchema) {
         const result = schema.safeParse(req.query.month);
         if (!result.success) {
-          return res.status(400).json({ 
-            error: 'Validation error', 
-            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+          return res.status(400).json({
+            error: 'Validation error',
+            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
           });
         }
-        (req as any).validatedMonth = result.data;
+        (req as Request & { validatedMonth?: string }).validatedMonth = result.data as string;
       } else {
         const result = schema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({ 
-            error: 'Validation error', 
-            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+          return res.status(400).json({
+            error: 'Validation error',
+            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
           });
         }
-        (req as any).validatedData = result.data;
+        (req as Request & { validatedData?: unknown }).validatedData = result.data;
       }
       next();
     } catch (error) {

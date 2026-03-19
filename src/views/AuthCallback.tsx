@@ -36,9 +36,9 @@ export const AuthCallback: React.FC = () => {
         if (!isActive) return;
         navigate('/', { replace: true });
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (!isActive) return;
-        setError(err.message || 'No se pudo completar el acceso');
+        setError(err instanceof Error ? err.message : 'No se pudo completar el acceso');
         setIsWorking(false);
       });
 

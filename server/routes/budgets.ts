@@ -1,7 +1,20 @@
 import { Router } from 'express';
 import { getDatabase, syncBudgetAllocationsForMonth } from '../db.js';
 import { AuthRequest } from '../auth.js';
-import { budgetUpdateSchema, validate, validateMonthParam } from '../validation.js';
+import { budgetUpdateSchema, validate, validateMonthParam, BudgetInput } from '../validation.js';
+
+interface BudgetRow {
+  id: number;
+  month: string;
+  shared_available: number;
+  personal_samuel: number;
+  personal_maria: number;
+}
+
+interface CategoryBudgetRow {
+  category: string;
+  amount: number;
+}
 
 const router = Router();
 const defaultBudgetResponse = {
@@ -10,7 +23,7 @@ const defaultBudgetResponse = {
   personal_maria: 500,
 };
 
-const getPersonalBudgetForUser = (budget: any, username: string) =>
+const getPersonalBudgetForUser = (budget: BudgetRow | typeof defaultBudgetResponse, username: string): number =>
   username === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 // Get budget for a specific month
@@ -19,8 +32,8 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
   
   try {
     const db = getDatabase();
-    const budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
-    const categoryBudgets = await db.all('SELECT * FROM category_budgets WHERE month = ?', month);
+    const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+    const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
     const pendingApproval = await db.get(`
       SELECT ba.*, au.username as requested_by 
       FROM budget_approvals ba
@@ -28,7 +41,7 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
       WHERE ba.budget_id = ? AND ba.status = 'pending'
     `, budget?.id);
     
-    const response = budget || {
+    const response: BudgetRow | (typeof defaultBudgetResponse & { month: string; id?: undefined }) = budget || {
       month,
       ...defaultBudgetResponse
     };
@@ -39,10 +52,10 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
       shared_available: response.shared_available,
       personal_budget: getPersonalBudgetForUser(response, req.user!.username),
       pending_approval: pendingApproval,
-      categories: categoryBudgets.reduce((acc: any, b: any) => {
+      categories: categoryBudgets.reduce((acc: Record<string, number>, b: CategoryBudgetRow) => {
         acc[b.category] = b.amount;
         return acc;
-      }, {})
+      }, {} as Record<string, number>)
     });
   } catch (error) {
     console.error('Error fetching budget:', error);
@@ -52,7 +65,7 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 
 // Update budget (personal or request shared change)
 router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
-  const { month, shared_available, personal_budget, categories } = req.validatedData;
+  const { month, shared_available, personal_budget, categories } = req.validatedData as BudgetInput;
   const username = req.user!.username;
 
   try {

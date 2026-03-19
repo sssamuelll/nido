@@ -19,8 +19,8 @@ export const Login: React.FC = () => {
       setIsLoading(true);
       setError('');
       await login(username, password);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setIsLoading(false);
     }
@@ -35,8 +35,8 @@ export const Login: React.FC = () => {
       setError('');
       await startMagicLink(email.trim().toLowerCase());
       setMagicLinkSent(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
       setMagicLinkSent(false);
     } finally {
       setIsLoading(false);

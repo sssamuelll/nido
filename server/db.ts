@@ -259,9 +259,52 @@ export const initDatabase = async () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT '🎯',
+      target REAL NOT NULL,
+      current REAL DEFAULT 0,
+      deadline TEXT,
+      owner_type TEXT NOT NULL DEFAULT 'shared',
+      owner_user_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id),
+      FOREIGN KEY (owner_user_id) REFERENCES app_users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS goal_contributions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      goal_id INTEGER NOT NULL,
+      app_user_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (goal_id) REFERENCES goals(id),
+      FOREIGN KEY (app_user_id) REFERENCES app_users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id TEXT NOT NULL,
+      recipient_user_id INTEGER,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT,
+      metadata TEXT,
+      read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id),
+      FOREIGN KEY (recipient_user_id) REFERENCES app_users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_categories_household_id ON categories(household_id);
     CREATE INDEX IF NOT EXISTS idx_budget_approvals_budget_id ON budget_approvals(budget_id);
     CREATE INDEX IF NOT EXISTS idx_budget_approvals_status ON budget_approvals(status);
+    CREATE INDEX IF NOT EXISTS idx_goals_household_id ON goals(household_id);
+    CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal_id ON goal_contributions(goal_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_household_id ON notifications(household_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_user_id);
   `);
 
   // Migrations: Ensure 'pin' column exists
@@ -347,6 +390,23 @@ export const syncBudgetAllocationsForMonth = async (month: string) => {
 
   await syncBudgetAllocations(database);
 };
+
+export async function createNotification(opts: {
+  household_id: string;
+  recipient_user_id: number | null;
+  type: string;
+  title: string;
+  body?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const db = getDatabase();
+  await db.run(
+    `INSERT INTO notifications (household_id, recipient_user_id, type, title, body, metadata)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    opts.household_id, opts.recipient_user_id, opts.type, opts.title,
+    opts.body || null, opts.metadata ? JSON.stringify(opts.metadata) : null
+  );
+}
 
 export const closeDatabase = async () => {
   if (db) {
