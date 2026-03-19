@@ -13,7 +13,7 @@ const MOCK_GOALS: Goal[] = [
 const SUMMARY_STATS = [
   { label: 'Total ahorrado', value: '€8.470', sub: 'de €15.200 objetivo', color: 'var(--color-samuel)' },
   { label: 'Objetivos activos', value: '4', sub: '2 en progreso este mes', color: 'var(--color-shared)' },
-  { label: 'Mejor racha', value: '🔥 8 sem', sub: 'contribuciones semanales', color: 'var(--color-warning)' },
+  { label: 'Mejor racha', value: '8 sem', sub: 'contribuciones semanales', color: 'var(--color-warning)' },
   { label: 'Próximo hito', value: 'Jul 2026', sub: 'Vacaciones de verano', color: 'var(--color-maria)' },
 ];
 
@@ -45,7 +45,7 @@ export const Goals: React.FC = () => {
           <div className="goals__title">Objetivos</div>
         </div>
         <Button
-          label="Nuevo Objetivo"
+          label={<><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>Nuevo Objetivo</>}
           variant="samuel"
           size="sm"
         />

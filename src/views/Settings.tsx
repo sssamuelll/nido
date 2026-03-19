@@ -321,17 +321,11 @@ export const Settings: React.FC = () => {
               Estas acciones son permanentes y no se pueden deshacer. Procede con cuidado.
             </div>
             <div className="settings__danger-actions-row">
-              <button 
-                className="btn btn--sm settings__danger-btn-outline" 
+              <button
+                className="btn btn--sm settings__danger-btn-outline"
                 onClick={() => window.confirm('¿Estás seguro de que quieres borrar todos tus datos?')}
               >
                 Borrar datos
-              </button>
-              <button 
-                className="btn btn--sm settings__danger-btn-solid" 
-                onClick={() => logout()}
-              >
-                Cerrar sesión
               </button>
             </div>
           </div>

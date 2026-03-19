@@ -3,7 +3,7 @@ import { Api } from '../api';
 import { TransactionRow } from '../components/TransactionRow';
 import { format } from 'date-fns';
 import { CATEGORIES, INDICATOR_COLORS } from '../types';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const History: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
@@ -77,46 +77,39 @@ export const History: React.FC = () => {
       <div className="history__header">
         <div>
           <div className="settings__subtitle">Movimientos</div>
-          <div className="u-flex-center">
-            <button onClick={() => navigateMonth(-1)} className="btn btn--sm">
-              <ChevronLeft size={18} />
-            </button>
-            <span className="settings__month-label u-w-90">
-              {formatMonthName(currentMonth)}
-            </span>
-            <button onClick={() => navigateMonth(1)} className="btn btn--sm">
-              <ChevronRight size={18} />
-            </button>
+        </div>
+      </div>
+
+      {/* Context tabs + Month nav */}
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {/* Context tabs */}
+        <div className="ctx-tabs">
+          <div className={`ctx-tab ${activeContext === 'shared' ? 'active' : ''}`} onClick={() => setActiveContext('shared')}>
+            <div className="dot sh-d" />Compartido
+          </div>
+          <div className={`ctx-tab ${activeContext === 'personal' ? 'active' : ''}`} onClick={() => setActiveContext('personal')}>
+            <div className="dot ps-d" />Personal
           </div>
         </div>
-
-        <div className="dashboard__search">
-          <Search size={16} color="var(--color-text-tertiary)" />
-          <input
-            type="text"
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="dashboard__search-input"
-          />
+        {/* Month nav */}
+        <div className="month-nav">
+          <div className="month-btn" onClick={() => navigateMonth(-1)}>
+            <ChevronLeft size={16} />
+          </div>
+          <h2>{formatMonthName(currentMonth)}</h2>
+          <div className="month-btn" onClick={() => navigateMonth(1)}>
+            <ChevronRight size={16} />
+          </div>
         </div>
       </div>
 
-      {/* Context Tabs */}
-      <div className="history__context-tabs">
-        <button
-          className={`history__context-tab ${activeContext === 'shared' ? 'history__context-tab--active' : ''}`}
-          onClick={() => setActiveContext('shared')}
-        >
-          Compartido
-        </button>
-        <button
-          className={`history__context-tab ${activeContext === 'personal' ? 'history__context-tab--active' : ''}`}
-          onClick={() => setActiveContext('personal')}
-        >
-          Personal
-        </button>
-      </div>
+      {/* Search */}
+      <input
+        className="search-input"
+        placeholder="Buscar gastos..."
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+      />
 
       <div className="u-flex-gap-12">
         <div className="history__stat-card">

@@ -86,7 +86,7 @@ export const AddExpense: React.FC = () => {
         <div className="add-expense__main-card">
           <div className="add-expense__display">
             <span className="add-expense__currency">€</span>
-            <span className="add-expense__amount">{amount}</span>
+            <span className="add-expense__amount" style={{ color: amount === '0' ? 'var(--tm)' : 'var(--text)' }}>{amount}</span>
           </div>
 
           <div className="add-expense__fields">
