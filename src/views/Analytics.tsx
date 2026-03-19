@@ -10,17 +10,19 @@ const MOCK_MONTHS = ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar'];
 
 const PERIODS = ['3M', '6M', '1A', 'Todo'];
 
-const MOCK_STATS = [
-  { label: 'Total gastado', value: '€6.340', delta: '+8% vs mes anterior', up: false },
-  { label: 'Ahorro neto', value: '€1.460', delta: '+12% este mes', up: true },
+const MOCK_KPI = [
+  { value: '\u20AC3.540', label: 'Total gastado', delta: '\u2193 8% vs anterior', deltaColor: 'var(--red)' },
+  { value: '\u20AC1.460', label: 'Ahorro neto', delta: '\u2191 12% este mes', deltaColor: 'var(--green)' },
+  { value: '\u20AC28,50', label: 'Ticket medio', delta: null, deltaColor: null },
+  { value: '42', label: 'Gastos totales', delta: null, deltaColor: null },
 ];
 
 const MOCK_CATEGORIES = [
-  { emoji: '🍽️', name: 'Restaurant', amount: 1240, pct: 35, color: CATEGORIES.find(c => c.id === 'Restaurant')?.color ?? '#ff8c6b' },
-  { emoji: '🛒', name: 'Supermercado', amount: 890, pct: 25, color: CATEGORIES.find(c => c.id === 'Supermercado')?.color ?? '#7cb5e8' },
-  { emoji: '💡', name: 'Servicios', amount: 620, pct: 18, color: CATEGORIES.find(c => c.id === 'Servicios')?.color ?? '#c4a0e8' },
-  { emoji: '🎉', name: 'Ocio', amount: 430, pct: 12, color: CATEGORIES.find(c => c.id === 'Ocio')?.color ?? '#e87ca0' },
-  { emoji: '📈', name: 'Inversión', amount: 360, pct: 10, color: CATEGORIES.find(c => c.id === 'Inversión')?.color ?? '#a6c79c' },
+  { emoji: '\uD83C\uDF7D\uFE0F', name: 'Restaurant', amount: 1240, pct: 35, color: CATEGORIES.find(c => c.id === 'Restaurant')?.color ?? '#ff8c6b' },
+  { emoji: '\uD83D\uDED2', name: 'Supermercado', amount: 890, pct: 25, color: CATEGORIES.find(c => c.id === 'Supermercado')?.color ?? '#7cb5e8' },
+  { emoji: '\uD83D\uDCA1', name: 'Servicios', amount: 620, pct: 18, color: CATEGORIES.find(c => c.id === 'Servicios')?.color ?? '#c4a0e8' },
+  { emoji: '\uD83C\uDF89', name: 'Ocio', amount: 430, pct: 12, color: CATEGORIES.find(c => c.id === 'Ocio')?.color ?? '#e87ca0' },
+  { emoji: '\uD83D\uDCC8', name: 'Inversi\u00F3n', amount: 360, pct: 10, color: CATEGORIES.find(c => c.id === 'Inversi\u00F3n')?.color ?? '#a6c79c' },
 ];
 
 // Build SVG area chart paths
@@ -69,7 +71,7 @@ export const Analytics: React.FC = () => {
   const SVG_H = 220;
   const PAD = 24;
 
-  // Filter chart data by context — map 'personal' to samuel's data as a proxy
+  // Filter chart data by context -- map 'personal' to samuel's data as a proxy
   const chartKey = activeContext === 'personal' ? 'samuel' : activeContext;
   const filteredChartData = {
     [chartKey]: MOCK_CHART_DATA[chartKey]
@@ -83,7 +85,7 @@ export const Analytics: React.FC = () => {
       <div className="analytics__header">
         <div>
           <div className="analytics__subtitle">Finanzas</div>
-          <div className="analytics__title">Analítica</div>
+          <div className="analytics__title">Anal\u00EDtica</div>
         </div>
         <div className="analytics__period-pills">
           {PERIODS.map(p => (
@@ -104,21 +106,36 @@ export const Analytics: React.FC = () => {
           className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`}
           onClick={() => setActiveContext('shared')}
         >
+          <div className="dot sh-d" />
           Compartido
         </button>
         <button
           className={`analytics__context-tab ${activeContext === 'personal' ? 'analytics__context-tab--active' : ''}`}
           onClick={() => setActiveContext('personal')}
         >
+          <div className="dot ps-d" />
           Personal
         </button>
       </div>
 
+      {/* KPI Row */}
+      <div className="stats-row an d2" style={{ gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '24px' }}>
+        {MOCK_KPI.map(kpi => (
+          <div key={kpi.label} className="card" style={{ textAlign: 'center', padding: '20px' }}>
+            <div className="stat-value">{kpi.value}</div>
+            <div className="stat-label" style={{ marginTop: '4px' }}>{kpi.label}</div>
+            {kpi.delta && (
+              <div style={{ fontSize: '12px', color: kpi.deltaColor ?? undefined, fontWeight: 600, marginTop: '4px' }}>{kpi.delta}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
       {/* Content */}
-      <div className="analytics__content">
+      <div className="analytics-grid">
         <div className="analytics__chart-card">
           <div className="settings__header-main">
-            <div className="analytics__chart-title">Evolución mensual</div>
+            <div className="analytics__chart-title">Evoluci\u00F3n mensual</div>
             <div className="analytics__legend">
               <div className="analytics__legend-item">
                 <div
@@ -173,54 +190,45 @@ export const Analytics: React.FC = () => {
               <span key={m} className="analytics__chart-month">{m}</span>
             ))}
           </div>
+
+          {/* Insight Cards */}
+          <div className="insight-cards">
+            <div className="insight-c" style={{ background: 'rgba(52,211,153,.06)', color: 'var(--green)', borderColor: 'rgba(52,211,153,.15)' }}>
+              <strong>Tendencia positiva:</strong> Gastaron 12% menos. El recorte principal fue en Restaurant.
+            </div>
+            <div className="insight-c" style={{ background: 'rgba(96,165,250,.06)', color: 'var(--blue)', borderColor: 'rgba(96,165,250,.15)' }}>
+              <strong>Proyecci\u00F3n:</strong> Si mantienen este ritmo, cerrar\u00E1n el trimestre con \u20AC420 de ahorro extra.
+            </div>
+          </div>
         </div>
 
-        <div className="analytics__right-panel">
-          <div className="analytics__stats">
-            <div className="analytics__stat-card">
-              <span className="analytics__stat-label">Período actual</span>
-              <span className="analytics__stat-value">{activePeriod}</span>
-              <span className="analytics__stat-delta" style={{ '--theme-base': 'var(--color-samuel)' } as React.CSSProperties}>
-                Contexto: {activeContext === 'shared' ? 'Compartido' : 'Personal'}
-              </span>
-            </div>
-            <div className="analytics__stat-card">
-              <span className="analytics__stat-label">Análisis</span>
-              <span className="analytics__stat-value">€2.450</span>
-              <span className="analytics__stat-delta" style={{ '--theme-base': 'var(--color-maria)' } as React.CSSProperties}>
-                ↓ 5% vs período anterior
-              </span>
-            </div>
-          </div>
-
-          <div className="analytics__categories-card">
-            <div className="analytics__cat-title">Por categoría</div>
-            {MOCK_CATEGORIES.map(cat => (
-              <div key={cat.name} className="analytics__cat-item">
-                <div className="analytics__cat-row">
-                  <div className="analytics__cat-name">
-                    <span>{cat.emoji}</span>
-                    <span>{cat.name}</span>
-                  </div>
-                  <div className="u-flex-center">
-                    <span className="analytics__cat-amount">€{cat.amount.toLocaleString('es-ES')}</span>
-                    <span className="analytics__cat-pct" style={{ '--theme-base': cat.color } as React.CSSProperties}>
-                      {cat.pct}%
-                    </span>
-                  </div>
+        <div className="analytics__categories-card">
+          <div className="analytics__cat-title">Por categor\u00EDa</div>
+          {MOCK_CATEGORIES.map(cat => (
+            <div key={cat.name} className="analytics__cat-item">
+              <div className="analytics__cat-row">
+                <div className="analytics__cat-name">
+                  <div className="cat-dot" style={{ background: cat.color, boxShadow: `0 0 6px ${cat.color}` }} />
+                  <span>{cat.name}</span>
                 </div>
-                <div className="analytics__cat-track">
-                  <div
-                    className="analytics__cat-fill"
-                    style={{
-                      '--progress-width': `${cat.pct}%`,
-                      '--theme-base': cat.color,
-                    } as React.CSSProperties}
-                  />
+                <div className="u-flex-center">
+                  <span className="analytics__cat-amount">\u20AC{cat.amount.toLocaleString('es-ES')}</span>
+                  <span className="analytics__cat-pct" style={{ '--theme-base': cat.color } as React.CSSProperties}>
+                    {cat.pct}%
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="analytics__cat-track">
+                <div
+                  className="analytics__cat-fill"
+                  style={{
+                    '--progress-width': `${cat.pct}%`,
+                    '--theme-base': cat.color,
+                  } as React.CSSProperties}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
