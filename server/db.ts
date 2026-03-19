@@ -259,9 +259,36 @@ export const initDatabase = async () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT '🎯',
+      target REAL NOT NULL,
+      current REAL DEFAULT 0,
+      deadline TEXT,
+      owner_type TEXT NOT NULL DEFAULT 'shared',
+      owner_user_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id),
+      FOREIGN KEY (owner_user_id) REFERENCES app_users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS goal_contributions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      goal_id INTEGER NOT NULL,
+      app_user_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (goal_id) REFERENCES goals(id),
+      FOREIGN KEY (app_user_id) REFERENCES app_users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_categories_household_id ON categories(household_id);
     CREATE INDEX IF NOT EXISTS idx_budget_approvals_budget_id ON budget_approvals(budget_id);
     CREATE INDEX IF NOT EXISTS idx_budget_approvals_status ON budget_approvals(status);
+    CREATE INDEX IF NOT EXISTS idx_goals_household_id ON goals(household_id);
+    CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal_id ON goal_contributions(goal_id);
   `);
 
   // Migrations: Ensure 'pin' column exists
