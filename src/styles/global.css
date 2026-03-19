@@ -1499,7 +1499,7 @@ a:hover { color: var(--text) }
 .month-nav h2 { font-size: 20px; font-weight: 700; min-width: 160px; text-align: center }
 .month-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--glass-border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s; color: var(--ts) }
 .month-btn:hover { background: var(--surface2); border-color: rgba(255, 255, 255, .12) }
-.search-input { width: 100%; padding: 10px 16px 10px 40px; border: 1px solid var(--glass-border); border-radius: var(--rs); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); transition: all .2s; margin-bottom: 20px }
+.search-input { width: 100%; padding: 10px 16px 10px 40px; border: 1px solid var(--glass-border); border-radius: var(--rs); font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text); transition: all .2s; margin-bottom: 20px; background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='none' stroke='rgba(255,255,255,.3)' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='8' stroke-width='2'/%3E%3Cpath d='M21 21l-4.35-4.35' stroke-width='2'/%3E%3C/svg%3E"); background-position: 14px center; background-repeat: no-repeat }
 .search-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 16px rgba(52, 211, 153, .1) }
 .search-input::placeholder { color: var(--tm) }
 .day-label { font-size: 12px; font-weight: 600; color: var(--tm); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border2) }
