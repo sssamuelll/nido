@@ -72,7 +72,7 @@ export const Settings: React.FC = () => {
       });
 
       if (res.pending_approval) {
-        setToast({ type: 'success', msg: 'Peticion enviada a tu pareja' });
+        setToast({ type: 'success', msg: 'Petición enviada a tu pareja' });
       } else {
         setToast({ type: 'success', msg: 'Presupuesto guardado' });
       }
@@ -102,7 +102,7 @@ export const Settings: React.FC = () => {
     try {
       const expenses = await Api.getExpenses(currentMonth);
       const csv = [
-        'Fecha,Descripcion,Cantidad,Categoria,Pagado por,Tipo',
+        'Fecha,Descripción,Cantidad,Categoría,Pagado por,Tipo',
         ...expenses.map((e: any) =>
           `${e.date},"${e.description}",${e.amount},${e.category},${e.paid_by},${e.type}`
         )
@@ -150,7 +150,7 @@ export const Settings: React.FC = () => {
       {/* Header — topbar pattern matching design reference */}
       <div className="topbar an d1">
         <div>
-          <h1>Configuracion</h1>
+          <h1>Configuración</h1>
           <p>Ajustes del hogar</p>
         </div>
       </div>
@@ -182,7 +182,7 @@ export const Settings: React.FC = () => {
               />
             </div>
             <div style={{ fontSize: '12px', color: 'var(--tm)', margin: '4px 0 16px 0' }}>
-              Cambios requieren aprobacion de {partnerName}
+              Cambios requieren aprobación de {partnerName}
             </div>
 
             {/* Pending approval banner — orange background with clock icon */}
@@ -195,7 +195,7 @@ export const Settings: React.FC = () => {
               }}>
                 <Clock size={14} />
                 {isPendingByMe
-                  ? `Pendiente \u2014 Esperando aprobacion de ${partnerName}`
+                  ? `Pendiente \u2014 Esperando aprobación de ${partnerName}`
                   : `${partnerName} solicita cambiar el presupuesto a \u20AC${budget.pending_approval.shared_available}`}
               </div>
             )}
@@ -227,7 +227,7 @@ export const Settings: React.FC = () => {
               disabled={saving}
               onClick={() => {
                 if (budget.shared_available < 100 || budget.personal_budget < 100) {
-                  setToast({ type: 'error', msg: 'Los montos deben ser de al menos 3 digitos' });
+                  setToast({ type: 'error', msg: 'Los montos deben ser de al menos 3 dígitos' });
                   return;
                 }
                 handleSaveBudget();
@@ -249,7 +249,7 @@ export const Settings: React.FC = () => {
               {' '}Seguridad
             </h3>
             <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>PIN de acceso</div>
-            <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>Codigo de 4 digitos</div>
+            <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>Código de 4 dígitos</div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <div className="pin-dot">&bull;</div>
               <div className="pin-dot">&bull;</div>
@@ -259,7 +259,7 @@ export const Settings: React.FC = () => {
             </div>
           </div>
 
-          {/* Tools — Exportar datos + Cerrar sesion */}
+          {/* Tools — Exportar datos + Cerrar sesión */}
           <div className="card settings-section an d5">
             <h3>
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -289,7 +289,7 @@ export const Settings: React.FC = () => {
                 <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 500 }}>Cerrar sesion</div>
+                <div style={{ fontSize: '14px', fontWeight: 500 }}>Cerrar sesión</div>
                 <div style={{ fontSize: '12px', color: 'var(--tm)' }}>Salir de tu cuenta</div>
               </div>
             </div>
@@ -302,7 +302,7 @@ export const Settings: React.FC = () => {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 className="btn btn-danger btn-sm"
-                onClick={() => window.confirm('Estas seguro de que quieres borrar todos tus datos?')}
+                onClick={() => window.confirm('¿Estás seguro de que quieres borrar todos tus datos?')}
               >
                 Borrar todos los datos
               </button>
