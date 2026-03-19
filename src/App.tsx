@@ -6,6 +6,7 @@ import { AuthCallback } from './views/AuthCallback';
 import { PinPage } from './views/PinPage';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
+import { MeshBackground } from './components/MeshBackground';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -51,6 +52,8 @@ const AppRoutes: React.FC = () => {
   const isAddView = location.pathname === '/add';
 
   return (
+    <>
+    <MeshBackground />
     <div className="app-layout">
       <Sidebar />
       <div className="content-area">
@@ -67,6 +70,7 @@ const AppRoutes: React.FC = () => {
       </div>
       {!isAddView && <BottomNav />}
     </div>
+    </>
   );
 };
 
