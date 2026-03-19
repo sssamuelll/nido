@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { GoalCard } from '../components/GoalCard';
-import { Button } from '../components/Button';
 import { type Goal } from '../types';
 import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
+
+/* ---- Icon options matching design reference ---- */
+const GOAL_ICONS = [
+  { id: 'sparkle', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>, emoji: '✨' },
+  { id: 'home', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3"/></svg>, emoji: '🏠' },
+  { id: 'card', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>, emoji: '💳' },
+  { id: 'camera', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="14" r="3"/></svg>, emoji: '📷' },
+  { id: 'shield', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>, emoji: '🛡️' },
+];
+
+const GOAL_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA'];
 
 interface GoalFormData {
   name: string;
@@ -12,14 +22,16 @@ interface GoalFormData {
   target: string;
   deadline: string;
   owner_type: 'shared' | 'personal';
+  color: string;
 }
 
 const EMPTY_FORM: GoalFormData = {
   name: '',
-  icon: '\uD83C\uDFAF',
+  icon: '✨',
   target: '',
   deadline: '',
   owner_type: 'shared',
+  color: '#60A5FA',
 };
 
 export const Goals: React.FC = () => {
@@ -36,27 +48,23 @@ export const Goals: React.FC = () => {
       const data = await Api.getGoals();
       setGoals(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Error al cargar objetivos');
-      console.error('Error fetching goals:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchGoals();
-  }, []);
+  useEffect(() => { fetchGoals(); }, []);
 
   const handleContribute = async (id: number) => {
     try {
       await Api.contributeToGoal(id, 50);
       await fetchGoals();
       launchConfetti();
-      showToast('\u00a1Contribuci\u00f3n registrada! Siguen avanzando juntos \uD83D\uDE80');
-    } catch (err) {
+      showToast('¡Contribución registrada! Siguen avanzando juntos 🚀');
+    } catch {
       showToast('Error al contribuir');
-      console.error('Error contributing:', err);
     }
   };
 
@@ -68,6 +76,7 @@ export const Goals: React.FC = () => {
       target: String(goal.target),
       deadline: goal.deadline || '',
       owner_type: goal.owner_type,
+      color: '#60A5FA',
     });
     setShowCreateModal(true);
   };
@@ -76,10 +85,11 @@ export const Goals: React.FC = () => {
     try {
       await Api.deleteGoal(id);
       await fetchGoals();
+      setShowCreateModal(false);
+      setEditingGoal(null);
       showToast('Objetivo eliminado');
-    } catch (err) {
+    } catch {
       showToast('Error al eliminar');
-      console.error('Error deleting goal:', err);
     }
   };
 
@@ -103,15 +113,14 @@ export const Goals: React.FC = () => {
           deadline: formData.deadline || undefined,
           owner_type: formData.owner_type,
         });
-        showToast('\u00a1Nuevo objetivo creado!');
+        showToast('¡Nuevo objetivo creado!');
       }
       await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
       setFormData(EMPTY_FORM);
-    } catch (err) {
+    } catch {
       showToast('Error al guardar objetivo');
-      console.error('Error saving goal:', err);
     } finally {
       setSubmitting(false);
     }
@@ -123,7 +132,6 @@ export const Goals: React.FC = () => {
     setShowCreateModal(true);
   };
 
-  // Summary stats computed from real goals
   const totalSaved = goals.reduce((sum, g) => sum + g.current, 0);
   const activeGoals = goals.length;
   const nextDeadline = goals
@@ -131,13 +139,12 @@ export const Goals: React.FC = () => {
     .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))[0]?.deadline || '-';
 
   const summaryStats = [
-    { label: 'TOTAL AHORRADO', value: `\u20AC${totalSaved.toLocaleString('es-ES')}`, color: 'var(--green)' },
+    { label: 'TOTAL AHORRADO', value: `€${totalSaved.toLocaleString('es-ES')}`, color: 'var(--green)' },
     { label: 'OBJ. ACTIVOS', value: String(activeGoals), color: undefined },
     { label: 'MEJOR RACHA', value: '8 sem', color: 'var(--orange)' },
-    { label: 'PR\u00D3XIMO HITO', value: nextDeadline, color: 'var(--red)' },
+    { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
   ];
 
-  // Masonry layout: col1 = [0, 2, ...], col2 = [1, 3, ...]
   const col1Goals = goals.filter((_, i) => i % 2 === 0);
   const col2Goals = goals.filter((_, i) => i % 2 === 1);
 
@@ -156,27 +163,25 @@ export const Goals: React.FC = () => {
 
   return (
     <div className="u-flex-gap-24">
-      {/* Header */}
-      <div className="goals__header an d1">
+      {/* Header — matches design: title left, button right */}
+      <div className="topbar an d1">
         <div>
-          <h1 className="goals__title">Objetivos</h1>
-          <p className="goals__subtitle">Vuestras metas de ahorro</p>
+          <h1>Objetivos</h1>
+          <p>Vuestras metas de ahorro</p>
         </div>
-        <Button
-          label={<><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>Nuevo Objetivo</>}
-          variant="samuel"
-          size="sm"
-          onClick={openCreateModal}
-        />
+        <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={openCreateModal}>
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>
+          Nuevo Objetivo
+        </button>
       </div>
 
-      {error && <div className="goals__error an d2" style={{ color: 'var(--red)', padding: '12px' }}>{error}</div>}
+      {error && <div style={{ color: 'var(--red)', padding: '12px' }}>{error}</div>}
 
-      {/* Stats */}
+      {/* Stats — 4 cards per design */}
       <div className="goals__stats an d2">
         {summaryStats.map(stat => (
           <div key={stat.label} className="goals__stat-card">
-            <span className="goals__stat-value" style={stat.color ? { color: stat.color } as React.CSSProperties : undefined}>
+            <span className="goals__stat-value" style={stat.color ? { color: stat.color } : undefined}>
               {stat.value}
             </span>
             <span className="goals__stat-label">{stat.label}</span>
@@ -184,83 +189,137 @@ export const Goals: React.FC = () => {
         ))}
       </div>
 
-      {/* Goals grid */}
+      {/* Goals grid — no "añadir objetivo" placeholder */}
       <div className="goals__grid">
-        {/* Column 1 */}
         <div className="goals__column">
           {col1Goals.map((goal, i) => (
             <div key={goal.id} className={`an d${3 + i * 2}`}>
-              <GoalCard
-                {...goal}
-                onContribute={() => handleContribute(goal.id)}
-                onEdit={() => handleEdit(goal)}
-              />
+              <GoalCard {...goal} onContribute={() => handleContribute(goal.id)} onEdit={() => handleEdit(goal)} />
             </div>
           ))}
         </div>
-
-        {/* Column 2 */}
         <div className="goals__column">
           {col2Goals.map((goal, i) => (
             <div key={goal.id} className={`an d${4 + i * 2}`}>
-              <GoalCard
-                {...goal}
-                onContribute={() => handleContribute(goal.id)}
-                onEdit={() => handleEdit(goal)}
-              />
+              <GoalCard {...goal} onContribute={() => handleContribute(goal.id)} onEdit={() => handleEdit(goal)} />
             </div>
           ))}
-          {/* Add placeholder */}
-          <div className="goals__add-placeholder an d6" onClick={openCreateModal}>
-            <span className="goals__plus-icon">+</span>
-            <span className="goals__add-text">A\u00f1adir objetivo</span>
-          </div>
         </div>
       </div>
 
-      {/* Create / Edit Modal */}
+      {/* Modal — 1:1 design reference */}
       {showCreateModal && (
         <div className="modal-overlay open" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>{editingGoal ? 'Editar Objetivo' : 'Nuevo Objetivo'}</h3>
-            <p>{editingGoal ? 'Modifica los datos del objetivo' : 'Crea una nueva meta de ahorro'}</p>
+            <p>{editingGoal ? 'Modifica los datos del objetivo' : 'Crea una meta de ahorro para ti o para los dos'}</p>
             <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <label>Icono</label>
-                <input className="form-input" type="text" value={formData.icon} onChange={e => setFormData(prev => ({ ...prev, icon: e.target.value }))} maxLength={4} style={{ flex: '0 0 60px', fontSize: 20, textAlign: 'center' }} />
-              </div>
+              {/* Name */}
               <div className="form-row">
                 <label>Nombre</label>
-                <input className="form-input" type="text" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Vacaciones Verano" required />
+                <input className="form-input" type="text" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Vacaciones, Fondo..." required />
               </div>
+
+              {/* Target amount */}
               <div className="form-row">
-                <label>Objetivo</label>
-                <input className="form-input" type="number" value={formData.target} onChange={e => setFormData(prev => ({ ...prev, target: e.target.value }))} placeholder="5000" required min="1" step="any" />
+                <label>Meta</label>
+                <span style={{ color: 'var(--tm)' }}>€</span>
+                <input className="form-input" type="number" value={formData.target} onChange={e => setFormData(prev => ({ ...prev, target: e.target.value }))} placeholder="5000" required min="1" step="any" style={{ width: 120, textAlign: 'right' }} />
               </div>
+
+              {/* Icon picker — 5 SVG icons in circles */}
               <div className="form-row">
-                <label>Fecha</label>
-                <input className="form-input" type="text" value={formData.deadline} onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))} placeholder="Ej: Jul 2026" />
+                <label>Icono</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {GOAL_ICONS.map(ic => {
+                    const selected = formData.icon === ic.emoji;
+                    return (
+                      <div
+                        key={ic.id}
+                        onClick={() => setFormData(prev => ({ ...prev, icon: ic.emoji }))}
+                        style={{
+                          width: 36, height: 36, borderRadius: 'var(--rx)',
+                          border: selected ? '2px solid var(--green)' : '1px solid var(--glass-border)',
+                          background: selected ? 'var(--gl)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                          color: selected ? 'var(--green)' : 'var(--ts)',
+                        }}
+                      >
+                        {ic.svg}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Color picker — 5 color dots */}
+              <div className="form-row">
+                <label>Color</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {GOAL_COLORS.map(c => (
+                    <div
+                      key={c}
+                      onClick={() => setFormData(prev => ({ ...prev, color: c }))}
+                      style={{
+                        width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
+                        border: `3px solid ${formData.color === c ? 'var(--text)' : 'transparent'}`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Type toggle — Compartido / Personal as buttons */}
               {!editingGoal && (
                 <div className="form-row">
                   <label>Tipo</label>
-                  <select className="form-input" value={formData.owner_type} onChange={e => setFormData(prev => ({ ...prev, owner_type: e.target.value as 'shared' | 'personal' }))}>
-                    <option value="shared">Compartido</option>
-                    <option value="personal">Personal</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                    <div
+                      onClick={() => setFormData(prev => ({ ...prev, owner_type: 'shared' }))}
+                      style={{
+                        flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
+                        textAlign: 'center', fontSize: 13, fontWeight: 500,
+                        border: formData.owner_type === 'shared' ? '2px solid var(--blue)' : '1px solid var(--glass-border)',
+                        background: formData.owner_type === 'shared' ? 'var(--bl)' : 'var(--surface)',
+                        color: formData.owner_type === 'shared' ? 'var(--blue)' : 'var(--ts)',
+                      }}
+                    >
+                      Compartido
+                    </div>
+                    <div
+                      onClick={() => setFormData(prev => ({ ...prev, owner_type: 'personal' }))}
+                      style={{
+                        flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
+                        textAlign: 'center', fontSize: 13, fontWeight: 500,
+                        border: formData.owner_type === 'personal' ? '2px solid var(--blue)' : '1px solid var(--glass-border)',
+                        background: formData.owner_type === 'personal' ? 'var(--bl)' : 'var(--surface)',
+                        color: formData.owner_type === 'personal' ? 'var(--blue)' : 'var(--ts)',
+                      }}
+                    >
+                      Personal
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* Deadline — month input */}
+              <div className="form-row">
+                <label>Fecha</label>
+                <input className="form-input" type="month" value={formData.deadline} onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))} style={{ flex: 1 }} />
+              </div>
+
+              {/* Actions */}
               <div className="modal-actions">
                 {editingGoal && (
                   <button type="button" onClick={() => handleDelete(editingGoal.id)} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>
                     Eliminar
                   </button>
                 )}
-                <button type="button" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }} className="btn btn-sm" style={{ background: 'var(--surface)', border: '1px solid var(--glass-border)' }}>
+                <button type="button" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }} className="btn btn-outline">
                   Cancelar
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary btn-sm">
-                  {submitting ? 'Guardando...' : editingGoal ? 'Actualizar' : 'Crear'}
+                <button type="submit" disabled={submitting} className="btn btn-primary">
+                  {submitting ? 'Guardando...' : editingGoal ? 'Actualizar' : 'Crear Objetivo'}
                 </button>
               </div>
             </form>
