@@ -179,14 +179,6 @@ export const Dashboard: React.FC = () => {
     return `${days[d.getDay()]} ${d.getDate()}`;
   };
 
-  // Animated counter values
-  const metricBudgetTarget = activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget);
-  const metricSpentTarget = activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent);
-  const metricAvgTarget = recentTransactions.length > 0 ? Math.round(recentTransactions.reduce((sum, t) => sum + toNum(t.amount), 0) / recentTransactions.length) : 0;
-  const animBudget = useCountUp(metricBudgetTarget);
-  const animSpent = useCountUp(metricSpentTarget);
-  const animAvg = useCountUp(metricAvgTarget);
-
   return (
     <>
       {/* Header */}
