@@ -11,18 +11,18 @@ const MOCK_MONTHS = ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar'];
 const PERIODS = ['3M', '6M', '1A', 'Todo'];
 
 const MOCK_KPI = [
-  { value: '\u20AC3.540', label: 'Total gastado', delta: '\u2193 8% vs anterior', deltaColor: 'var(--red)' },
-  { value: '\u20AC1.460', label: 'Ahorro neto', delta: '\u2191 12% este mes', deltaColor: 'var(--green)' },
-  { value: '\u20AC28,50', label: 'Ticket medio', delta: null, deltaColor: null },
+  { value: '€3.540', label: 'Total gastado', delta: '↓ 8% vs anterior', deltaColor: 'var(--red)' },
+  { value: '€1.460', label: 'Ahorro neto', delta: '↑ 12% este mes', deltaColor: 'var(--green)' },
+  { value: '€28,50', label: 'Ticket medio', delta: null, deltaColor: null },
   { value: '42', label: 'Gastos totales', delta: null, deltaColor: null },
 ];
 
 const MOCK_CATEGORIES = [
-  { emoji: '\uD83C\uDF7D\uFE0F', name: 'Restaurant', amount: 1240, pct: 35, color: CATEGORIES.find(c => c.id === 'Restaurant')?.color ?? '#ff8c6b' },
-  { emoji: '\uD83D\uDED2', name: 'Supermercado', amount: 890, pct: 25, color: CATEGORIES.find(c => c.id === 'Supermercado')?.color ?? '#7cb5e8' },
-  { emoji: '\uD83D\uDCA1', name: 'Servicios', amount: 620, pct: 18, color: CATEGORIES.find(c => c.id === 'Servicios')?.color ?? '#c4a0e8' },
-  { emoji: '\uD83C\uDF89', name: 'Ocio', amount: 430, pct: 12, color: CATEGORIES.find(c => c.id === 'Ocio')?.color ?? '#e87ca0' },
-  { emoji: '\uD83D\uDCC8', name: 'Inversi\u00F3n', amount: 360, pct: 10, color: CATEGORIES.find(c => c.id === 'Inversi\u00F3n')?.color ?? '#a6c79c' },
+  { name: 'Restaurant', amount: 1240, pct: 35, color: CATEGORIES.find(c => c.id === 'Restaurant')?.color ?? '#F87171' },
+  { name: 'Supermercado', amount: 890, pct: 25, color: CATEGORIES.find(c => c.id === 'Supermercado')?.color ?? '#60A5FA' },
+  { name: 'Servicios', amount: 620, pct: 18, color: CATEGORIES.find(c => c.id === 'Servicios')?.color ?? '#FBBF24' },
+  { name: 'Ocio', amount: 430, pct: 12, color: CATEGORIES.find(c => c.id === 'Ocio')?.color ?? '#A78BFA' },
+  { name: 'Inversión', amount: 360, pct: 10, color: CATEGORIES.find(c => c.id === 'Inversión')?.color ?? '#34D399' },
 ];
 
 // Build SVG area chart paths
@@ -85,7 +85,7 @@ export const Analytics: React.FC = () => {
       <div className="analytics__header">
         <div>
           <div className="analytics__subtitle">Finanzas</div>
-          <div className="analytics__title">Anal\u00EDtica</div>
+          <div className="analytics__title">Analítica</div>
         </div>
         <div className="analytics__period-pills">
           {PERIODS.map(p => (
@@ -135,7 +135,7 @@ export const Analytics: React.FC = () => {
       <div className="analytics-grid">
         <div className="analytics__chart-card">
           <div className="settings__header-main">
-            <div className="analytics__chart-title">Evoluci\u00F3n mensual</div>
+            <div className="analytics__chart-title">Evolución mensual</div>
             <div className="analytics__legend">
               <div className="analytics__legend-item">
                 <div
@@ -197,13 +197,13 @@ export const Analytics: React.FC = () => {
               <strong>Tendencia positiva:</strong> Gastaron 12% menos. El recorte principal fue en Restaurant.
             </div>
             <div className="insight-c" style={{ background: 'rgba(96,165,250,.06)', color: 'var(--blue)', borderColor: 'rgba(96,165,250,.15)' }}>
-              <strong>Proyecci\u00F3n:</strong> Si mantienen este ritmo, cerrar\u00E1n el trimestre con \u20AC420 de ahorro extra.
+              <strong>Proyección:</strong> Si mantienen este ritmo, cerrarán el trimestre con €420 de ahorro extra.
             </div>
           </div>
         </div>
 
         <div className="analytics__categories-card">
-          <div className="analytics__cat-title">Por categor\u00EDa</div>
+          <div className="analytics__cat-title">Por categoría</div>
           {MOCK_CATEGORIES.map(cat => (
             <div key={cat.name} className="analytics__cat-item">
               <div className="analytics__cat-row">
@@ -212,7 +212,7 @@ export const Analytics: React.FC = () => {
                   <span>{cat.name}</span>
                 </div>
                 <div className="u-flex-center">
-                  <span className="analytics__cat-amount">\u20AC{cat.amount.toLocaleString('es-ES')}</span>
+                  <span className="analytics__cat-amount">€{cat.amount.toLocaleString('es-ES')}</span>
                   <span className="analytics__cat-pct" style={{ '--theme-base': cat.color } as React.CSSProperties}>
                     {cat.pct}%
                   </span>
