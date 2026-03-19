@@ -143,10 +143,10 @@ export const Analytics: React.FC = () => {
   return (
     <div className="u-flex-gap-24">
       {/* Header */}
-      <div className="analytics__header an d1">
+      <div className="topbar an d1">
         <div>
-          <div className="analytics__subtitle">Análisis detallado de gastos</div>
-          <div className="analytics__title">Analítica</div>
+          <h1>Analítica</h1>
+          <p>Análisis detallado de gastos</p>
         </div>
         <div className="analytics__period-pills">
           {PERIODS.map(p => (
