@@ -277,15 +277,19 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Insight Strip */}
+        {/* Insight Strip — computed from real data */}
         <div className="dashboard__insight-strip an d3">
           <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>
             {activeContext === 'shared'
-              ? <>Este mes llevan <strong>12% menos</strong> en gastos compartidos vs. febrero</>
-              : <>Tu gasto personal está un <strong>5% por debajo</strong> de tu presupuesto</>}
+              ? (availableShared > 0 && totalSharedSpent > 0
+                  ? <>Llevan <strong>€{totalSharedSpent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</strong> gastados de €{availableShared.toLocaleString('es-ES', { maximumFractionDigits: 0 })} compartidos</>
+                  : <>Sin gastos compartidos este mes</>)
+              : (toNum(data?.personal?.budget) > 0
+                  ? <>Llevas <strong>€{toNum(data?.personal?.spent).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</strong> gastados de tu presupuesto personal</>
+                  : <>Sin gastos personales este mes</>)}
           </span>
         </div>
 
@@ -313,7 +317,7 @@ export const Dashboard: React.FC = () => {
               €{animSpent.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
-              <span style={{ color: 'var(--green)', fontWeight: 600 }}>↓ 12%</span> vs mes anterior
+              {recentTransactions.length} gastos este mes
             </div>
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(167,139,250,.15)' } as React.CSSProperties}>
