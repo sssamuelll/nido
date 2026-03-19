@@ -26,6 +26,7 @@ import {
 import expensesRouter from './routes/expenses.js';
 import budgetsRouter from './routes/budgets.js';
 import goalsRouter from './routes/goals.js';
+import analyticsRouter from './routes/analytics.js';
 import { port, appSessionCookieName } from './config.js';
 import { pinSchema } from './validation.js';
 
@@ -297,6 +298,7 @@ app.post('/api/auth/logout', async (req, res) => {
 app.use('/api/expenses', authenticateToken, expensesRouter);
 app.use('/api/budgets', authenticateToken, budgetsRouter);
 app.use('/api/goals', authenticateToken, goalsRouter);
+app.use('/api/analytics', authenticateToken, analyticsRouter);
 
 // Categories routes
 app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
