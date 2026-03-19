@@ -1,25 +1,22 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NavItem } from './NavItem';
-import { useAuth } from '../auth';
 
 const NAV_ITEMS = [
   { icon: 'house', label: 'Dashboard', path: '/' },
-  { icon: 'lock', label: 'Personal', path: '/personal' },
-  { icon: 'circle-plus', label: 'Añadir Gasto', path: '/add' },
+  { icon: 'circle-plus', label: 'Nuevo Gasto', path: '/add' },
   { icon: 'chart-no-axes-column', label: 'Analíticas', path: '/analytics' },
   { icon: 'target', label: 'Objetivos', path: '/goals' },
+  { icon: 'clock-arrow-up', label: 'Historial', path: '/history' },
 ];
 
-const SECONDARY_NAV = [
-  { icon: 'clock-arrow-up', label: 'Historial', path: '/history' },
-  { icon: 'settings', label: 'Configuración', path: '/settings' },
+const BOTTOM_NAV = [
+  { icon: 'settings', label: 'Ajustes', path: '/settings' },
 ];
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   return (
     <aside className="sidebar">
@@ -42,8 +39,8 @@ export const Sidebar: React.FC = () => {
 
       <div className="sidebar__spacer" />
 
-      <nav className="sidebar__nav">
-        {SECONDARY_NAV.map((item) => (
+      <nav className="sidebar__nav sidebar__nav--bottom">
+        {BOTTOM_NAV.map((item) => (
           <NavItem
             key={item.path}
             icon={item.icon}

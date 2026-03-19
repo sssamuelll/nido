@@ -347,6 +347,7 @@ a:hover { color: var(--text) }
 }
 
 .sidebar__spacer { flex: 1 }
+.sidebar__nav--bottom { flex: 0; }
 
 .sidebar__profile {
   padding: var(--spacing-md);
