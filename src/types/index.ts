@@ -1,3 +1,5 @@
+import type React from 'react';
+
 export type Owner = 'samuel' | 'maria' | 'shared';
 
 export interface User {
@@ -40,7 +42,11 @@ export interface BudgetCategory {
 export interface Goal {
   id: string;
   name: string;
-  emoji: string;
+  emoji?: string;
+  icon?: React.ReactNode;
+  iconBg?: string;
+  iconColor?: string;
+  themeColor?: string;
   current: number;
   target: number;
   deadline: string;
