@@ -37,6 +37,7 @@ interface CategoryBudgetRow {
   month: string;
   category: string;
   amount: number;
+  context: string;
 }
 
 interface CategoryRow {
@@ -244,8 +245,10 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const samuelBalance = samuelPaid - halfShared;
     const mariaBalance = mariaPaid - halfShared;
 
-    // Category breakdown with budgets
-    const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    // Category breakdown with budgets (scoped by context)
+    const allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    const sharedBudgets = allCategoryBudgets.filter(b => b.context === 'shared');
+    const personalBudgets = allCategoryBudgets.filter(b => b.context === 'personal');
     const householdCategories = await db.all<CategoryRow[]>(
       'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) ORDER BY name',
       req.user!.id,
@@ -254,25 +257,30 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const categoryNames = Array.from(new Set(
       [
         ...householdCategories.map((category) => category.name),
-        ...categoryBudgets.map((budget) => budget.category),
+        ...allCategoryBudgets.map((budget) => budget.category),
         ...expenses.map((expense) => expense.category),
       ].filter((category): category is string => Boolean(category))
     ));
 
     const visibleCategoryNames = categoryNames.length > 0 ? categoryNames : DEFAULT_CATEGORY_NAMES;
 
-    const categoryBreakdown = visibleCategoryNames.map(category => {
-      const categoryExpenses = expenses.filter((exp: ExpenseRow) => exp.category === category);
-      const categoryTotal = categoryExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
-      const budgetEntry = categoryBudgets.find((b: CategoryBudgetRow) => b.category === category);
+    const buildBreakdown = (budgets: CategoryBudgetRow[], filteredExpenses: ExpenseRow[]) =>
+      visibleCategoryNames.map(category => {
+        const catExpenses = filteredExpenses.filter((exp: ExpenseRow) => exp.category === category);
+        const catTotal = catExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+        const budgetEntry = budgets.find((b: CategoryBudgetRow) => b.category === category);
+        return {
+          category,
+          total: catTotal,
+          budget: budgetEntry ? budgetEntry.amount : 0,
+          count: catExpenses.length
+        };
+      });
 
-      return {
-        category,
-        total: categoryTotal,
-        budget: budgetEntry ? budgetEntry.amount : 0,
-        count: categoryExpenses.length
-      };
-    });
+    const userPersonalExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'personal' && exp.paid_by === req.user!.username);
+
+    const categoryBreakdown = buildBreakdown(sharedBudgets, sharedExpenses);
+    const personalCategoryBreakdown = buildBreakdown(personalBudgets, userPersonalExpenses);
 
     // Recent transactions (last 5)
     const recentTransactions = expenses
@@ -304,6 +312,7 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
         budget: personalBudget
       },
       categoryBreakdown,
+      personalCategoryBreakdown,
       recentTransactions
     });
   } catch (error) {

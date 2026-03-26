@@ -14,6 +14,7 @@ interface BudgetRow {
 interface CategoryBudgetRow {
   category: string;
   amount: number;
+  context: string;
 }
 
 const router = Router();
@@ -33,7 +34,8 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
-    const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    const budgetContext = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
+    const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ? AND context = ?', month, budgetContext);
     const pendingApproval = await db.get(`
       SELECT ba.*, au.username as requested_by_username 
       FROM budget_approvals ba
@@ -65,7 +67,7 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 
 // Update budget (personal or request shared change)
 router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
-  const { month, shared_available, personal_budget, categories } = req.validatedData as BudgetInput;
+  const { month, shared_available, personal_budget, categories, context: budgetContext } = req.validatedData as BudgetInput;
   const username = req.user!.username;
 
   try {
@@ -138,14 +140,15 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
       }
     }
 
-    // Update category budgets
+    // Update category budgets (scoped by context)
     if (categories && typeof categories === 'object') {
+      const ctx = budgetContext || 'shared';
       for (const [category, amount] of Object.entries(categories)) {
         await db.run(`
-          INSERT INTO category_budgets (month, category, amount)
-          VALUES (?, ?, ?)
-          ON CONFLICT(month, category) DO UPDATE SET amount = excluded.amount
-        `, month, category, amount);
+          INSERT INTO category_budgets (month, category, amount, context)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(month, category, context) DO UPDATE SET amount = excluded.amount
+        `, month, category, amount, ctx);
       }
     }
 

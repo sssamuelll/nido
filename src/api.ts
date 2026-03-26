@@ -219,6 +219,7 @@ export class Api {
     shared_available?: number;
     personal_budget?: number;
     categories?: Record<string, number>;
+    context?: 'shared' | 'personal';
   }) {
     return this.request('/budgets', {
       method: 'PUT',
