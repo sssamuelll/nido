@@ -39,7 +39,8 @@ export const budgetUpdateSchema = z.object({
   personal_budget: z.coerce.number().nonnegative('Personal budget cannot be negative').optional(),
   personal_samuel: z.coerce.number().nonnegative('Personal Samuel cannot be negative').optional(),
   personal_maria: z.coerce.number().nonnegative('Personal Maria cannot be negative').optional(),
-  categories: z.record(z.string(), z.coerce.number().nonnegative()).optional()
+  categories: z.record(z.string(), z.coerce.number().nonnegative()).optional(),
+  context: z.enum(['shared', 'personal']).optional()
 });
 
 export const pinSchema = z.object({

@@ -46,6 +46,12 @@ interface DashboardData {
     budget: number;
     count: number;
   }>;
+  personalCategoryBreakdown: Array<{
+    category: string;
+    total: number;
+    budget: number;
+    count: number;
+  }>;
   recentTransactions: VisibleExpense[];
 }
 
@@ -195,7 +201,7 @@ export const Dashboard: React.FC = () => {
         });
       }
 
-      await Api.updateBudget({ month: currentMonth, categories: cats });
+      await Api.updateBudget({ month: currentMonth, categories: cats, context: activeContext });
       setShowCatModal(false);
       const latestCategories = await Api.getCategories().catch(() => categories);
       setCategories((latestCategories as CategoryDefinition[]).map((category) => ({
@@ -263,7 +269,9 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const categoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];
+  const sharedCategoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];
+  const personalCategoryBreakdown = Array.isArray(data.personalCategoryBreakdown) ? data.personalCategoryBreakdown : [];
+  const categoryBreakdown = activeContext === 'shared' ? sharedCategoryBreakdown : personalCategoryBreakdown;
   const recentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
 
   const availableShared = toNum(data?.budget?.availableShared);
