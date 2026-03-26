@@ -306,8 +306,34 @@ app.use('/api/notifications', authenticateToken, notificationsRouter);
 app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const categories = await db.all('SELECT * FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?)', req.user!.id);
-    res.json(categories);
+    const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
+    // Registered categories
+    const registered = await db.all<Array<{ id: number; name: string; emoji: string; color: string }>>(
+      'SELECT * FROM categories WHERE household_id = ?', householdId
+    );
+    const registeredNames = new Set(registered.map(c => c.name));
+
+    // Categories from budgets or expenses not yet in categories table
+    const budgetCats = await db.all<Array<{ category: string }>>(
+      'SELECT DISTINCT category FROM category_budgets WHERE amount > 0'
+    );
+    const expenseCats = await db.all<Array<{ category: string }>>(
+      `SELECT DISTINCT category FROM expenses WHERE category IS NOT NULL AND (
+        type = 'shared' OR paid_by_user_id IN (SELECT id FROM app_users WHERE household_id = ?)
+      )`, householdId
+    );
+
+    const unregistered = Array.from(new Set([
+      ...budgetCats.map(b => b.category),
+      ...expenseCats.map(e => e.category),
+    ])).filter(name => !registeredNames.has(name));
+
+    const all = [
+      ...registered,
+      ...unregistered.map(name => ({ id: 0, name, emoji: '📂', color: '#6B7280' })),
+    ];
+
+    res.json(all);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
