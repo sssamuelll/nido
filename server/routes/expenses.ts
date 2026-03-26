@@ -109,31 +109,33 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
 
-    // Notify the other user about the new expense
-    try {
-      const user = await db.get<{ household_id: string }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
-      if (user) {
-        const otherUser = await db.get<{ id: number }>(
-          'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
-          user.household_id, req.user!.id
+    // Notify partner about shared expenses only
+    if (type === 'shared') {
+      try {
+        const user = await db.get<{ household_id: string }>(
+          'SELECT household_id FROM app_users WHERE id = ?',
+          req.user!.id
         );
-        if (otherUser) {
-          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-          await createNotification({
-            household_id: String(user.household_id),
-            recipient_user_id: otherUser.id,
-            type: 'expense_added',
-            title: 'Nuevo gasto',
-            body: `${displayName} añadió €${amount} en ${category}`,
-            metadata: { expense_id: result.lastID },
-          });
+        if (user) {
+          const otherUser = await db.get<{ id: number }>(
+            'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
+            user.household_id, req.user!.id
+          );
+          if (otherUser) {
+            const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+            await createNotification({
+              household_id: String(user.household_id),
+              recipient_user_id: otherUser.id,
+              type: 'expense_added',
+              title: 'Nuevo gasto',
+              body: `${displayName} añadió €${amount} en ${category}`,
+              metadata: { expense_id: result.lastID },
+            });
+          }
         }
+      } catch (notifErr) {
+        console.error('Error creating expense notification:', notifErr);
       }
-    } catch (notifErr) {
-      console.error('Error creating expense notification:', notifErr);
     }
 
     res.status(201).json(newExpense);
@@ -174,6 +176,26 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
     `, updated.description, updated.amount, updated.category, updated.date, updated.paid_by, updated.type, updated.status, id);
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);
+
+    // Notify partner for shared expenses
+    if (updated.type === 'shared') {
+      try {
+        const user = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+        const otherUser = user ? await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id) : null;
+        if (user && otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'expense_updated',
+            title: 'Gasto editado',
+            body: `${displayName} editó "${updated.description}" (€${updated.amount})`,
+            metadata: { expense_id: Number(id) },
+          });
+        }
+      } catch (notifErr) { console.error('Notification error:', notifErr); }
+    }
+
     res.json(updatedExpense);
   } catch (error) {
     console.error('Error updating expense:', error);
@@ -199,6 +221,25 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     if (!isShared && !isOwner) {
       return res.status(403).json({ error: 'Forbidden: You can only delete your own personal expenses' });
+    }
+
+    // Notify partner for shared expenses before deleting
+    if (isShared) {
+      try {
+        const user = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+        const otherUser = user ? await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id) : null;
+        if (user && otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'expense_deleted',
+            title: 'Gasto eliminado',
+            body: `${displayName} eliminó "${existing.description}" (€${existing.amount})`,
+            metadata: { category: existing.category },
+          });
+        }
+      } catch (notifErr) { console.error('Notification error:', notifErr); }
     }
 
     await db.run('DELETE FROM expenses WHERE id = ?', id);
