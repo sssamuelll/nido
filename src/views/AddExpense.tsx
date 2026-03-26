@@ -33,6 +33,10 @@ const PlusIcon = () => (
   </svg>
 );
 
+const QUICK_EMOJIS = ['🍽️', '🛒', '🏠', '🎉', '💡', '🚗', '✈️', '🐶', '🎁', '💊', '🎬', '📚'];
+const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
+
 const CATEGORY_ICONS: Record<string, React.FC<any>> = {
   Restaurant: Utensils,
   Supermercado: ShoppingCart,
@@ -55,6 +59,10 @@ export const AddExpense: React.FC = () => {
   const [categories, setCategories] = useState<CategoryDefinition[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [showNewCatModal, setShowNewCatModal] = useState(false);
+  const [newCatEmoji, setNewCatEmoji] = useState('');
+  const [newCatColor, setNewCatColor] = useState(COLOR_OPTIONS[0]);
+  const [savingCat, setSavingCat] = useState(false);
   const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -133,9 +141,19 @@ export const AddExpense: React.FC = () => {
         type,
         paid_by: user?.username || 'samuel',
       });
-      setSuccess(true);
-      showToast('Gasto añadido correctamente ✔');
-      setTimeout(() => navigate('/'), 1500);
+
+      const isNewCategory = !categories.some(
+        (c) => c.name.toLowerCase() === category.trim().toLowerCase()
+      );
+
+      if (isNewCategory) {
+        showToast('Gasto añadido correctamente ✔');
+        setShowNewCatModal(true);
+      } else {
+        setSuccess(true);
+        showToast('Gasto añadido correctamente ✔');
+        setTimeout(() => navigate('/'), 1500);
+      }
     } catch {
       setError('Error al guardar el gasto');
     } finally {
@@ -212,7 +230,7 @@ export const AddExpense: React.FC = () => {
             />
           </div>
 
-          <div className="an d3 cmd-palette" ref={cmdRef}>
+          <div className={`an d3 cmd-palette ${cmdOpen ? 'cmd-open' : ''}`} ref={cmdRef}>
             <div className="label">Categoria</div>
             <div className="cmd-input-wrap">
               <TagIcon />
@@ -354,6 +372,91 @@ export const AddExpense: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {showNewCatModal && (
+        <div className="modal-overlay open" onClick={() => { setShowNewCatModal(false); navigate('/'); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Registrar &ldquo;{category}&rdquo; como categoría</h3>
+            <p>El gasto ya se guardó. ¿Quieres registrar esta categoría para futuros gastos?</p>
+
+            <div className="form-row">
+              <label>Emoji</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 42, height: 42, borderRadius: 'var(--rx)',
+                  border: '1px solid var(--glass-border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, background: 'var(--surface2)', flexShrink: 0,
+                }}>{newCatEmoji || '🙂'}</div>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="😀"
+                  value={newCatEmoji}
+                  onChange={(e) => setNewCatEmoji(e.target.value)}
+                  style={{ width: 90, textAlign: 'center', fontSize: 24, padding: '8px 12px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                {QUICK_EMOJIS.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setNewCatEmoji(em)}
+                    style={{
+                      width: 38, height: 38, borderRadius: 'var(--rx)',
+                      border: newCatEmoji === em ? '2px solid var(--green)' : '1px solid var(--glass-border)',
+                      background: newCatEmoji === em ? 'var(--gl)' : 'transparent',
+                      cursor: 'pointer', fontSize: 20,
+                    }}
+                  >{em}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-row">
+              <label>Color</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {COLOR_OPTIONS.map((c) => (
+                  <div key={c} onClick={() => setNewCatColor(c)} style={{
+                    width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
+                    border: `3px solid ${newCatColor === c ? 'var(--text)' : 'transparent'}`,
+                  }} />
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => { setShowNewCatModal(false); navigate('/'); }}>
+                Omitir
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={savingCat}
+                onClick={async () => {
+                  const emoji = newCatEmoji.trim() || '🦋';
+                  if (!EMOJI_REGEX.test(emoji)) {
+                    showToast('Ingresa un emoji válido');
+                    return;
+                  }
+                  try {
+                    setSavingCat(true);
+                    await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor });
+                    showToast('Categoría registrada ✔');
+                    navigate('/');
+                  } catch {
+                    showToast('Error al guardar la categoría');
+                  } finally {
+                    setSavingCat(false);
+                  }
+                }}
+              >
+                {savingCat ? 'Guardando...' : 'Guardar categoría'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
