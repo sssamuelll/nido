@@ -1294,35 +1294,68 @@ a:hover { color: var(--text) }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px }
 .approval-note { background: rgba(96, 165, 250, .08); border: 1px solid rgba(96, 165, 250, .15); border-radius: var(--rx); padding: 10px 14px; font-size: 12px; color: var(--blue); margin-top: 14px; display: flex; align-items: center; gap: 8px }
 
-/* Emoji Picker — iOS style */
-.emoji-picker-preview {
-  width: 64px; height: 64px; border-radius: 18px;
-  background: var(--surface2);
+/* Emoji Picker — Notion-style popover */
+.ep-wrap { position: relative; display: flex; justify-content: center; margin-bottom: 12px }
+.ep-trigger {
+  width: 56px; height: 56px; border-radius: 16px;
+  background: var(--surface2); border: 1px solid var(--glass-border);
+  cursor: pointer; transition: transform .12s, box-shadow .12s;
   display: flex; align-items: center; justify-content: center;
-  font-size: 32px; margin: 0 auto 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.1);
-  transition: transform .15s;
 }
-.emoji-picker-preview:active { transform: scale(.95) }
-.emoji-picker-grid {
-  background: var(--surface2); border-radius: 14px;
-  padding: 10px; max-height: 180px; overflow-y: auto;
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+.ep-trigger:hover { box-shadow: 0 2px 12px rgba(0,0,0,.15) }
+.ep-trigger:active { transform: scale(.93) }
+.ep-trigger-emoji { font-size: 28px; line-height: 1 }
+.ep-popover {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: 320px; background: var(--modal-bg); border: 1px solid var(--glass-border);
+  border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.4);
+  z-index: 600; display: flex; flex-direction: column; overflow: hidden;
+  animation: ep-in .15s ease-out;
+}
+@keyframes ep-in { from { opacity: 0; transform: translateX(-50%) translateY(-4px) } to { opacity: 1; transform: translateX(-50%) translateY(0) } }
+.ep-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--glass-border);
+}
+.ep-search input {
+  border: none; background: transparent; outline: none;
+  font-family: inherit; font-size: 13px; color: var(--text); flex: 1;
+}
+.ep-search input::placeholder { color: var(--tm) }
+.ep-grid {
+  max-height: 260px; overflow-y: auto; padding: 6px 8px;
   -webkit-overflow-scrolling: touch;
 }
-.emoji-picker-grid::-webkit-scrollbar { width: 4px }
-.emoji-picker-grid::-webkit-scrollbar-track { background: transparent }
-.emoji-picker-grid::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px }
-.emoji-picker-item {
-  width: 100%; aspect-ratio: 1; border-radius: 10px;
-  border: none; background: transparent; cursor: pointer;
-  font-size: 22px; display: flex; align-items: center; justify-content: center;
-  transition: background .12s, transform .1s;
+.ep-grid::-webkit-scrollbar { width: 4px }
+.ep-grid::-webkit-scrollbar-track { background: transparent }
+.ep-grid::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px }
+.ep-cat-label {
+  font-size: 11px; font-weight: 600; color: var(--tm);
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 8px 4px 4px; position: sticky; top: 0;
+  background: var(--modal-bg); z-index: 1;
 }
-.emoji-picker-item:hover { background: var(--surface) }
-.emoji-picker-item:active { transform: scale(.85) }
-.emoji-picker-item.selected { background: var(--gl); box-shadow: 0 0 0 2px var(--green) }
-.emoji-picker-hint { font-size: 11px; color: var(--tm); text-align: center; margin-top: 8px }
+.ep-emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px }
+.ep-item {
+  aspect-ratio: 1; border: none; background: transparent;
+  border-radius: 8px; cursor: pointer; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s, transform .08s;
+}
+.ep-item:hover { background: var(--surface2) }
+.ep-item:active { transform: scale(.8) }
+.ep-item.selected { background: var(--gl); box-shadow: 0 0 0 2px var(--green) }
+.ep-tabs {
+  display: flex; border-top: 1px solid var(--glass-border);
+  padding: 4px 6px; gap: 2px;
+}
+.ep-tab {
+  flex: 1; border: none; background: transparent;
+  border-radius: 6px; cursor: pointer; font-size: 16px;
+  padding: 6px 0; transition: background .1s;
+}
+.ep-tab:hover { background: var(--surface2) }
+.ep-tab.active { background: var(--gl) }
 
 /* ============================================
    SECTION 31: Toast
