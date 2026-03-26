@@ -544,15 +544,6 @@ export const Dashboard: React.FC = () => {
                 <input className="form-input" type="number" placeholder="200" value={catModalBudget} onChange={e => setCatModalBudget(e.target.value)} style={{ width: 100, textAlign: 'right' }} autoFocus />
               </div>
 
-              {activeContext === 'shared' && (
-                <div className="approval-note">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  En compartido, este cambio necesita aprobación de {normalizedUser === 'maria' ? 'Samuel' : 'María'}.
-                </div>
-              )}
-
               <div className="modal-actions">
                 <button className="btn btn-outline" onClick={() => setShowCatModal(false)}>Cancelar</button>
                 <button className="btn btn-primary" onClick={handleSaveCatModal}>Guardar</button>
