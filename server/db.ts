@@ -176,7 +176,8 @@ export const initDatabase = async () => {
       month TEXT NOT NULL,
       category TEXT NOT NULL,
       amount REAL NOT NULL,
-      UNIQUE(month, category)
+      context TEXT NOT NULL DEFAULT 'shared',
+      UNIQUE(month, category, context)
     );
 
     CREATE TABLE IF NOT EXISTS households (
@@ -344,6 +345,24 @@ export const initDatabase = async () => {
     `);
     await database.exec('DROP TABLE budgets');
     await database.exec('ALTER TABLE budgets_new RENAME TO budgets');
+  }
+
+  // Migration: Add context column to category_budgets
+  if (!(await hasColumn(database, 'category_budgets', 'context'))) {
+    await database.exec(`
+      CREATE TABLE category_budgets_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month TEXT NOT NULL,
+        category TEXT NOT NULL,
+        amount REAL NOT NULL,
+        context TEXT NOT NULL DEFAULT 'shared',
+        UNIQUE(month, category, context)
+      );
+      INSERT INTO category_budgets_new (month, category, amount, context)
+        SELECT month, category, amount, 'shared' FROM category_budgets;
+      DROP TABLE category_budgets;
+      ALTER TABLE category_budgets_new RENAME TO category_budgets;
+    `);
   }
 
   // Seed default categories if none exist
