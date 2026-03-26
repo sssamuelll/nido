@@ -239,7 +239,7 @@ export const AddExpense: React.FC = () => {
             />
           </div>
 
-          <div className={`an d3 cmd-palette ${cmdOpen ? 'cmd-open' : ''}`} ref={cmdRef}>
+          <div className="an d3 cmd-palette" ref={cmdRef}>
             <div className="label">Categoria</div>
             <div className="cmd-input-wrap">
               <TagIcon />
