@@ -7,7 +7,7 @@ import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from '
 import { TransactionRow } from '../components/TransactionRow';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
-import { CATEGORIES, INDICATOR_COLORS } from '../types';
+import { INDICATOR_COLORS } from '../types';
 import { getPersonalBalanceCardModel, VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
@@ -94,7 +94,7 @@ export const Dashboard: React.FC = () => {
   const [catModalBudget, setCatModalBudget] = useState('');
   const [catModalEmoji, setCatModalEmoji] = useState('🍽️');
   const [catModalColor, setCatModalColor] = useState('#F87171');
-  const [categories, setCategories] = useState<CategoryDefinition[]>(CATEGORIES);
+  const [categories, setCategories] = useState<CategoryDefinition[]>([]);
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -128,13 +128,12 @@ export const Dashboard: React.FC = () => {
         })));
       })
       .catch(() => {
-        setCategories(CATEGORIES);
+        setCategories([]);
       });
   }, []);
 
   const getCategoryDefinition = (categoryName: string) =>
-    categories.find((category) => category.name === categoryName || category.id === categoryName)
-    ?? CATEGORIES.find((category) => category.name === categoryName || category.id === categoryName);
+    categories.find((category) => category.name === categoryName || category.id === categoryName);
 
   const loadDashboardData = async () => {
     try {
