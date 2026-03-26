@@ -39,6 +39,10 @@ interface CategoryBudgetRow {
   amount: number;
 }
 
+interface CategoryRow {
+  name: string;
+}
+
 const router = Router();
 const visibleExpensesWhere = `
   date LIKE ?
@@ -231,10 +235,19 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const mariaBalance = mariaPaid - halfShared;
 
     // Category breakdown with budgets
-    const categories = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
     const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    const householdCategories = await db.all<CategoryRow[]>(
+      'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) ORDER BY name',
+      req.user!.id,
+    );
 
-    const categoryBreakdown = categories.map(category => {
+    const categoryNames = Array.from(new Set([
+      ...householdCategories.map((category) => category.name),
+      ...categoryBudgets.map((budget) => budget.category),
+      ...expenses.map((expense) => expense.category),
+    ]));
+
+    const categoryBreakdown = categoryNames.map(category => {
       const categoryExpenses = expenses.filter((exp: ExpenseRow) => exp.category === category);
       const categoryTotal = categoryExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
       const budgetEntry = categoryBudgets.find((b: CategoryBudgetRow) => b.category === category);
