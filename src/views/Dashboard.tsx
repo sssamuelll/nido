@@ -91,6 +91,7 @@ export const Dashboard: React.FC = () => {
   const [showCatModal, setShowCatModal] = useState(false);
   const [catModalMode, setCatModalMode] = useState<'add' | 'edit'>('add');
   const [catModalName, setCatModalName] = useState('');
+  const [catModalOriginalName, setCatModalOriginalName] = useState('');
   const [catModalBudget, setCatModalBudget] = useState('');
   const [catModalEmoji, setCatModalEmoji] = useState('🍽️');
   const [catModalColor, setCatModalColor] = useState('#F87171');
@@ -154,7 +155,11 @@ export const Dashboard: React.FC = () => {
   const openEditCatModal = (categoryName: string, budget: number) => {
     setCatModalMode('edit');
     setCatModalName(categoryName);
+    setCatModalOriginalName(categoryName);
     setCatModalBudget(String(budget));
+    const catDef = getCategoryDefinition(categoryName);
+    setCatModalEmoji(catDef?.emoji || '📂');
+    setCatModalColor(catDef?.color || '#6B7280');
     setShowCatModal(true);
   };
 
@@ -189,16 +194,22 @@ export const Dashboard: React.FC = () => {
 
     const cats: Record<string, number> = {};
     categoryBreakdown.forEach(cat => { cats[cat.category] = toNum(cat.budget); });
+
+    // If renamed, remove old budget key and set new one
+    if (catModalMode === 'edit' && catModalOriginalName !== name) {
+      delete cats[catModalOriginalName];
+    }
     cats[name] = amount;
 
     try {
-      if (catModalMode === 'add') {
-        await Api.saveCategory({
-          name,
-          emoji,
-          color: catModalColor,
-        });
-      }
+      // Find existing category id for updates
+      const existingCat = categories.find(c => c.name === catModalOriginalName);
+      await Api.saveCategory({
+        id: catModalMode === 'edit' && existingCat ? existingCat.id : undefined,
+        name,
+        emoji,
+        color: catModalColor,
+      });
 
       await Api.updateBudget({ month: currentMonth, categories: cats, context: activeContext });
       setShowCatModal(false);
@@ -519,42 +530,35 @@ export const Dashboard: React.FC = () => {
           <div className="modal-overlay open" onClick={() => setShowCatModal(false)}>
             <div className="modal" onClick={e => e.stopPropagation()}>
               <h3>{catModalMode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</h3>
-              <p>{catModalMode === 'edit' ? 'Ajusta el límite de presupuesto' : 'Crea una categoría para organizar tus gastos'}</p>
+              <p>{catModalMode === 'edit' ? 'Edita nombre, emoji y límite' : 'Crea una categoría para organizar tus gastos'}</p>
 
-              {catModalMode === 'add' ? (<>
-                <div className="form-row">
-                  <label>Nombre</label>
-                  <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
-                </div>
-                <div className="emoji-picker-preview">{catModalEmoji || '🙂'}</div>
-                <div className="emoji-picker-grid">
-                  {EMOJI_GRID.map((em) => (
-                    <button
-                      key={em}
-                      type="button"
-                      className={`emoji-picker-item ${catModalEmoji === em ? 'selected' : ''}`}
-                      onClick={() => setCatModalEmoji(em)}
-                    >{em}</button>
+              <div className="form-row">
+                <label>Nombre</label>
+                <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
+              </div>
+              <div className="emoji-picker-preview">{catModalEmoji || '🙂'}</div>
+              <div className="emoji-picker-grid">
+                {EMOJI_GRID.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    className={`emoji-picker-item ${catModalEmoji === em ? 'selected' : ''}`}
+                    onClick={() => setCatModalEmoji(em)}
+                  >{em}</button>
+                ))}
+              </div>
+              <div className="emoji-picker-hint">Toca para elegir un emoji</div>
+              <div className="form-row">
+                <label>Color</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'].map(c => (
+                    <div key={c} onClick={() => setCatModalColor(c)} style={{
+                      width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
+                      border: `3px solid ${catModalColor === c ? 'var(--text)' : 'transparent'}`,
+                    }} />
                   ))}
                 </div>
-                <div className="emoji-picker-hint">Toca para elegir un emoji</div>
-                <div className="form-row">
-                  <label>Color</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'].map(c => (
-                      <div key={c} onClick={() => setCatModalColor(c)} style={{
-                        width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
-                        border: `3px solid ${catModalColor === c ? 'var(--text)' : 'transparent'}`,
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              </>) : (
-                <div className="form-row">
-                  <label>Categoría</label>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{catModalName}</span>
-                </div>
-              )}
+              </div>
 
               <div className="form-row">
                 <label>Límite</label>
