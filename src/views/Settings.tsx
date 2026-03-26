@@ -14,6 +14,7 @@ interface BudgetData {
     id: number;
     shared_available: number;
     requested_by_user_id: number;
+    requested_by_username?: string;
   };
   categories: Record<string, number>;
 }
@@ -134,8 +135,16 @@ export const Settings: React.FC = () => {
     );
   }
 
+  const formatDisplayName = (username?: string) => {
+    if (!username) return 'Pareja';
+    if (username === 'maria') return 'María';
+    if (username === 'samuel') return 'Samuel';
+    return username;
+  };
+
   const partner = members.find(m => m.id !== user?.id);
-  const partnerName = partner ? (partner.username === 'maria' ? 'Maria' : partner.username === 'samuel' ? 'Samuel' : partner.username) : 'Pareja';
+  const partnerName = formatDisplayName(partner?.username);
+  const requesterName = formatDisplayName(budget.pending_approval?.requested_by_username);
   const isPendingByMe = budget.pending_approval?.requested_by_user_id === user?.id;
 
   return (
@@ -195,8 +204,8 @@ export const Settings: React.FC = () => {
               }}>
                 <Clock size={14} />
                 {isPendingByMe
-                  ? `Pendiente \u2014 Esperando aprobación de ${partnerName}`
-                  : `${partnerName} solicita cambiar el presupuesto a \u20AC${budget.pending_approval.shared_available}`}
+                  ? `Pendiente — Esperando aprobación de ${partnerName}`
+                  : `${requesterName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
               </div>
             )}
 
