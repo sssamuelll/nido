@@ -12,6 +12,7 @@ import { getPersonalBalanceCardModel, VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { showToast } from '../components/Toast';
+import { EmojiPicker } from '../components/EmojiPicker';
 
 interface Notification {
   id: number;
@@ -65,18 +66,6 @@ interface CategoryDefinition {
 
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
-
-const EMOJI_GRID = [
-  '🍽️','🍕','🍔','🥗','🍣','☕',
-  '🛒','🛍️','👗','👟','💄','🧴',
-  '🏠','🔧','🛋️','🧹','💡','🔑',
-  '🚗','⛽','🚕','🚌','✈️','🚲',
-  '💊','🏥','🧘','💆','🏋️','🦷',
-  '🎉','🎬','🎮','🎵','📚','🎯',
-  '🐶','🐱','🐠','🌱','🎁','📱',
-  '💻','📦','💰','✨','🦋','🌟',
-];
-const EMOJI_INPUT_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -181,11 +170,8 @@ export const Dashboard: React.FC = () => {
       return;
     }
 
-    const emoji = catModalEmoji.trim();
-    if (!emoji || !EMOJI_INPUT_REGEX.test(emoji)) {
-      showToast('Elige un emoji válido para la categoría');
-      return;
-    }
+    const emoji = catModalEmoji.trim() || '📂';
+
 
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Pon un límite válido para la categoría');
@@ -536,18 +522,10 @@ export const Dashboard: React.FC = () => {
                 <label>Nombre</label>
                 <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
               </div>
-              <div className="emoji-picker-preview">{catModalEmoji || '🙂'}</div>
-              <div className="emoji-picker-grid">
-                {EMOJI_GRID.map((em) => (
-                  <button
-                    key={em}
-                    type="button"
-                    className={`emoji-picker-item ${catModalEmoji === em ? 'selected' : ''}`}
-                    onClick={() => setCatModalEmoji(em)}
-                  >{em}</button>
-                ))}
+              <div className="form-row">
+                <label>Emoji</label>
+                <EmojiPicker value={catModalEmoji} onChange={setCatModalEmoji} />
               </div>
-              <div className="emoji-picker-hint">Toca para elegir un emoji</div>
               <div className="form-row">
                 <label>Color</label>
                 <div style={{ display: 'flex', gap: 6 }}>
