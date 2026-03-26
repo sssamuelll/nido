@@ -9,9 +9,10 @@ const mockDb = {
 vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
   syncBudgetAllocationsForMonth: vi.fn(),
+  createNotification: vi.fn(),
 }));
 
-import { syncBudgetAllocationsForMonth } from '../db.js';
+import { createNotification, syncBudgetAllocationsForMonth } from '../db.js';
 import budgetsRouter from './budgets.js';
 
 const getRouteHandler = (path: string, method: 'get' | 'put') => {
@@ -58,6 +59,82 @@ describe('budgets routes privacy', () => {
       pending_approval: null,
       categories: { Restaurant: 200 },
     });
+  });
+
+  it('returns pending approval with requester username so UI can render the correct actor', async () => {
+    mockDb.get
+      .mockResolvedValueOnce({
+        id: 1,
+        month: '2026-03',
+        shared_available: 2000,
+        personal_samuel: 450,
+        personal_maria: 700,
+      })
+      .mockResolvedValueOnce({
+        id: 8,
+        budget_id: 1,
+        shared_available: 2300,
+        requested_by_user_id: 1,
+        requested_by_username: 'samuel',
+      });
+    mockDb.all.mockResolvedValue([{ category: 'Restaurant', amount: 200 }]);
+
+    const handler = getRouteHandler('/', 'get');
+    const req: any = { validatedMonth: '2026-03', user: { id: 2, username: 'maria' } };
+    const res = createResponse();
+
+    await handler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      pending_approval: expect.objectContaining({
+        requested_by_user_id: 1,
+        requested_by_username: 'samuel',
+      }),
+    }));
+  });
+
+  it('creates a targeted notification for the partner when a shared budget change is requested', async () => {
+    mockDb.get
+      .mockResolvedValueOnce({
+        id: 1,
+        month: '2026-03',
+        shared_available: 2000,
+        personal_samuel: 450,
+        personal_maria: 700,
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ household_id: 1 })
+      .mockResolvedValueOnce({ id: 2 });
+    mockDb.run
+      .mockResolvedValueOnce({ lastID: 11 });
+
+    const handler = getRouteHandler('/', 'put');
+    const req: any = {
+      validatedData: {
+        month: '2026-03',
+        shared_available: 2400,
+      },
+      user: { id: 1, username: 'samuel' },
+    };
+    const res = createResponse();
+
+    await handler(req, res);
+
+    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({
+      household_id: '1',
+      recipient_user_id: 2,
+      type: 'budget_change_requested',
+      title: 'Cambio de presupuesto',
+      body: 'Samuel solicita cambiar el presupuesto a €2400',
+      metadata: expect.objectContaining({
+        approval_id: 11,
+        requested_by_user_id: 1,
+        requested_by_username: 'samuel',
+        requested_for_user_id: 2,
+        shared_available: 2400,
+      }),
+    }));
+    expect(res.json).toHaveBeenCalledWith({ success: true, pending_approval: true });
   });
 
   it('updates only the authenticated user personal budget while preserving the partner allocation', async () => {
