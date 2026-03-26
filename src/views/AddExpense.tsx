@@ -33,7 +33,16 @@ const PlusIcon = () => (
   </svg>
 );
 
-const QUICK_EMOJIS = ['🍽️', '🛒', '🏠', '🎉', '💡', '🚗', '✈️', '🐶', '🎁', '💊', '🎬', '📚'];
+const EMOJI_GRID = [
+  '🍽️','🍕','🍔','🥗','🍣','☕',
+  '🛒','🛍️','👗','👟','💄','🧴',
+  '🏠','🔧','🛋️','🧹','💡','🔑',
+  '🚗','⛽','🚕','🚌','✈️','🚲',
+  '💊','🏥','🧘','💆','🏋️','🦷',
+  '🎉','🎬','🎮','🎵','📚','🎯',
+  '🐶','🐱','🐠','🌱','🎁','📱',
+  '💻','📦','💰','✨','🦋','🌟',
+];
 const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
 
@@ -379,40 +388,18 @@ export const AddExpense: React.FC = () => {
             <h3>Registrar &ldquo;{category}&rdquo; como categoría</h3>
             <p>El gasto ya se guardó. ¿Quieres registrar esta categoría para futuros gastos?</p>
 
-            <div className="form-row">
-              <label>Emoji</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 42, height: 42, borderRadius: 'var(--rx)',
-                  border: '1px solid var(--glass-border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22, background: 'var(--surface2)', flexShrink: 0,
-                }}>{newCatEmoji || '🙂'}</div>
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="😀"
-                  value={newCatEmoji}
-                  onChange={(e) => setNewCatEmoji(e.target.value)}
-                  style={{ width: 90, textAlign: 'center', fontSize: 24, padding: '8px 12px' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                {QUICK_EMOJIS.map((em) => (
-                  <button
-                    key={em}
-                    type="button"
-                    onClick={() => setNewCatEmoji(em)}
-                    style={{
-                      width: 38, height: 38, borderRadius: 'var(--rx)',
-                      border: newCatEmoji === em ? '2px solid var(--green)' : '1px solid var(--glass-border)',
-                      background: newCatEmoji === em ? 'var(--gl)' : 'transparent',
-                      cursor: 'pointer', fontSize: 20,
-                    }}
-                  >{em}</button>
-                ))}
-              </div>
+            <div className="emoji-picker-preview">{newCatEmoji || '🙂'}</div>
+            <div className="emoji-picker-grid">
+              {EMOJI_GRID.map((em) => (
+                <button
+                  key={em}
+                  type="button"
+                  className={`emoji-picker-item ${newCatEmoji === em ? 'selected' : ''}`}
+                  onClick={() => setNewCatEmoji(em)}
+                >{em}</button>
+              ))}
             </div>
+            <div className="emoji-picker-hint">Toca para elegir un emoji</div>
 
             <div className="form-row">
               <label>Color</label>
