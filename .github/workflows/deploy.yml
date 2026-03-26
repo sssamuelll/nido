@@ -1,0 +1,68 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Deploy via SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Sync built files
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            dist/client/ ubuntu@${HOST}:/var/www/nido/client/
+
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            server/dist/server/ ubuntu@${HOST}:/var/www/nido/server/
+
+          rsync -avz \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            package.json package-lock.json \
+            ubuntu@${HOST}:/var/www/nido/
+
+          # Install production deps & restart
+          ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "
+            cd /var/www/nido &&
+            npm ci --production &&
+            sudo systemctl restart nido
+          "
+
+      - name: Health check
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          sleep 30
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if ! ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "curl -sf http://localhost:3100/api/health"; then
+            echo "❌ Health check failed. Fetching server logs..."
+            ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "sudo journalctl -u nido -n 50 --no-pager"
+            exit 1
+          fi

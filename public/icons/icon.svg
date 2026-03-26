@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1a1a2e" rx="64"/>
+  <circle cx="256" cy="200" r="80" fill="#eab308"/>
+  <path d="M160 280 C160 280, 180 320, 256 320 C332 320, 352 280, 352 280 L352 400 C352 440, 320 460, 256 460 C192 460, 160 440, 160 400 Z" fill="#eab308"/>
+  <text x="256" y="380" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#1a1a2e">NIDO</text>
+</svg>
