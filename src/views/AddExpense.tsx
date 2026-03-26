@@ -7,7 +7,14 @@ import { CATEGORIES } from '../types';
 import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
 import { showToast } from '../components/Toast';
 
-/* SVG icons matching design reference */
+interface CategoryDefinition {
+  id?: number | string;
+  name: string;
+  emoji: string;
+  color?: string;
+  iconBg?: string;
+}
+
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
     <path d="M15 19l-7-7 7-7" />
@@ -26,7 +33,6 @@ const PlusIcon = () => (
   </svg>
 );
 
-/* Lucide icon map per category */
 const CATEGORY_ICONS: Record<string, React.FC<any>> = {
   Restaurant: Utensils,
   Supermercado: ShoppingCart,
@@ -36,32 +42,53 @@ const CATEGORY_ICONS: Record<string, React.FC<any>> = {
   Otros: MoreHorizontal,
 };
 
-
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
-  const [category, setCategory] = useState('Restaurant');
+  const [category, setCategory] = useState('');
   const [type, setType] = useState<'shared' | 'personal'>('shared');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryDefinition[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
   const [cmdOpen, setCmdOpen] = useState(false);
   const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     Api.getCategories()
-      .then(setCategories)
+      .then((data: CategoryDefinition[]) => {
+        if (cancelled) return;
+        const normalized = data.map((item) => ({
+          ...item,
+          color: item.color ?? '#60A5FA',
+          iconBg: item.iconBg ?? (item.color ? `${item.color}1A` : 'var(--gl)'),
+        }));
+        setCategories(normalized);
+        setCategory((current) => current || normalized[0]?.name || '');
+      })
       .catch(() => {
-        /* fallback to CATEGORIES from types */
-        setCategories(CATEGORIES.map(c => ({ id: c.id, name: c.name, emoji: c.emoji })));
+        if (cancelled) return;
+        const fallback = CATEGORIES.map((item) => ({
+          id: item.id,
+          name: item.name,
+          emoji: item.emoji,
+          color: item.color,
+          iconBg: item.iconBg,
+        }));
+        setCategories(fallback);
+        setCategory((current) => current || fallback[0]?.name || '');
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  /* Close dropdown on outside click */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (cmdRef.current && !cmdRef.current.contains(e.target as Node)) {
@@ -74,18 +101,26 @@ export const AddExpense: React.FC = () => {
 
   const handleKey = (key: string) => {
     if (key === 'del') {
-      setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+      setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : '0'));
     } else if (key === '.') {
-      if (!amount.includes('.')) setAmount(prev => prev + '.');
+      if (!amount.includes('.')) setAmount((prev) => prev + '.');
     } else {
-      setAmount(prev => prev === '0' ? key : prev + key);
+      setAmount((prev) => (prev === '0' ? key : prev + key));
     }
   };
+
+  const getCatDef = (name: string) =>
+    categories.find((item) => item.name === name) || CATEGORIES.find((item) => item.name === name);
+
+  const filteredCategories = categories.filter((item) =>
+    item.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (parseFloat(amount) <= 0) return setError('Ingresa un monto valido');
     if (!description) return setError('Ingresa una descripcion');
+    if (!category.trim()) return setError('Selecciona una categoría');
 
     try {
       setLoading(true);
@@ -99,20 +134,14 @@ export const AddExpense: React.FC = () => {
         paid_by: user?.username || 'samuel',
       });
       setSuccess(true);
-      showToast('Gasto a\u00f1adido correctamente \u2714');
+      showToast('Gasto añadido correctamente ✔');
       setTimeout(() => navigate('/'), 1500);
-    } catch (err) {
+    } catch {
       setError('Error al guardar el gasto');
     } finally {
       setLoading(false);
     }
   };
-
-  const getCatDef = (name: string) => CATEGORIES.find(c => c.name === name);
-
-  const filteredCategories = CATEGORIES.filter(cat =>
-    cat.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
-  );
 
   if (success) {
     return (
@@ -128,11 +157,7 @@ export const AddExpense: React.FC = () => {
 
   return (
     <div className="add-expense">
-      {/* Back link */}
-      <div
-        className="add-expense__back-link"
-        onClick={() => navigate(-1)}
-      >
+      <div className="add-expense__back-link" onClick={() => navigate(-1)}>
         <ChevronLeftIcon />
         Volver
       </div>
@@ -143,14 +168,8 @@ export const AddExpense: React.FC = () => {
 
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <form onSubmit={handleSubmit}>
-          {/* Amount display */}
           <div className="an d2" style={{ textAlign: 'center', padding: '40px 0 24px' }}>
-            <span style={{
-              fontSize: 20,
-              fontWeight: 600,
-              color: 'var(--tm)',
-              verticalAlign: 'super',
-            }}>
+            <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--tm)', verticalAlign: 'super' }}>
               &euro;
             </span>
             <span style={{
@@ -164,7 +183,6 @@ export const AddExpense: React.FC = () => {
             </span>
           </div>
 
-          {/* Description field */}
           <div className="an d3" style={{ marginBottom: 24 }}>
             <div className="label">Descripcion</div>
             <input
@@ -182,19 +200,18 @@ export const AddExpense: React.FC = () => {
               }}
               placeholder="En que gastaste?"
               value={description}
-              onChange={e => setDescription(e.target.value)}
-              onFocus={e => {
+              onChange={(e) => setDescription(e.target.value)}
+              onFocus={(e) => {
                 e.currentTarget.style.borderColor = 'var(--green)';
                 e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
               }}
-              onBlur={e => {
+              onBlur={(e) => {
                 e.currentTarget.style.borderColor = 'var(--glass-border)';
                 e.currentTarget.style.boxShadow = 'none';
               }}
             />
           </div>
 
-          {/* Command palette category picker */}
           <div className="an d3 cmd-palette" ref={cmdRef}>
             <div className="label">Categoria</div>
             <div className="cmd-input-wrap">
@@ -211,13 +228,12 @@ export const AddExpense: React.FC = () => {
                     }}>
                       {IconComp
                         ? <IconComp size={12} color={catDef?.color ?? 'var(--green)'} strokeWidth={2} />
-                        : <MoreHorizontal size={12} color={catDef?.color ?? 'var(--green)'} strokeWidth={2} />
-                      }
+                        : <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '🦋'}</span>}
                     </div>
                     {category}
                     <span
                       className="cmd-x"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         setCategory('');
                       }}
@@ -229,54 +245,53 @@ export const AddExpense: React.FC = () => {
               })()}
               <input
                 className="cmd-input"
-                placeholder="Buscar o crear categoría..."
+                placeholder="Buscar categoría..."
                 value={categorySearch}
-                onChange={e => {
+                onFocus={() => setCmdOpen(true)}
+                onChange={(e) => {
                   setCategorySearch(e.target.value);
-                  setCmdOpen(e.target.value.length > 0);
+                  setCmdOpen(true);
                 }}
               />
             </div>
             <div className={`cmd-dropdown ${cmdOpen ? 'open' : ''}`}>
               <div className="cmd-list">
-                {filteredCategories.map(cat => (
+                {filteredCategories.map((item) => (
                   <div
-                    key={cat.id}
-                    className={`cmd-option ${category === cat.name ? 'selected' : ''}`}
+                    key={item.id ?? item.name}
+                    className={`cmd-option ${category === item.name ? 'selected' : ''}`}
                     onClick={() => {
-                      setCategory(cat.name);
+                      setCategory(item.name);
                       setCategorySearch('');
                       setCmdOpen(false);
                     }}
                   >
-                    <div className="cmd-icon" style={{ background: cat.iconBg }}>
-                      {(() => {
-                        const IconComp = CATEGORY_ICONS[cat.name];
-                        return IconComp
-                          ? <IconComp size={14} color={cat.color} strokeWidth={2} />
-                          : <MoreHorizontal size={14} color={cat.color} strokeWidth={2} />;
-                      })()}
+                    <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
+                      {CATEGORY_ICONS[item.name]
+                        ? React.createElement(CATEGORY_ICONS[item.name], { size: 14, color: item.color, strokeWidth: 2 })
+                        : <span style={{ fontSize: 14 }}>{item.emoji ?? '🦋'}</span>}
                     </div>
-                    {cat.name}
+                    {item.name}
                   </div>
                 ))}
               </div>
-              {categorySearch.trim() && !CATEGORIES.some(c => c.name.toLowerCase() === categorySearch.trim().toLowerCase()) && (
+              {categorySearch.trim() && !categories.some((item) => item.name.toLowerCase() === categorySearch.trim().toLowerCase()) && (
                 <div
                   className="cmd-create"
                   onClick={() => {
-                    setCategory(categorySearch.trim());
+                    const nextCategory = categorySearch.trim();
+                    setCategory(nextCategory);
                     setCategorySearch('');
                     setCmdOpen(false);
+                    showToast(`Usaremos “${nextCategory}” en este gasto. Si quieres, luego la registramos como categoría nueva.`);
                   }}
                 >
-                  <PlusIcon /> Crear &ldquo;{categorySearch.trim()}&rdquo;
+                  <PlusIcon /> Usar &ldquo;{categorySearch.trim()}&rdquo; en este gasto
                 </div>
               )}
             </div>
           </div>
 
-          {/* Type toggle */}
           <div className="an d4" style={{ marginBottom: 24 }}>
             <div className="label">Tipo de gasto</div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -285,8 +300,7 @@ export const AddExpense: React.FC = () => {
                 onClick={() => setType('shared')}
                 style={type === 'shared'
                   ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }
-                }
+                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
               >
                 Compartido
               </div>
@@ -295,15 +309,13 @@ export const AddExpense: React.FC = () => {
                 onClick={() => setType('personal')}
                 style={type === 'personal'
                   ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }
-                }
+                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
               >
                 Personal
               </div>
             </div>
           </div>
 
-          {/* Numpad */}
           <div className="an d5">
             <div style={{
               display: 'grid',
@@ -312,13 +324,8 @@ export const AddExpense: React.FC = () => {
               maxWidth: 320,
               margin: '0 auto',
             }}>
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(k => (
-                <button
-                  key={k}
-                  type="button"
-                  className="num-btn"
-                  onClick={() => handleKey(k)}
-                >
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => (
+                <button key={k} type="button" className="num-btn" onClick={() => handleKey(k)}>
                   {k}
                 </button>
               ))}
