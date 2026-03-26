@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabase, syncBudgetAllocationsForMonth } from '../db.js';
+import { createNotification, getDatabase, syncBudgetAllocationsForMonth } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { budgetUpdateSchema, validate, validateMonthParam, BudgetInput } from '../validation.js';
 
@@ -35,7 +35,7 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
     const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
     const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
     const pendingApproval = await db.get(`
-      SELECT ba.*, au.username as requested_by 
+      SELECT ba.*, au.username as requested_by_username 
       FROM budget_approvals ba
       JOIN app_users au ON ba.requested_by_user_id = au.id
       WHERE ba.budget_id = ? AND ba.status = 'pending'
@@ -89,19 +89,53 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
     // Handle shared_available update (requires approval)
     if (shared_available !== undefined && shared_available !== budget.shared_available) {
       // Check if there is already a pending approval
-      const existingPending = await db.get('SELECT id FROM budget_approvals WHERE budget_id = ? AND status = "pending"', budget.id);
-      
+      const existingPending = await db.get<{ id: number }>('SELECT id FROM budget_approvals WHERE budget_id = ? AND status = "pending"', budget.id);
+      let approvalId = existingPending?.id ?? null;
+
       if (existingPending) {
         await db.run('UPDATE budget_approvals SET shared_available = ?, requested_by_user_id = ? WHERE id = ?', 
           shared_available, req.user!.id, existingPending.id);
       } else {
-        await db.run(`
+        const insertResult = await db.run(`
           INSERT INTO budget_approvals (budget_id, requested_by_user_id, shared_available)
           VALUES (?, ?, ?)
         `, budget.id, req.user!.id, shared_available);
+        approvalId = insertResult.lastID ?? null;
       }
-      
-      console.log(`📧 NOTIFICATION: User ${username} requested to change shared budget to €${shared_available}. Notification email sent to partner.`);
+
+      try {
+        const requesterDisplayName = username === 'maria' ? 'María' : 'Samuel';
+        const requester = await db.get<{ household_id: string }>(
+          'SELECT household_id FROM app_users WHERE id = ?',
+          req.user!.id,
+        );
+        const otherUser = requester
+          ? await db.get<{ id: number }>(
+              'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
+              requester.household_id,
+              req.user!.id,
+            )
+          : null;
+
+        if (requester && otherUser) {
+          await createNotification({
+            household_id: String(requester.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'budget_change_requested',
+            title: 'Cambio de presupuesto',
+            body: `${requesterDisplayName} solicita cambiar el presupuesto a €${shared_available}`,
+            metadata: {
+              approval_id: approvalId,
+              requested_by_user_id: req.user!.id,
+              requested_by_username: username,
+              requested_for_user_id: otherUser.id,
+              shared_available,
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.error('Error creating budget approval notification:', notifErr);
+      }
     }
 
     // Update category budgets
