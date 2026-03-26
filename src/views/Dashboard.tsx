@@ -60,7 +60,16 @@ interface CategoryDefinition {
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
-const QUICK_CATEGORY_EMOJIS = ['🍽️', '🛒', '🏠', '🎉', '💡', '🚗', '✈️', '🐶', '🎁', '💊', '🎬', '📚'];
+const EMOJI_GRID = [
+  '🍽️','🍕','🍔','🥗','🍣','☕',
+  '🛒','🛍️','👗','👟','💄','🧴',
+  '🏠','🔧','🛋️','🧹','💡','🔑',
+  '🚗','⛽','🚕','🚌','✈️','🚲',
+  '💊','🏥','🧘','💆','🏋️','🦷',
+  '🎉','🎬','🎮','🎵','📚','🎯',
+  '🐶','🐱','🐠','🌱','🎁','📱',
+  '💻','📦','💰','✨','🦋','🌟',
+];
 const EMOJI_INPUT_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 
 export const Dashboard: React.FC = () => {
@@ -510,54 +519,18 @@ export const Dashboard: React.FC = () => {
                   <label>Nombre</label>
                   <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
                 </div>
-                <div className="form-row">
-                  <label>Emoji</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 'var(--rx)',
-                      border: '1px solid var(--glass-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 22,
-                      background: 'var(--surface2)',
-                      flexShrink: 0,
-                    }}>{catModalEmoji || '🙂'}</div>
-                    <input
-                      className="form-input"
-                      type="text"
-                      placeholder="😀"
-                      value={catModalEmoji}
-                      onChange={e => setCatModalEmoji(e.target.value)}
-                      style={{ width: 90, textAlign: 'center', fontSize: 24, padding: '8px 12px' }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--tm)', marginTop: 8 }}>
-                    Puedes pegar o escribir cualquier emoji con el teclado del sistema.
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                    {QUICK_CATEGORY_EMOJIS.map((emojiOption) => (
-                      <button
-                        key={emojiOption}
-                        type="button"
-                        onClick={() => setCatModalEmoji(emojiOption)}
-                        style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 'var(--rx)',
-                          border: catModalEmoji === emojiOption ? '2px solid var(--green)' : '1px solid var(--glass-border)',
-                          background: catModalEmoji === emojiOption ? 'var(--gl)' : 'transparent',
-                          cursor: 'pointer',
-                          fontSize: 20,
-                        }}
-                      >
-                        {emojiOption}
-                      </button>
-                    ))}
-                  </div>
+                <div className="emoji-picker-preview">{catModalEmoji || '🙂'}</div>
+                <div className="emoji-picker-grid">
+                  {EMOJI_GRID.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      className={`emoji-picker-item ${catModalEmoji === em ? 'selected' : ''}`}
+                      onClick={() => setCatModalEmoji(em)}
+                    >{em}</button>
+                  ))}
                 </div>
+                <div className="emoji-picker-hint">Toca para elegir un emoji</div>
                 <div className="form-row">
                   <label>Color</label>
                   <div style={{ display: 'flex', gap: 6 }}>
