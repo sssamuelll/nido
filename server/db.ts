@@ -367,6 +367,13 @@ export const initDatabase = async () => {
 
   // Ensure primary household exists (no default categories seeded — users create their own)
   const householdId = await ensurePrimaryHousehold(database);
+
+  // Migration: remove seeded default categories that were auto-created
+  const seededNames = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+  await database.run(
+    `DELETE FROM categories WHERE household_id = ? AND name IN (${seededNames.map(() => '?').join(',')})`,
+    [householdId, ...seededNames]
+  );
   await syncAppUsersFromLegacyUsers(database, householdId);
   await backfillExpenseUserIds(database);
   await syncBudgetAllocations(database);
