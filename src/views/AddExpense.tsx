@@ -90,15 +90,7 @@ export const AddExpense: React.FC = () => {
       })
       .catch(() => {
         if (cancelled) return;
-        const fallback = CATEGORIES.map((item) => ({
-          id: item.id,
-          name: item.name,
-          emoji: item.emoji,
-          color: item.color,
-          iconBg: item.iconBg,
-        }));
-        setCategories(fallback);
-        setCategory((current) => current || fallback[0]?.name || '');
+        setCategories([]);
       });
 
     return () => {
