@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { CATEGORIES } from '../types';
 import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
 import { showToast } from '../components/Toast';
+import { EmojiPicker } from '../components/EmojiPicker';
 
 interface CategoryDefinition {
   id?: number | string;
@@ -33,17 +34,6 @@ const PlusIcon = () => (
   </svg>
 );
 
-const EMOJI_GRID = [
-  '🍽️','🍕','🍔','🥗','🍣','☕',
-  '🛒','🛍️','👗','👟','💄','🧴',
-  '🏠','🔧','🛋️','🧹','💡','🔑',
-  '🚗','⛽','🚕','🚌','✈️','🚲',
-  '💊','🏥','🧘','💆','🏋️','🦷',
-  '🎉','🎬','🎮','🎵','📚','🎯',
-  '🐶','🐱','🐠','🌱','🎁','📱',
-  '💻','📦','💰','✨','🦋','🌟',
-];
-const EMOJI_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
 
 const CATEGORY_ICONS: Record<string, React.FC<any>> = {
@@ -380,18 +370,10 @@ export const AddExpense: React.FC = () => {
             <h3>Registrar &ldquo;{category}&rdquo; como categoría</h3>
             <p>El gasto ya se guardó. ¿Quieres registrar esta categoría para futuros gastos?</p>
 
-            <div className="emoji-picker-preview">{newCatEmoji || '🙂'}</div>
-            <div className="emoji-picker-grid">
-              {EMOJI_GRID.map((em) => (
-                <button
-                  key={em}
-                  type="button"
-                  className={`emoji-picker-item ${newCatEmoji === em ? 'selected' : ''}`}
-                  onClick={() => setNewCatEmoji(em)}
-                >{em}</button>
-              ))}
+            <div className="form-row">
+              <label>Emoji</label>
+              <EmojiPicker value={newCatEmoji} onChange={setNewCatEmoji} />
             </div>
-            <div className="emoji-picker-hint">Toca para elegir un emoji</div>
 
             <div className="form-row">
               <label>Color</label>
@@ -413,11 +395,7 @@ export const AddExpense: React.FC = () => {
                 className="btn btn-primary"
                 disabled={savingCat}
                 onClick={async () => {
-                  const emoji = newCatEmoji.trim() || '🦋';
-                  if (!EMOJI_REGEX.test(emoji)) {
-                    showToast('Ingresa un emoji válido');
-                    return;
-                  }
+                  const emoji = newCatEmoji.trim() || '📂';
                   try {
                     setSavingCat(true);
                     await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor });
