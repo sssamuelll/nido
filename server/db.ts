@@ -365,25 +365,15 @@ export const initDatabase = async () => {
     `);
   }
 
-  // Seed default categories if none exist
+  // Ensure primary household exists (no default categories seeded — users create their own)
   const householdId = await ensurePrimaryHousehold(database);
-  const categoriesCount = await database.get<{ count: number }>('SELECT COUNT(*) as count FROM categories WHERE household_id = ?', householdId);
-  if (categoriesCount && categoriesCount.count === 0) {
-    const defaultCategories = [
-      { name: 'Restaurant', emoji: '🍽️', color: '#ff8c6b' },
-      { name: 'Gastos', emoji: '🛒', color: '#7cb5e8' },
-      { name: 'Servicios', emoji: '💡', color: '#c4a0e8' },
-      { name: 'Ocio', emoji: '🎉', color: '#e87ca0' },
-      { name: 'Inversión', emoji: '📈', color: '#a6c79c' },
-      { name: 'Otros', emoji: '🦋', color: '#a89e94' }
-    ];
-    for (const cat of defaultCategories) {
-      await database.run(
-        'INSERT INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)',
-        [householdId, cat.name, cat.emoji, cat.color]
-      );
-    }
-  }
+
+  // Migration: remove seeded default categories that were auto-created
+  const seededNames = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+  await database.run(
+    `DELETE FROM categories WHERE household_id = ? AND name IN (${seededNames.map(() => '?').join(',')})`,
+    [householdId, ...seededNames]
+  );
   await syncAppUsersFromLegacyUsers(database, householdId);
   await backfillExpenseUserIds(database);
   await syncBudgetAllocations(database);
