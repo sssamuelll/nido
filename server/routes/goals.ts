@@ -74,6 +74,25 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
     );
 
     const newGoal = await db.get('SELECT * FROM goals WHERE id = ?', result.lastID);
+
+    // Notify partner for shared goals
+    if (owner_type === 'shared') {
+      try {
+        const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
+        if (otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'goal_created',
+            title: 'Nuevo objetivo',
+            body: `${displayName} creó el objetivo "${name}" (€${target})`,
+            metadata: { goal_id: result.lastID },
+          });
+        }
+      } catch (notifErr) { console.error('Notification error:', notifErr); }
+    }
+
     res.status(201).json(newGoal);
   } catch (error) {
     console.error('Error creating goal:', error);
@@ -128,6 +147,25 @@ router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => 
     );
 
     const updatedGoal = await db.get('SELECT * FROM goals WHERE id = ?', id);
+
+    // Notify partner for shared goals
+    if (existing.owner_type === 'shared') {
+      try {
+        const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
+        if (otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'goal_updated',
+            title: 'Objetivo editado',
+            body: `${displayName} editó el objetivo "${updatedGoal.name}"`,
+            metadata: { goal_id: Number(id) },
+          });
+        }
+      } catch (notifErr) { console.error('Notification error:', notifErr); }
+    }
+
     res.json(updatedGoal);
   } catch (error) {
     console.error('Error updating goal:', error);
@@ -162,6 +200,24 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     if (existing.owner_type === 'personal' && existing.owner_user_id !== req.user!.id) {
       return res.status(403).json({ error: 'Forbidden: You can only delete your own personal goals' });
+    }
+
+    // Notify partner for shared goals before deleting
+    if (existing.owner_type === 'shared') {
+      try {
+        const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
+        if (otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'goal_deleted',
+            title: 'Objetivo eliminado',
+            body: `${displayName} eliminó el objetivo "${existing.name}"`,
+            metadata: { goal_name: existing.name },
+          });
+        }
+      } catch (notifErr) { console.error('Notification error:', notifErr); }
     }
 
     // Delete contributions first, then goal

@@ -192,7 +192,23 @@ router.post('/approve', async (req: AuthRequest, res) => {
     await db.run('UPDATE budget_approvals SET status = "approved", approved_by_user_id = ? WHERE id = ?', req.user!.id, approval_id);
     
     await db.exec('COMMIT');
-    
+
+    // Notify the requester that their budget change was approved
+    try {
+      const approver = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+      if (approver) {
+        const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+        await createNotification({
+          household_id: String(approver.household_id),
+          recipient_user_id: approval.requested_by_user_id,
+          type: 'budget_approved',
+          title: 'Presupuesto aprobado',
+          body: `${displayName} aprobó el cambio de presupuesto a €${approval.shared_available}`,
+          metadata: { approval_id: approval_id, shared_available: approval.shared_available },
+        });
+      }
+    } catch (notifErr) { console.error('Notification error:', notifErr); }
+
     res.json({ success: true });
   } catch (error) {
     const db = getDatabase();

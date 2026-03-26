@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import './config.js'; // Validate environment first
-import { getDatabase, initDatabase } from './db.js';
+import { getDatabase, initDatabase, createNotification } from './db.js';
 import {
   login,
   authenticateToken,
@@ -348,12 +348,29 @@ app.post('/api/categories', authenticateToken, async (req: AuthRequest, res) => 
     const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
     
     if (id) {
-      await db.run('UPDATE categories SET name = ?, emoji = ?, color = ? WHERE id = ? AND household_id = ?', 
+      await db.run('UPDATE categories SET name = ?, emoji = ?, color = ? WHERE id = ? AND household_id = ?',
         name, emoji, color, id, user.household_id);
     } else {
-      await db.run('INSERT INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)', 
+      await db.run('INSERT INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)',
         user.household_id, name, emoji, color);
     }
+
+    // Notify partner
+    try {
+      const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
+      if (otherUser) {
+        const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+        await createNotification({
+          household_id: String(user.household_id),
+          recipient_user_id: otherUser.id,
+          type: id ? 'category_updated' : 'category_created',
+          title: id ? 'Categoría editada' : 'Nueva categoría',
+          body: `${displayName} ${id ? 'editó' : 'creó'} la categoría "${name}" ${emoji}`,
+          metadata: { category_name: name },
+        });
+      }
+    } catch (notifErr) { console.error('Notification error:', notifErr); }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to save category' });
@@ -364,7 +381,27 @@ app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, re
   try {
     const db = getDatabase();
     const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    const existing = await db.get<{ name: string; emoji: string }>('SELECT name, emoji FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
     await db.run('DELETE FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
+
+    // Notify partner
+    if (existing) {
+      try {
+        const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
+        if (otherUser) {
+          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
+          await createNotification({
+            household_id: String(user.household_id),
+            recipient_user_id: otherUser.id,
+            type: 'category_deleted',
+            title: 'Categoría eliminada',
+            body: `${displayName} eliminó la categoría "${existing.name}" ${existing.emoji}`,
+            metadata: { category_name: existing.name },
+          });
+        }
+      } catch (notifErr) { console.error('Notification error:', notifErr); }
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete category' });
