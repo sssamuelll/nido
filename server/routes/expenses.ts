@@ -43,6 +43,8 @@ interface CategoryRow {
   name: string;
 }
 
+const DEFAULT_CATEGORY_NAMES = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+
 const router = Router();
 const visibleExpensesWhere = `
   date LIKE ?
@@ -249,13 +251,17 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
       req.user!.id,
     );
 
-    const categoryNames = Array.from(new Set([
-      ...householdCategories.map((category) => category.name),
-      ...categoryBudgets.map((budget) => budget.category),
-      ...expenses.map((expense) => expense.category),
-    ]));
+    const categoryNames = Array.from(new Set(
+      [
+        ...householdCategories.map((category) => category.name),
+        ...categoryBudgets.map((budget) => budget.category),
+        ...expenses.map((expense) => expense.category),
+      ].filter((category): category is string => Boolean(category))
+    ));
 
-    const categoryBreakdown = categoryNames.map(category => {
+    const visibleCategoryNames = categoryNames.length > 0 ? categoryNames : DEFAULT_CATEGORY_NAMES;
+
+    const categoryBreakdown = visibleCategoryNames.map(category => {
       const categoryExpenses = expenses.filter((exp: ExpenseRow) => exp.category === category);
       const categoryTotal = categoryExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
       const budgetEntry = categoryBudgets.find((b: CategoryBudgetRow) => b.category === category);
