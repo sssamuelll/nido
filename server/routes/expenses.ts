@@ -44,8 +44,6 @@ interface CategoryRow {
   name: string;
 }
 
-const DEFAULT_CATEGORY_NAMES = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
-
 const router = Router();
 const visibleExpensesWhere = `
   date LIKE ?
@@ -262,7 +260,7 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
       ].filter((category): category is string => Boolean(category))
     ));
 
-    const visibleCategoryNames = categoryNames.length > 0 ? categoryNames : DEFAULT_CATEGORY_NAMES;
+    const visibleCategoryNames = categoryNames;
 
     const buildBreakdown = (budgets: CategoryBudgetRow[], filteredExpenses: ExpenseRow[]) =>
       visibleCategoryNames.map(category => {
