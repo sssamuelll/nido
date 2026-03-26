@@ -49,15 +49,19 @@ interface DashboardData {
   recentTransactions: VisibleExpense[];
 }
 
+interface CategoryDefinition {
+  id?: number;
+  name: string;
+  emoji: string;
+  color: string;
+  iconBg?: string;
+}
+
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
-const FALLBACK_CATEGORY_EMOJIS = ['⚡', '🛒', '🏠', '🎉', '💡'];
-
-const getCategoryEmoji = (categoryId: string): string => {
-  const cat = CATEGORIES.find(c => c.id === categoryId);
-  return cat ? cat.emoji : '🦋';
-};
+const QUICK_CATEGORY_EMOJIS = ['🍽️', '🛒', '🏠', '🎉', '💡', '🚗', '✈️', '🐶', '🎁', '💊', '🎬', '📚'];
+const EMOJI_INPUT_REGEX = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -73,8 +77,9 @@ export const Dashboard: React.FC = () => {
   const [catModalMode, setCatModalMode] = useState<'add' | 'edit'>('add');
   const [catModalName, setCatModalName] = useState('');
   const [catModalBudget, setCatModalBudget] = useState('');
-  const [catModalIcon, setCatModalIcon] = useState(0);
+  const [catModalEmoji, setCatModalEmoji] = useState('🍽️');
   const [catModalColor, setCatModalColor] = useState('#F87171');
+  const [categories, setCategories] = useState<CategoryDefinition[]>(CATEGORIES);
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -98,6 +103,23 @@ export const Dashboard: React.FC = () => {
       .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    Api.getCategories()
+      .then((data: CategoryDefinition[]) => {
+        setCategories(data.map((category) => ({
+          ...category,
+          iconBg: `${category.color}1A`,
+        })));
+      })
+      .catch(() => {
+        setCategories(CATEGORIES);
+      });
+  }, []);
+
+  const getCategoryDefinition = (categoryName: string) =>
+    categories.find((category) => category.name === categoryName || category.id === categoryName)
+    ?? CATEGORIES.find((category) => category.name === categoryName || category.id === categoryName);
 
   const loadDashboardData = async () => {
     try {
@@ -126,7 +148,7 @@ export const Dashboard: React.FC = () => {
     setCatModalMode('add');
     setCatModalName('');
     setCatModalBudget('');
-    setCatModalIcon(0);
+    setCatModalEmoji('🍽️');
     setCatModalColor('#F87171');
     setShowCatModal(true);
   };
@@ -137,6 +159,12 @@ export const Dashboard: React.FC = () => {
 
     if (!name) {
       showToast('Ponle un nombre a la categoría');
+      return;
+    }
+
+    const emoji = catModalEmoji.trim();
+    if (!emoji || !EMOJI_INPUT_REGEX.test(emoji)) {
+      showToast('Elige un emoji válido para la categoría');
       return;
     }
 
@@ -153,13 +181,18 @@ export const Dashboard: React.FC = () => {
       if (catModalMode === 'add') {
         await Api.saveCategory({
           name,
-          emoji: FALLBACK_CATEGORY_EMOJIS[catModalIcon] ?? '🦋',
+          emoji,
           color: catModalColor,
         });
       }
 
       await Api.updateBudget({ month: currentMonth, categories: cats });
       setShowCatModal(false);
+      const latestCategories = await Api.getCategories().catch(() => categories);
+      setCategories((latestCategories as CategoryDefinition[]).map((category) => ({
+        ...category,
+        iconBg: category.iconBg ?? `${category.color}1A`,
+      })));
       await loadDashboardData();
       showToast(catModalMode === 'add' ? 'Categoría creada' : 'Categoría actualizada');
     } catch (error: any) {
@@ -371,7 +404,7 @@ export const Dashboard: React.FC = () => {
               <div className="empty-view">Sin datos de categorías</div>
             ) : (
               categoryBreakdown.filter(cat => toNum(cat?.budget) > 0).map(cat => {
-                const catDef = CATEGORIES.find(c => c.id === cat.category);
+                const catDef = getCategoryDefinition(cat.category);
                 const spent = toNum(cat.total);
                 const budget = toNum(cat.budget);
                 const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
@@ -437,7 +470,7 @@ export const Dashboard: React.FC = () => {
                       {filteredItems.map(tx => (
                         <TransactionRow
                           key={tx.id}
-                          emoji={getCategoryEmoji(tx.category)}
+                          emoji={getCategoryDefinition(tx.category)?.emoji ?? '🦋'}
                           name={tx.description}
                           payer={tx.paid_by}
                           amount={`-€${toNum(tx.amount).toFixed(2)}`}
@@ -478,20 +511,50 @@ export const Dashboard: React.FC = () => {
                   <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
                 </div>
                 <div className="form-row">
-                  <label>Icono</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {[
-                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>,
-                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4"/></svg>,
-                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3"/></svg>,
-                    ].map((icon, idx) => (
-                      <div key={idx} onClick={() => setCatModalIcon(idx)} style={{
-                        width: 36, height: 36, borderRadius: 'var(--rx)',
-                        border: catModalIcon === idx ? '2px solid var(--green)' : '1px solid var(--glass-border)',
-                        background: catModalIcon === idx ? 'var(--gl)' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                        color: catModalIcon === idx ? 'var(--green)' : 'var(--ts)',
-                      }}>{icon}</div>
+                  <label>Emoji</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 'var(--rx)',
+                      border: '1px solid var(--glass-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      background: 'var(--surface2)',
+                      flexShrink: 0,
+                    }}>{catModalEmoji || '🙂'}</div>
+                    <input
+                      className="form-input"
+                      type="text"
+                      placeholder="😀"
+                      value={catModalEmoji}
+                      onChange={e => setCatModalEmoji(e.target.value)}
+                      style={{ width: 90, textAlign: 'center', fontSize: 24, padding: '8px 12px' }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--tm)', marginTop: 8 }}>
+                    Puedes pegar o escribir cualquier emoji con el teclado del sistema.
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                    {QUICK_CATEGORY_EMOJIS.map((emojiOption) => (
+                      <button
+                        key={emojiOption}
+                        type="button"
+                        onClick={() => setCatModalEmoji(emojiOption)}
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 'var(--rx)',
+                          border: catModalEmoji === emojiOption ? '2px solid var(--green)' : '1px solid var(--glass-border)',
+                          background: catModalEmoji === emojiOption ? 'var(--gl)' : 'transparent',
+                          cursor: 'pointer',
+                          fontSize: 20,
+                        }}
+                      >
+                        {emojiOption}
+                      </button>
                     ))}
                   </div>
                 </div>
