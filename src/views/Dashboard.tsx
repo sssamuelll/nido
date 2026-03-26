@@ -11,6 +11,7 @@ import { CATEGORIES, INDICATOR_COLORS } from '../types';
 import { getPersonalBalanceCardModel, VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
+import { showToast } from '../components/Toast';
 
 interface Notification {
   id: number;
@@ -50,6 +51,8 @@ interface DashboardData {
 
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
+
+const FALLBACK_CATEGORY_EMOJIS = ['⚡', '🛒', '🏠', '🎉', '💡'];
 
 const getCategoryEmoji = (categoryId: string): string => {
   const cat = CATEGORIES.find(c => c.id === categoryId);
@@ -131,15 +134,40 @@ export const Dashboard: React.FC = () => {
   const handleSaveCatModal = async () => {
     const name = catModalName.trim();
     const amount = parseFloat(catModalBudget);
-    if (!name || !amount || amount <= 0) return;
+
+    if (!name) {
+      showToast('Ponle un nombre a la categoría');
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Pon un límite válido para la categoría');
+      return;
+    }
+
     const cats: Record<string, number> = {};
     categoryBreakdown.forEach(cat => { cats[cat.category] = toNum(cat.budget); });
     cats[name] = amount;
+
     try {
+      if (catModalMode === 'add') {
+        await Api.saveCategory({
+          name,
+          emoji: FALLBACK_CATEGORY_EMOJIS[catModalIcon] ?? '🦋',
+          color: catModalColor,
+        });
+      }
+
       await Api.updateBudget({ month: currentMonth, categories: cats });
       setShowCatModal(false);
-      loadDashboardData();
-    } catch { /* */ }
+      await loadDashboardData();
+      showToast(catModalMode === 'add' ? 'Categoría creada' : 'Categoría actualizada');
+    } catch (error: any) {
+      const message = typeof error?.message === 'string' && error.message
+        ? error.message
+        : 'Error al guardar la categoría';
+      showToast(message);
+    }
   };
 
   const formatMonthName = (monthStr: string) => {
