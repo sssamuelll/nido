@@ -7,6 +7,7 @@ import { TransactionRow } from '../components/TransactionRow';
 import { useAuth } from '../auth';
 import { OWNER_THEMES } from '../types';
 import { buildPersonalDetailModel, type VisibleBudgetFormData, type VisibleExpense } from './privacy';
+import { useCategoryManagement } from '../hooks/useCategoryManagement';
 
 interface DashboardSummary {
   budget?: {
@@ -56,11 +57,7 @@ export const PersonalDashboard: React.FC = () => {
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [categories, setCategories] = useState<Array<{ id?: number; name: string; emoji: string; color: string }>>([]);
-
-  useEffect(() => {
-    Api.getCategories().then(setCategories).catch(() => {});
-  }, []);
+  const { getCategoryDef } = useCategoryManagement();
 
   useEffect(() => {
     const loadPersonalDashboard = async () => {
@@ -187,7 +184,7 @@ export const PersonalDashboard: React.FC = () => {
               <div className="personal-dashboard__empty">Todavía no hay gastos personales este mes.</div>
             ) : (
               detail.categories.map((category) => {
-                const categoryDef = categories.find((item) => item.name === category.category);
+                const categoryDef = getCategoryDef(category.category);
 
                 return (
                   <div key={category.category} className="personal-dashboard__category-item">
@@ -230,7 +227,7 @@ export const PersonalDashboard: React.FC = () => {
               <div className="personal-dashboard__empty">No hay gastos personales registrados este mes.</div>
             ) : (
               detail.recentExpenses.map((expense) => {
-                const categoryDef = categories.find((item) => item.name === expense.category);
+                const categoryDef = getCategoryDef(expense.category);
                 return (
                   <TransactionRow
                     key={expense.id}

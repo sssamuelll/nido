@@ -5,14 +5,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../auth';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
-
-interface CategoryDefinition {
-  id?: number | string;
-  name: string;
-  emoji: string;
-  color?: string;
-  iconBg?: string;
-}
+import { useCategoryManagement } from '../hooks/useCategoryManagement';
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -44,7 +37,7 @@ export const AddExpense: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [categories, setCategories] = useState<CategoryDefinition[]>([]);
+  const { categories, getCategoryDef } = useCategoryManagement();
   const [categorySearch, setCategorySearch] = useState('');
   const [cmdOpen, setCmdOpen] = useState(false);
   const [showNewCatModal, setShowNewCatModal] = useState(false);
@@ -54,28 +47,10 @@ export const AddExpense: React.FC = () => {
   const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    Api.getCategories()
-      .then((data: CategoryDefinition[]) => {
-        if (cancelled) return;
-        const normalized = data.map((item) => ({
-          ...item,
-          color: item.color ?? '#60A5FA',
-          iconBg: item.iconBg ?? (item.color ? `${item.color}1A` : 'var(--gl)'),
-        }));
-        setCategories(normalized);
-        setCategory((current) => current || normalized[0]?.name || '');
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setCategories([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (categories.length > 0) {
+      setCategory((current) => current || categories[0].name);
+    }
+  }, [categories]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -96,9 +71,6 @@ export const AddExpense: React.FC = () => {
       setAmount((prev) => (prev === '0' ? key : prev + key));
     }
   };
-
-  const getCatDef = (name: string) =>
-    categories.find((item) => item.name === name);
 
   const filteredCategories = categories.filter((item) =>
     item.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
@@ -215,7 +187,7 @@ export const AddExpense: React.FC = () => {
             <div className="cmd-input-wrap">
               <TagIcon />
               {category && (() => {
-                const catDef = getCatDef(category);
+                const catDef = getCategoryDef(category);
                 return (
                   <span className="cmd-selected">
                     <div className="cmd-icon" style={{
