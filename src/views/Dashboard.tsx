@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
-import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { TransactionRow } from '../components/TransactionRow';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
@@ -423,15 +423,13 @@ export const Dashboard: React.FC = () => {
                 const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
                 const color = catDef?.color ?? '#60A5FA';
                 const iconBg = color + '1A';
-                const ICON_MAP: Record<string, React.FC<{ size?: number; color?: string }>> = {
-                  Restaurant: Utensils, Supermercado: ShoppingCart, Servicios: Zap,
-                  Ocio: Smile, 'Inversión': TrendingUp, Otros: MoreHorizontal,
-                };
-                const IconComp = ICON_MAP[cat.category] ?? MoreHorizontal;
+                const emoji = catDef?.emoji;
                 return (
                   <div key={cat.category} className="budget-item">
                     <div className="icon-c" style={{ background: iconBg }}>
-                      <IconComp size={18} color={color} />
+                      {emoji
+                        ? <span style={{ fontSize: 18 }}>{emoji}</span>
+                        : <MoreHorizontal size={18} color={color} />}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 500 }}>{cat.category}</div>
