@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { useContextSelector } from '../hooks/useContextSelector';
+import { useMonthNavigation } from '../hooks/useMonthNavigation';
+import { ContextTabs } from '../components/ContextTabs';
+import { MonthNavigator } from '../components/MonthNavigator';
 
 /* Category color map matching design reference icon-c backgrounds */
 const CAT_COLORS: Record<string, { bg: string; stroke: string }> = {
@@ -29,17 +33,13 @@ const payerDisplayName = (p: string) => {
 };
 
 export const History: React.FC = () => {
-  const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+  const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
+  const { activeContext, setActiveContext } = useContextSelector();
+  const { getCategoryDef } = useCategoryManagement();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
-  const [categories, setCategories] = useState<Array<{ name: string; emoji: string; color: string }>>([]);
-
-  useEffect(() => {
-    Api.getCategories().then(setCategories).catch(() => {});
-  }, []);
 
   useEffect(() => {
     loadExpenses();
@@ -56,18 +56,6 @@ export const History: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const navigateMonth = (dir: -1 | 1) => {
-    const [y, m] = currentMonth.split('-').map(Number);
-    const d = new Date(y, m - 1 + dir, 1);
-    setCurrentMonth(format(d, 'yyyy-MM'));
-  };
-
-  const formatMonthName = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    return `${months[parseInt(month) - 1]} ${year}`;
   };
 
   const filteredExpenses = expenses.filter(e => {
@@ -129,23 +117,8 @@ export const History: React.FC = () => {
 
       {/* Context tabs + Month nav — same row */}
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }} className="an d2 month-controls">
-        <div className="ctx-tabs" style={{ marginBottom: 0 }}>
-          <div className={`ctx-tab ${activeContext === 'shared' ? 'active' : ''}`} onClick={() => setActiveContext('shared')}>
-            <div className="dot sh-d" />Compartido
-          </div>
-          <div className={`ctx-tab ${activeContext === 'personal' ? 'active' : ''}`} onClick={() => setActiveContext('personal')}>
-            <div className="dot ps-d" />Personal
-          </div>
-        </div>
-        <div className="month-nav">
-          <div className="month-btn" onClick={() => navigateMonth(-1)}>
-            <ChevronLeft size={16} />
-          </div>
-          <h2>{formatMonthName(currentMonth)}</h2>
-          <div className="month-btn" onClick={() => navigateMonth(1)}>
-            <ChevronRight size={16} />
-          </div>
-        </div>
+        <ContextTabs active={activeContext} onChange={setActiveContext} />
+        <MonthNavigator label={formatMonthName(currentMonth)} onPrev={() => navigateMonth(-1)} onNext={() => navigateMonth(1)} />
       </div>
 
       {/* Search */}
@@ -195,7 +168,7 @@ export const History: React.FC = () => {
               <div key={date} style={{ marginBottom: idx < sortedDates.length - 1 ? '20px' : undefined }}>
                 <div className="day-label">{formatDayLabel(date)}</div>
                 {grouped[date].map(expense => {
-                  const catDef = categories.find(c => c.name === expense.category);
+                  const catDef = getCategoryDef(expense.category);
                   const catColor = getCatColor(expense.category);
                   const payer = payerDisplayName(expense.paid_by);
                   const badgeClass = PAYER_BADGE[expense.paid_by] ?? 'badge badge-b';

@@ -11,8 +11,12 @@ import { INDICATOR_COLORS } from '../types';
 import { getPersonalBalanceCardModel, VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
-import { showToast } from '../components/Toast';
-import { EmojiPicker } from '../components/EmojiPicker';
+import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { useContextSelector } from '../hooks/useContextSelector';
+import { useMonthNavigation } from '../hooks/useMonthNavigation';
+import { useCategoryModal } from '../hooks/useCategoryModal';
+import { ContextTabs } from '../components/ContextTabs';
+import { CategoryModal } from '../components/CategoryModal';
 
 interface Notification {
   id: number;
@@ -56,35 +60,21 @@ interface DashboardData {
   recentTransactions: VisibleExpense[];
 }
 
-interface CategoryDefinition {
-  id?: number;
-  name: string;
-  emoji: string;
-  color: string;
-  iconBg?: string;
-}
-
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [currentMonth, setCurrentMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+  const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
+  const { activeContext, setActiveContext } = useContextSelector();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showCatModal, setShowCatModal] = useState(false);
-  const [catModalMode, setCatModalMode] = useState<'add' | 'edit'>('add');
-  const [catModalName, setCatModalName] = useState('');
-  const [catModalOriginalName, setCatModalOriginalName] = useState('');
-  const [catModalBudget, setCatModalBudget] = useState('');
-  const [catModalEmoji, setCatModalEmoji] = useState('🍽️');
-  const [catModalColor, setCatModalColor] = useState('#F87171');
-  const [categories, setCategories] = useState<CategoryDefinition[]>([]);
+  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement();
+  const catModal = useCategoryModal();
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -109,22 +99,6 @@ export const Dashboard: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    Api.getCategories()
-      .then((data: CategoryDefinition[]) => {
-        setCategories(data.map((category) => ({
-          ...category,
-          iconBg: `${category.color}1A`,
-        })));
-      })
-      .catch(() => {
-        setCategories([]);
-      });
-  }, []);
-
-  const getCategoryDefinition = (categoryName: string) =>
-    categories.find((category) => category.name === categoryName || category.id === categoryName);
-
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -139,92 +113,6 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const openEditCatModal = (categoryName: string, budget: number) => {
-    setCatModalMode('edit');
-    setCatModalName(categoryName);
-    setCatModalOriginalName(categoryName);
-    setCatModalBudget(String(budget));
-    const catDef = getCategoryDefinition(categoryName);
-    setCatModalEmoji(catDef?.emoji || '📂');
-    setCatModalColor(catDef?.color || '#6B7280');
-    setShowCatModal(true);
-  };
-
-  const openNewCatModal = () => {
-    setCatModalMode('add');
-    setCatModalName('');
-    setCatModalBudget('');
-    setCatModalEmoji('🍽️');
-    setCatModalColor('#F87171');
-    setShowCatModal(true);
-  };
-
-  const handleSaveCatModal = async () => {
-    const name = catModalName.trim();
-    const amount = parseFloat(catModalBudget);
-
-    if (!name) {
-      showToast('Ponle un nombre a la categoría');
-      return;
-    }
-
-    const emoji = catModalEmoji.trim() || '📂';
-
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showToast('Pon un límite válido para la categoría');
-      return;
-    }
-
-    const cats: Record<string, number> = {};
-    categoryBreakdown.forEach(cat => { cats[cat.category] = toNum(cat.budget); });
-
-    // If renamed, remove old budget key and set new one
-    if (catModalMode === 'edit' && catModalOriginalName !== name) {
-      delete cats[catModalOriginalName];
-    }
-    cats[name] = amount;
-
-    try {
-      // Find existing category id for updates
-      const existingCat = categories.find(c => c.name === catModalOriginalName);
-      await Api.saveCategory({
-        id: catModalMode === 'edit' && existingCat ? existingCat.id : undefined,
-        name,
-        emoji,
-        color: catModalColor,
-      });
-
-      await Api.updateBudget({ month: currentMonth, categories: cats, context: activeContext });
-      setShowCatModal(false);
-      const latestCategories = await Api.getCategories().catch(() => categories);
-      setCategories((latestCategories as CategoryDefinition[]).map((category) => ({
-        ...category,
-        iconBg: category.iconBg ?? `${category.color}1A`,
-      })));
-      await loadDashboardData();
-      showToast(catModalMode === 'add' ? 'Categoría creada' : 'Categoría actualizada');
-    } catch (error: any) {
-      const message = typeof error?.message === 'string' && error.message
-        ? error.message
-        : 'Error al guardar la categoría';
-      showToast(message);
-    }
-  };
-
-  const formatMonthName = (monthStr: string) => {
-    const [year, month] = monthStr.split('-');
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    return `${months[parseInt(month) - 1]} ${year}`;
-  };
-
-  const navigateMonth = (dir: -1 | 1) => {
-    const [y, m] = currentMonth.split('-').map(Number);
-    const d = new Date(y, m - 1 + dir, 1);
-    setCurrentMonth(format(d, 'yyyy-MM'));
   };
 
   if (loading) {
@@ -334,22 +222,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Context Tabs */}
-        <div className="dashboard__context-tabs an d2">
-          <button
-            className={`dashboard__context-tab ${activeContext === 'shared' ? 'dashboard__context-tab--active' : ''}`}
-            onClick={() => setActiveContext('shared')}
-          >
-            <div className="dot sh-d" />
-            Compartido
-          </button>
-          <button
-            className={`dashboard__context-tab ${activeContext === 'personal' ? 'dashboard__context-tab--active' : ''}`}
-            onClick={() => setActiveContext('personal')}
-          >
-            <div className="dot ps-d" />
-            Personal
-          </button>
-        </div>
+        <ContextTabs active={activeContext} onChange={setActiveContext} className="an d2" />
 
         {/* Insight Strip — computed from real data */}
         <div className="dashboard__insight-strip an d3">
@@ -417,7 +290,7 @@ export const Dashboard: React.FC = () => {
               <div className="empty-view">Sin datos de categorías</div>
             ) : (
               categoryBreakdown.filter(cat => toNum(cat?.budget) > 0).map(cat => {
-                const catDef = getCategoryDefinition(cat.category);
+                const catDef = getCategoryDef(cat.category);
                 const spent = toNum(cat.total);
                 const budget = toNum(cat.budget);
                 const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
@@ -440,7 +313,7 @@ export const Dashboard: React.FC = () => {
                     <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                       €{spent.toLocaleString('es-ES')} <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/ €{budget.toLocaleString('es-ES')}</small>
                     </div>
-                    <button className="budget-edit" onClick={() => openEditCatModal(cat.category, budget)}>
+                    <button className="budget-edit" onClick={() => catModal.openEdit(cat.category, budget, getCategoryDef(cat.category))}>
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                         <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                       </svg>
@@ -449,7 +322,7 @@ export const Dashboard: React.FC = () => {
                 );
               })
             )}
-            <div className="add-cat-row" onClick={openNewCatModal}>
+            <div className="add-cat-row" onClick={catModal.openAdd}>
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>
               {' '}Añadir categoría
             </div>
@@ -481,7 +354,7 @@ export const Dashboard: React.FC = () => {
                       {filteredItems.map(tx => (
                         <TransactionRow
                           key={tx.id}
-                          emoji={getCategoryDefinition(tx.category)?.emoji ?? '🦋'}
+                          emoji={getCategoryDef(tx.category)?.emoji ?? '🦋'}
                           name={tx.description}
                           payer={tx.paid_by}
                           amount={`-€${toNum(tx.amount).toFixed(2)}`}
@@ -509,46 +382,28 @@ export const Dashboard: React.FC = () => {
           />
         )}
 
-        {/* Category modal — 1:1 design reference */}
-        {showCatModal && (
-          <div className="modal-overlay open" onClick={() => setShowCatModal(false)}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
-              <h3>{catModalMode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</h3>
-              <p>{catModalMode === 'edit' ? 'Edita nombre, emoji y límite' : 'Crea una categoría para organizar tus gastos'}</p>
-
-              <div className="form-row">
-                <label>Nombre</label>
-                <input className="form-input" type="text" placeholder="Ej: Transporte" value={catModalName} onChange={e => setCatModalName(e.target.value)} />
-              </div>
-              <div className="form-row">
-                <label>Emoji</label>
-                <EmojiPicker value={catModalEmoji} onChange={setCatModalEmoji} />
-              </div>
-              <div className="form-row">
-                <label>Color</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'].map(c => (
-                    <div key={c} onClick={() => setCatModalColor(c)} style={{
-                      width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
-                      border: `3px solid ${catModalColor === c ? 'var(--text)' : 'transparent'}`,
-                    }} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-row">
-                <label>Límite</label>
-                <span style={{ color: 'var(--tm)' }}>€</span>
-                <input className="form-input" type="number" placeholder="200" value={catModalBudget} onChange={e => setCatModalBudget(e.target.value)} style={{ width: 100, textAlign: 'right' }} autoFocus />
-              </div>
-
-              <div className="modal-actions">
-                <button className="btn btn-outline" onClick={() => setShowCatModal(false)}>Cancelar</button>
-                <button className="btn btn-primary" onClick={handleSaveCatModal}>Guardar</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Category modal */}
+        <CategoryModal
+          isOpen={catModal.showModal}
+          mode={catModal.mode}
+          name={catModal.name}
+          onNameChange={catModal.setName}
+          emoji={catModal.emoji}
+          onEmojiChange={catModal.setEmoji}
+          color={catModal.color}
+          onColorChange={catModal.setColor}
+          colorOptions={catModal.colorOptions}
+          budget={catModal.budget}
+          onBudgetChange={catModal.setBudget}
+          onClose={catModal.close}
+          onSave={() => catModal.save({
+            month: currentMonth,
+            context: activeContext,
+            categoryBreakdown: categoryBreakdown.map(c => ({ category: c.category, budget: toNum(c.budget) })),
+            categories,
+            onSuccess: () => { reloadCategories(); loadDashboardData(); },
+          })}
+        />
     </>
   );
 };
