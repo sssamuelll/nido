@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { CATEGORIES } from '../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /* Category color map matching design reference icon-c backgrounds */
@@ -36,6 +35,11 @@ export const History: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
+  const [categories, setCategories] = useState<Array<{ name: string; emoji: string; color: string }>>([]);
+
+  useEffect(() => {
+    Api.getCategories().then(setCategories).catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadExpenses();
@@ -191,14 +195,14 @@ export const History: React.FC = () => {
               <div key={date} style={{ marginBottom: idx < sortedDates.length - 1 ? '20px' : undefined }}>
                 <div className="day-label">{formatDayLabel(date)}</div>
                 {grouped[date].map(expense => {
-                  const catDef = CATEGORIES.find(c => c.id === expense.category);
+                  const catDef = categories.find(c => c.name === expense.category);
                   const catColor = getCatColor(expense.category);
                   const payer = payerDisplayName(expense.paid_by);
                   const badgeClass = PAYER_BADGE[expense.paid_by] ?? 'badge badge-b';
                   return (
                     <div className="h-item" key={expense.id}>
                       <div className="icon-c" style={{ background: catColor.bg }}>
-                        <span style={{ fontSize: '16px' }}>{catDef?.emoji ?? '🦋'}</span>
+                        <span style={{ fontSize: '16px' }}>{catDef?.emoji ?? '📂'}</span>
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '14px', fontWeight: 500 }}>{expense.description}</div>
