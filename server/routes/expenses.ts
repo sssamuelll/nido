@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { findAppUserIdByUsername, getDatabase, createNotification } from '../db.js';
+import { findAppUserIdByUsername, getDatabase, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import {
   expenseCreateSchema,
@@ -109,33 +109,9 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
 
-    // Notify partner about shared expenses only
     if (type === 'shared') {
-      try {
-        const user = await db.get<{ household_id: string }>(
-          'SELECT household_id FROM app_users WHERE id = ?',
-          req.user!.id
-        );
-        if (user) {
-          const otherUser = await db.get<{ id: number }>(
-            'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
-            user.household_id, req.user!.id
-          );
-          if (otherUser) {
-            const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-            await createNotification({
-              household_id: String(user.household_id),
-              recipient_user_id: otherUser.id,
-              type: 'expense_added',
-              title: 'Nuevo gasto',
-              body: `${displayName} añadió €${amount} en ${category}`,
-              metadata: { expense_id: result.lastID },
-            });
-          }
-        }
-      } catch (notifErr) {
-        console.error('Error creating expense notification:', notifErr);
-      }
+      await notifyPartner(req.user!.id, req.user!.username, 'expense_added', 'Nuevo gasto',
+        `{name} añadió €${amount} en ${category}`, { expense_id: result.lastID });
     }
 
     res.status(201).json(newExpense);
@@ -177,23 +153,9 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);
 
-    // Notify partner for shared expenses
     if (updated.type === 'shared') {
-      try {
-        const user = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-        const otherUser = user ? await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id) : null;
-        if (user && otherUser) {
-          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-          await createNotification({
-            household_id: String(user.household_id),
-            recipient_user_id: otherUser.id,
-            type: 'expense_updated',
-            title: 'Gasto editado',
-            body: `${displayName} editó "${updated.description}" (€${updated.amount})`,
-            metadata: { expense_id: Number(id) },
-          });
-        }
-      } catch (notifErr) { console.error('Notification error:', notifErr); }
+      await notifyPartner(req.user!.id, req.user!.username, 'expense_updated', 'Gasto editado',
+        `{name} editó "${updated.description}" (€${updated.amount})`, { expense_id: Number(id) });
     }
 
     res.json(updatedExpense);
@@ -223,23 +185,9 @@ router.delete('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Forbidden: You can only delete your own personal expenses' });
     }
 
-    // Notify partner for shared expenses before deleting
     if (isShared) {
-      try {
-        const user = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-        const otherUser = user ? await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id) : null;
-        if (user && otherUser) {
-          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-          await createNotification({
-            household_id: String(user.household_id),
-            recipient_user_id: otherUser.id,
-            type: 'expense_deleted',
-            title: 'Gasto eliminado',
-            body: `${displayName} eliminó "${existing.description}" (€${existing.amount})`,
-            metadata: { category: existing.category },
-          });
-        }
-      } catch (notifErr) { console.error('Notification error:', notifErr); }
+      await notifyPartner(req.user!.id, req.user!.username, 'expense_deleted', 'Gasto eliminado',
+        `{name} eliminó "${existing.description}" (€${existing.amount})`, { category: existing.category });
     }
 
     await db.run('DELETE FROM expenses WHERE id = ?', id);

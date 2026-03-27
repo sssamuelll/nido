@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
 import './config.js'; // Validate environment first
-import { getDatabase, initDatabase, createNotification } from './db.js';
+import { getDatabase, initDatabase, notifyPartner } from './db.js';
 import {
   login,
   authenticateToken,
@@ -355,21 +355,11 @@ app.post('/api/categories', authenticateToken, async (req: AuthRequest, res) => 
         user.household_id, name, emoji, color);
     }
 
-    // Notify partner
-    try {
-      const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
-      if (otherUser) {
-        const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-        await createNotification({
-          household_id: String(user.household_id),
-          recipient_user_id: otherUser.id,
-          type: id ? 'category_updated' : 'category_created',
-          title: id ? 'Categoría editada' : 'Nueva categoría',
-          body: `${displayName} ${id ? 'editó' : 'creó'} la categoría "${name}" ${emoji}`,
-          metadata: { category_name: name },
-        });
-      }
-    } catch (notifErr) { console.error('Notification error:', notifErr); }
+    await notifyPartner(req.user!.id, req.user!.username,
+      id ? 'category_updated' : 'category_created',
+      id ? 'Categoría editada' : 'Nueva categoría',
+      `{name} ${id ? 'editó' : 'creó'} la categoría "${name}" ${emoji}`,
+      { category_name: name });
 
     res.json({ success: true });
   } catch (error) {
@@ -386,20 +376,8 @@ app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, re
 
     // Notify partner
     if (existing) {
-      try {
-        const otherUser = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, req.user!.id);
-        if (otherUser) {
-          const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-          await createNotification({
-            household_id: String(user.household_id),
-            recipient_user_id: otherUser.id,
-            type: 'category_deleted',
-            title: 'Categoría eliminada',
-            body: `${displayName} eliminó la categoría "${existing.name}" ${existing.emoji}`,
-            metadata: { category_name: existing.name },
-          });
-        }
-      } catch (notifErr) { console.error('Notification error:', notifErr); }
+      await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categoría eliminada',
+        `{name} eliminó la categoría "${existing.name}" ${existing.emoji}`, { category_name: existing.name });
     }
 
     res.json({ success: true });

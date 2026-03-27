@@ -417,6 +417,35 @@ export async function createNotification(opts: {
   );
 }
 
+/** Notify the partner in the same household. Silently no-ops on failure. */
+export async function notifyPartner(
+  userId: number,
+  username: string,
+  type: string,
+  title: string,
+  body: string,
+  metadata?: Record<string, unknown>,
+) {
+  try {
+    const db = getDatabase();
+    const user = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', userId);
+    if (!user) return;
+    const partner = await db.get<{ id: number }>('SELECT id FROM app_users WHERE household_id = ? AND id != ?', user.household_id, userId);
+    if (!partner) return;
+    const displayName = username === 'maria' ? 'María' : 'Samuel';
+    await createNotification({
+      household_id: user.household_id,
+      recipient_user_id: partner.id,
+      type,
+      title,
+      body: body.replace('{name}', displayName),
+      metadata,
+    });
+  } catch (err) {
+    console.error('Notification error:', err);
+  }
+}
+
 export const closeDatabase = async () => {
   if (db) {
     await db.close();
