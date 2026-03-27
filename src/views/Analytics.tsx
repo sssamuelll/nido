@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Api } from '../api';
+import { useContextSelector } from '../hooks/useContextSelector';
+import { ContextTabs } from '../components/ContextTabs';
 
 const PERIODS = ['3M', '6M', '1A', 'Todo'] as const;
 const PERIOD_TO_MONTHS: Record<string, number> = {
@@ -76,7 +78,7 @@ const formatCurrency = (amount: number): string => {
 
 export const Analytics: React.FC = () => {
   const [activePeriod, setActivePeriod] = useState('6M');
-  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
+  const { activeContext, setActiveContext } = useContextSelector();
   const [barsAnimated, setBarsAnimated] = useState(false);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -162,22 +164,7 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* Context Tabs */}
-      <div className="analytics__context-tabs an d1">
-        <button
-          className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`}
-          onClick={() => setActiveContext('shared')}
-        >
-          <div className="dot sh-d" />
-          Compartido
-        </button>
-        <button
-          className={`analytics__context-tab ${activeContext === 'personal' ? 'analytics__context-tab--active' : ''}`}
-          onClick={() => setActiveContext('personal')}
-        >
-          <div className="dot ps-d" />
-          Personal
-        </button>
-      </div>
+      <ContextTabs active={activeContext} onChange={setActiveContext} className="analytics__context-tabs an d1" />
 
       {/* Loading state */}
       {loading && (
