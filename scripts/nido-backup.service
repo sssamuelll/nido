@@ -1,0 +1,13 @@
+[Unit]
+Description=Nido SQLite backup to S3
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/var/www/nido/scripts/backup.sh
+Environment=NIDO_DB_PATH=/var/www/nido/nido.db
+Environment=NIDO_S3_BUCKET=nido-backups
+User=ubuntu
+StandardOutput=journal
+StandardError=journal
