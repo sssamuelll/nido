@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { useAuth } from '../auth';
-import { CATEGORIES } from '../types';
-import { Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 
@@ -35,15 +33,6 @@ const PlusIcon = () => (
 );
 
 const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
-
-const CATEGORY_ICONS: Record<string, React.FC<any>> = {
-  Restaurant: Utensils,
-  Supermercado: ShoppingCart,
-  Servicios: Zap,
-  Ocio: Smile,
-  'Inversión': TrendingUp,
-  Otros: MoreHorizontal,
-};
 
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
@@ -109,7 +98,7 @@ export const AddExpense: React.FC = () => {
   };
 
   const getCatDef = (name: string) =>
-    categories.find((item) => item.name === name) || CATEGORIES.find((item) => item.name === name);
+    categories.find((item) => item.name === name);
 
   const filteredCategories = categories.filter((item) =>
     item.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
@@ -227,7 +216,6 @@ export const AddExpense: React.FC = () => {
               <TagIcon />
               {category && (() => {
                 const catDef = getCatDef(category);
-                const IconComp = CATEGORY_ICONS[category];
                 return (
                   <span className="cmd-selected">
                     <div className="cmd-icon" style={{
@@ -235,9 +223,7 @@ export const AddExpense: React.FC = () => {
                       width: 20,
                       height: 20,
                     }}>
-                      {IconComp
-                        ? <IconComp size={12} color={catDef?.color ?? 'var(--green)'} strokeWidth={2} />
-                        : <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '🦋'}</span>}
+                      <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
                     </div>
                     {category}
                     <span
@@ -276,9 +262,7 @@ export const AddExpense: React.FC = () => {
                     }}
                   >
                     <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
-                      {CATEGORY_ICONS[item.name]
-                        ? React.createElement(CATEGORY_ICONS[item.name], { size: 14, color: item.color, strokeWidth: 2 })
-                        : <span style={{ fontSize: 14 }}>{item.emoji ?? '🦋'}</span>}
+                      <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
                     </div>
                     {item.name}
                   </div>
