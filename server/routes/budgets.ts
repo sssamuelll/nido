@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createNotification, getDatabase, syncBudgetAllocationsForMonth } from '../db.js';
+import { getDatabase, syncBudgetAllocationsForMonth, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { budgetUpdateSchema, validate, validateMonthParam, BudgetInput } from '../validation.js';
 
@@ -105,39 +105,9 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
         approvalId = insertResult.lastID ?? null;
       }
 
-      try {
-        const requesterDisplayName = username === 'maria' ? 'María' : 'Samuel';
-        const requester = await db.get<{ household_id: string }>(
-          'SELECT household_id FROM app_users WHERE id = ?',
-          req.user!.id,
-        );
-        const otherUser = requester
-          ? await db.get<{ id: number }>(
-              'SELECT id FROM app_users WHERE household_id = ? AND id != ?',
-              requester.household_id,
-              req.user!.id,
-            )
-          : null;
-
-        if (requester && otherUser) {
-          await createNotification({
-            household_id: String(requester.household_id),
-            recipient_user_id: otherUser.id,
-            type: 'budget_change_requested',
-            title: 'Cambio de presupuesto',
-            body: `${requesterDisplayName} solicita cambiar el presupuesto a €${shared_available}`,
-            metadata: {
-              approval_id: approvalId,
-              requested_by_user_id: req.user!.id,
-              requested_by_username: username,
-              requested_for_user_id: otherUser.id,
-              shared_available,
-            },
-          });
-        }
-      } catch (notifErr) {
-        console.error('Error creating budget approval notification:', notifErr);
-      }
+      await notifyPartner(req.user!.id, username, 'budget_change_requested', 'Cambio de presupuesto',
+        `{name} solicita cambiar el presupuesto a €${shared_available}`,
+        { approval_id: approvalId, requested_by_user_id: req.user!.id, requested_by_username: username, shared_available });
     }
 
     // Update category budgets (scoped by context)
@@ -193,21 +163,9 @@ router.post('/approve', async (req: AuthRequest, res) => {
     
     await db.exec('COMMIT');
 
-    // Notify the requester that their budget change was approved
-    try {
-      const approver = await db.get<{ household_id: string }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-      if (approver) {
-        const displayName = req.user!.username === 'maria' ? 'María' : 'Samuel';
-        await createNotification({
-          household_id: String(approver.household_id),
-          recipient_user_id: approval.requested_by_user_id,
-          type: 'budget_approved',
-          title: 'Presupuesto aprobado',
-          body: `${displayName} aprobó el cambio de presupuesto a €${approval.shared_available}`,
-          metadata: { approval_id: approval_id, shared_available: approval.shared_available },
-        });
-      }
-    } catch (notifErr) { console.error('Notification error:', notifErr); }
+    await notifyPartner(req.user!.id, req.user!.username, 'budget_approved', 'Presupuesto aprobado',
+      `{name} aprobó el cambio de presupuesto a €${approval.shared_available}`,
+      { approval_id: approval_id, shared_available: approval.shared_available });
 
     res.json({ success: true });
   } catch (error) {
