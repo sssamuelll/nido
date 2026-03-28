@@ -11,6 +11,7 @@
     "server:start": "node dist/server/index.js",
     "client:dev": "vite",
     "client:build": "vite build",
+    "deploy": "bash scripts/deploy.sh",
     "setup-env": "node scripts/setup-env.js",
     "validate-env": "tsx -r dotenv/config server/config.js",
     "test": "vitest",
