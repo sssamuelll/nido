@@ -1,5 +1,13 @@
 node_modules/
 dist/
+scripts/deploy*.sh
+.playwright-mcp/
+.internal-docs/
+app-*.png
+design-*.png
+e2e-*.png
+final-*.png
+docs/internal-docs/plans/2026-03-19-nido-v2-design-alignment.md
 .env
 *.db
 *.db-journal
