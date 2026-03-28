@@ -9,6 +9,7 @@ const mockDb = {
 vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
   findAppUserIdByUsername: vi.fn(),
+  notifyPartner: vi.fn(),
 }));
 
 import expensesRouter from './expenses.js';
@@ -98,6 +99,7 @@ describe('expenses routes privacy', () => {
     mockDb.get.mockResolvedValueOnce(undefined);
     mockDb.all
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const handler = getRouteHandler('/summary', 'get');
@@ -125,14 +127,8 @@ describe('expenses routes privacy', () => {
         spent: 0,
         budget: 0,
       },
-      categoryBreakdown: [
-        { category: 'Restaurant', total: 0, budget: 0, count: 0 },
-        { category: 'Gastos', total: 0, budget: 0, count: 0 },
-        { category: 'Servicios', total: 0, budget: 0, count: 0 },
-        { category: 'Ocio', total: 0, budget: 0, count: 0 },
-        { category: 'Inversión', total: 0, budget: 0, count: 0 },
-        { category: 'Otros', total: 0, budget: 0, count: 0 },
-      ],
+      categoryBreakdown: [],
+      personalCategoryBreakdown: [],
       recentTransactions: [],
     });
   });
