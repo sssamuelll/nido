@@ -8,6 +8,8 @@ const mockDb = {
 
 vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
+  notifyPartner: vi.fn(),
+  createNotification: vi.fn(),
 }));
 
 import goalsRouter from './goals.js';

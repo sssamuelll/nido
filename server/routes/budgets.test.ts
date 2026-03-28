@@ -10,9 +10,10 @@ vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
   syncBudgetAllocationsForMonth: vi.fn(),
   createNotification: vi.fn(),
+  notifyPartner: vi.fn(),
 }));
 
-import { createNotification, syncBudgetAllocationsForMonth } from '../db.js';
+import { notifyPartner, syncBudgetAllocationsForMonth } from '../db.js';
 import budgetsRouter from './budgets.js';
 
 const getRouteHandler = (path: string, method: 'get' | 'put') => {
@@ -32,6 +33,9 @@ const createResponse = () => {
 describe('budgets routes privacy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDb.all.mockReset();
+    mockDb.get.mockReset();
+    mockDb.run.mockReset();
   });
 
   it('returns only the authenticated user personal budget allocation', async () => {
@@ -46,7 +50,7 @@ describe('budgets routes privacy', () => {
       .mockResolvedValueOnce(null); // pending approval query
     mockDb.all.mockResolvedValue([{ category: 'Restaurant', amount: 200 }]);
     const handler = getRouteHandler('/', 'get');
-    const req: any = { validatedMonth: '2026-03', user: { id: 2, username: 'maria' } };
+    const req: any = { validatedMonth: '2026-03', query: {}, user: { id: 2, username: 'maria' } };
     const res = createResponse();
 
     await handler(req, res);
@@ -80,7 +84,7 @@ describe('budgets routes privacy', () => {
     mockDb.all.mockResolvedValue([{ category: 'Restaurant', amount: 200 }]);
 
     const handler = getRouteHandler('/', 'get');
-    const req: any = { validatedMonth: '2026-03', user: { id: 2, username: 'maria' } };
+    const req: any = { validatedMonth: '2026-03', query: {}, user: { id: 2, username: 'maria' } };
     const res = createResponse();
 
     await handler(req, res);
@@ -120,31 +124,32 @@ describe('budgets routes privacy', () => {
 
     await handler(req, res);
 
-    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({
-      household_id: '1',
-      recipient_user_id: 2,
-      type: 'budget_change_requested',
-      title: 'Cambio de presupuesto',
-      body: 'Samuel solicita cambiar el presupuesto a €2400',
-      metadata: expect.objectContaining({
+    expect(notifyPartner).toHaveBeenCalledWith(
+      1,
+      'samuel',
+      'budget_change_requested',
+      'Cambio de presupuesto',
+      '{name} solicita cambiar el presupuesto a €2400',
+      expect.objectContaining({
         approval_id: 11,
         requested_by_user_id: 1,
         requested_by_username: 'samuel',
-        requested_for_user_id: 2,
         shared_available: 2400,
-      }),
-    }));
+      })
+    );
     expect(res.json).toHaveBeenCalledWith({ success: true, pending_approval: true });
   });
 
   it('updates only the authenticated user personal budget while preserving the partner allocation', async () => {
-    mockDb.get.mockResolvedValue({
-      id: 1,
-      month: '2026-03',
-      shared_available: 2000,
-      personal_samuel: 450,
-      personal_maria: 700,
-    });
+    mockDb.get
+      .mockResolvedValueOnce({
+        id: 1,
+        month: '2026-03',
+        shared_available: 2000,
+        personal_samuel: 450,
+        personal_maria: 700,
+      })
+      .mockResolvedValueOnce({ household_id: 1 });
     mockDb.run.mockResolvedValue({ changes: 1 });
     const handler = getRouteHandler('/', 'put');
     const req: any = {
