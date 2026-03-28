@@ -17,6 +17,7 @@ import { useMonthNavigation } from '../hooks/useMonthNavigation';
 import { useCategoryModal } from '../hooks/useCategoryModal';
 import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
+import { RecurringSection } from '../components/RecurringSection';
 
 interface Notification {
   id: number;
@@ -327,6 +328,8 @@ export const Dashboard: React.FC = () => {
               {' '}Añadir categoría
             </div>
           </div>
+
+          <RecurringSection userId={user?.id ?? 0} onCycleApproved={loadDashboardData} />
 
           {/* Recent Transactions section */}
           <div className="card dashboard__section an d5">
