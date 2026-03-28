@@ -107,5 +107,26 @@ export const validateMonthParam = validate(monthSchema);
 export type ExpenseInput = z.infer<typeof expenseCreateSchema>;
 export type BudgetInput = z.infer<typeof budgetUpdateSchema>;
 export type PinInput = z.infer<typeof pinSchema>;
-export const expenseSchema = expenseCreateSchema; 
-export const budgetSchema = budgetUpdateSchema;   
+export const expenseSchema = expenseCreateSchema;
+export const budgetSchema = budgetUpdateSchema;
+
+export const recurringExpenseCreateSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido').max(100),
+  emoji: z.string().min(1).default('📂'),
+  amount: z.coerce.number().positive('El monto debe ser positivo'),
+  category: z.string().min(1, 'La categoría es requerida'),
+  type: z.enum(['shared', 'personal']),
+  notes: z.string().max(200).optional(),
+});
+
+export const recurringExpenseUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  emoji: z.string().min(1).optional(),
+  amount: z.coerce.number().positive().optional(),
+  category: z.string().min(1).optional(),
+  type: z.enum(['shared', 'personal']).optional(),
+  notes: z.string().max(200).nullable().optional(),
+});
+
+export type RecurringExpenseInput = z.infer<typeof recurringExpenseCreateSchema>;
+export type RecurringExpenseUpdateInput = z.infer<typeof recurringExpenseUpdateSchema>;

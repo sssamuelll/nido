@@ -277,6 +277,22 @@ export class Api {
   static async health() {
     return this.request('/health');
   }
+
+  // Recurring expenses
+  static async getRecurring() { return this.request('/recurring'); }
+  static async createRecurring(data: { name: string; emoji: string; amount: number; category: string; type: string; notes?: string }) {
+    return this.request('/recurring', { method: 'POST', body: data });
+  }
+  static async updateRecurring(id: number, data: Record<string, unknown>) {
+    return this.request(`/recurring/${id}`, { method: 'PUT', body: data });
+  }
+  static async deleteRecurring(id: number) { return this.request(`/recurring/${id}`, { method: 'DELETE' }); }
+  static async togglePauseRecurring(id: number) { return this.request(`/recurring/${id}/pause`, { method: 'PUT' }); }
+
+  // Billing cycles
+  static async getCurrentCycle() { return this.request('/cycles/current'); }
+  static async requestCycle() { return this.request('/cycles/request', { method: 'POST' }); }
+  static async approveCycle(cycleId: number) { return this.request('/cycles/approve', { method: 'POST', body: { cycle_id: cycleId } }); }
 }
 
 export { ApiError };

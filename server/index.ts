@@ -28,6 +28,8 @@ import budgetsRouter from './routes/budgets.js';
 import goalsRouter from './routes/goals.js';
 import analyticsRouter from './routes/analytics.js';
 import notificationsRouter from './routes/notifications.js';
+import recurringRouter from './routes/recurring.js';
+import cyclesRouter from './routes/cycles.js';
 import { port, appSessionCookieName } from './config.js';
 import { pinSchema } from './validation.js';
 
@@ -301,6 +303,8 @@ app.use('/api/budgets', authenticateToken, budgetsRouter);
 app.use('/api/goals', authenticateToken, goalsRouter);
 app.use('/api/analytics', authenticateToken, analyticsRouter);
 app.use('/api/notifications', authenticateToken, notificationsRouter);
+app.use('/api/recurring', authenticateToken, recurringRouter);
+app.use('/api/cycles', authenticateToken, cyclesRouter);
 
 // Categories routes
 app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
