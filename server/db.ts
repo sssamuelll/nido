@@ -306,6 +306,35 @@ export const initDatabase = async () => {
     CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal_id ON goal_contributions(goal_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_household_id ON notifications(household_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_user_id);
+
+    CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      emoji TEXT NOT NULL DEFAULT '📂',
+      amount REAL NOT NULL,
+      category TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('shared', 'personal')),
+      notes TEXT,
+      paused INTEGER NOT NULL DEFAULT 0,
+      created_by_user_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by_user_id) REFERENCES app_users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS billing_cycles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id INTEGER NOT NULL,
+      month TEXT NOT NULL,
+      requested_by_user_id INTEGER NOT NULL,
+      approved_by_user_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active')),
+      started_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+      UNIQUE(household_id, month)
+    );
   `);
 
   // Migrations: Ensure 'pin' column exists
