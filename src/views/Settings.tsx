@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { Clock, Download, LogOut, Lock } from 'lucide-react';
+import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 
 interface BudgetData {
@@ -24,6 +24,16 @@ export const Settings: React.FC = () => {
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [budget, setBudget] = useState<BudgetData | null>(null);
   const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
+  const [currentCycle, setCurrentCycle] = useState<{
+    id: number;
+    month: string;
+    status: 'pending' | 'active' | 'closed';
+    requested_by_user_id: number;
+    requested_by_username?: string;
+    approved_by_user_id?: number;
+    started_at?: string;
+  } | null>(null);
+  const [cycleLoading, setCycleLoading] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,6 +50,19 @@ export const Settings: React.FC = () => {
     }
   }, [toast]);
 
+  const loadCycle = async () => {
+    try {
+      setCycleLoading(true);
+      const cycle = await Api.getCurrentCycle();
+      setCurrentCycle(cycle);
+    } catch {
+      // No cycle is fine, just ignore
+      setCurrentCycle(null);
+    } finally {
+      setCycleLoading(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -54,6 +77,7 @@ export const Settings: React.FC = () => {
 
       setBudget(budgetData);
       setMembers(membersData);
+      await loadCycle();
     } catch {
       setToast({ type: 'error', msg: 'Error al cargar datos' });
     } finally {
@@ -94,6 +118,35 @@ export const Settings: React.FC = () => {
       loadData();
     } catch {
       setToast({ type: 'error', msg: 'Error al aprobar' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestCycle = async () => {
+    if (!confirm('¿Reiniciar ciclo mensual? Los gastos recurrentes se activarán una vez tu pareja apruebe.')) return;
+    try {
+      setSaving(true);
+      await Api.requestCycle();
+      setToast({ type: 'success', msg: 'Ciclo solicitado. Esperando aprobación.' });
+      loadCycle();
+    } catch (error: any) {
+      setToast({ type: 'error', msg: error.message || 'Error al solicitar ciclo' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleApproveCycle = async () => {
+    if (!currentCycle) return;
+    if (!confirm('¿Aprobar ciclo de facturación? Se registrarán los gastos recurrentes.')) return;
+    try {
+      setSaving(true);
+      await Api.approveCycle(currentCycle.id);
+      setToast({ type: 'success', msg: 'Ciclo aprobado. Gastos recurrentes registrados.' });
+      loadCycle();
+    } catch (error: any) {
+      setToast({ type: 'error', msg: error.message || 'Error al aprobar ciclo' });
     } finally {
       setSaving(false);
     }
@@ -302,6 +355,103 @@ export const Settings: React.FC = () => {
                 <div style={{ fontSize: '12px', color: 'var(--tm)' }}>Salir de tu cuenta</div>
               </div>
             </div>
+          </div>
+
+          {/* Billing cycle — restart monthly cycle with partner approval */}
+          <div className="card settings-section an d5">
+            <h3>
+              <RefreshCw size={18} />
+              {' '}Ciclo mensual
+            </h3>
+
+            {cycleLoading ? (
+              <div style={{ padding: '12px', textAlign: 'center', color: 'var(--tm)' }}>Cargando ciclo...</div>
+            ) : currentCycle ? (
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                  Estado: {currentCycle.status === 'pending' ? '🟡 Pendiente' : '🟢 Activo'}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
+                  {currentCycle.status === 'pending'
+                    ? `Solicitado por ${currentCycle.requested_by_username || 'tu pareja'}`
+                    : `Ciclo activo desde ${new Date(currentCycle.started_at || '').toLocaleDateString('es-ES')}`}
+                </div>
+
+                {currentCycle.status === 'pending' && currentCycle.requested_by_user_id !== user?.id && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ marginBottom: '8px' }}
+                    onClick={handleApproveCycle}
+                    disabled={saving}
+                  >
+                    Aprobar ciclo
+                  </button>
+                )}
+                {currentCycle.status === 'pending' && currentCycle.requested_by_user_id === user?.id && (
+                  <div style={{ fontSize: '12px', color: '#FBBF24' }}>
+                    Esperando aprobación de {partnerName}
+                  </div>
+                )}
+                {currentCycle.status === 'active' && (
+                  <div style={{ fontSize: '12px', color: 'var(--green)' }}>
+                    Ciclo activo. Los gastos recurrentes ya están registrados.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '14px', marginBottom: '12px' }}>
+                  No hay ciclo activo para este mes.
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleRequestCycle}
+                  disabled={saving}
+                >
+                  Reiniciar ciclo
+                </button>
+                <div style={{ fontSize: '11px', color: 'var(--tm)', marginTop: '8px' }}>
+                  Requiere aprobación de ambos. Se registrarán los gastos recurrentes.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Billing cycle — restart requires both approvals */}
+          <div className="card settings-section an d5">
+            <h3>
+              <RefreshCw size={18} />
+              {' '}Ciclo de facturación
+            </h3>
+            {cycleLoading ? (
+              <div>Cargando...</div>
+            ) : currentCycle ? (
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                  {currentCycle.status === 'active' ? 'Ciclo activo' : currentCycle.status === 'pending' ? 'Pendiente de aprobación' : 'Cerrado'}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
+                  {currentCycle.status === 'active' ? `Iniciado el ${format(new Date(currentCycle.started_at || ''), 'dd/MM/yyyy')}` :
+                   currentCycle.status === 'pending' ? `Solicitado por ${currentCycle.requested_by_username === user?.username ? 'ti' : currentCycle.requested_by_username}` :
+                   'Finalizado'}
+                </div>
+                {currentCycle.status === 'pending' && currentCycle.requested_by_user_id !== user?.id && (
+                  <button className="btn btn-primary btn-sm" onClick={handleApproveCycle} disabled={saving}>
+                    {saving ? 'Aprobando...' : 'Aprobar ciclo'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>No hay ciclo activo</div>
+                <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
+                  Un ciclo registra los gastos recurrentes mensuales.
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={handleRequestCycle} disabled={saving}>
+                  {saving ? 'Solicitando...' : 'Solicitar nuevo ciclo'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Danger zone — only delete button, no duplicate logout */}
