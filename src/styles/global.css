@@ -1037,6 +1037,124 @@ a:hover { color: var(--text) }
    SECTION 27: Dashboard
    ============================================ */
 
+.recurring-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.recurring-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.recurring-card__total {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tp);
+}
+.recurring-card__status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.recurring-card__status--idle {
+  background: rgba(255,255,255,0.06);
+  color: var(--tm);
+}
+.recurring-card__meta {
+  font-size: 12px;
+  color: var(--tm);
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+.recurring-card__empty {
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--tm);
+}
+.recurring-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.recurring-card__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.recurring-card__item:hover { background: rgba(255,255,255,0.04); }
+.recurring-card__item--paused { opacity: .45; }
+.recurring-card__emoji {
+  font-size: 18px;
+  width: 28px;
+  text-align: center;
+}
+.recurring-card__item-body {
+  flex: 1;
+  min-width: 0;
+}
+.recurring-card__item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.recurring-card__item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recurring-card__pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.recurring-card__pill--personal {
+  background: rgba(167,139,250,0.15);
+  color: #A78BFA;
+}
+.recurring-card__pill--paused {
+  background: rgba(255,255,255,0.06);
+  color: var(--tm);
+}
+.recurring-card__amount {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tp);
+}
+.recurring-card__approval-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(251,191,36,0.10);
+  border: 1px solid rgba(251,191,36,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.recurring-card__approval-text { color: #FBBF24; }
+.recurring-card__approval-btn {
+  font-size: 12px;
+  padding: 4px 14px;
+  min-width: 0;
+}
+.recurring-card__actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+.recurring-card__add { flex: 1; }
+
 .dashboard,
 .add-expense,
 .history,
