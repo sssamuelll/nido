@@ -26,7 +26,8 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
   return (
     <div
       className="transaction-row"
-      style={{ '--indicator-color': indicatorColor } as React.CSSProperties}
+      style={{ '--indicator-color': indicatorColor, cursor: onClick ? 'pointer' : undefined } as React.CSSProperties}
+      onClick={onClick}
     >
       <div className="transaction-row__indicator" />
       <span className="transaction-row__emoji">{emoji}</span>
