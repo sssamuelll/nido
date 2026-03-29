@@ -283,7 +283,7 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
         };
       });
 
-    const userPersonalExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'personal' && exp.paid_by === req.user!.username);
+    const userPersonalExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!));
 
     const categoryBreakdown = buildBreakdown(sharedBudgets, sharedExpenses);
     const personalCategoryBreakdown = buildBreakdown(personalBudgets, userPersonalExpenses);
