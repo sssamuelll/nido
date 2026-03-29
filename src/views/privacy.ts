@@ -123,13 +123,20 @@ const buildWeeklyChart = (expenses: VisibleExpense[]): PersonalAnalyticsPoint[] 
   return buckets;
 };
 
+const getLegacyPersonKey = (username: string) => {
+  const normalized = (username || '').toLowerCase().trim();
+  return normalized.includes('maria') || normalized.includes('mara') ? 'maria' : 'samuel';
+};
+
 export const getPrivateExpensesForUser = (
   expenses: VisibleExpense[],
   username: string
-): VisibleExpense[] =>
-  (Array.isArray(expenses) ? expenses : [])
-    .filter((expense) => expense?.type === 'personal' && expense?.paid_by === username)
+): VisibleExpense[] => {
+  const legacyKey = getLegacyPersonKey(username);
+  return (Array.isArray(expenses) ? expenses : [])
+    .filter((expense) => expense?.type === 'personal' && expense?.paid_by === legacyKey)
     .sort(compareByNewest);
+};
 
 export const buildPersonalDetailModel = ({
   summary,
