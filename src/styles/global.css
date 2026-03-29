@@ -1160,9 +1160,12 @@ a:hover { color: var(--text) }
   min-width: 0;
 }
 .recurring-card__actions {
-  margin-top: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border2);
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 .recurring-card__add { flex: 1; }
 
