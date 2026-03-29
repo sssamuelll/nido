@@ -18,6 +18,91 @@ interface RecurringExpenseRow {
 
 const router = Router();
 
+const getCycleWithApprovalState = async (db: ReturnType<typeof getDatabase>, cycleId: number, currentUserId: number) => {
+  const cycle = await db.get<any>(
+    `SELECT bc.*, requester.username AS requested_by_username
+     FROM billing_cycles bc
+     LEFT JOIN app_users requester ON requester.id = bc.requested_by_user_id
+     WHERE bc.id = ?`,
+    cycleId
+  );
+
+  if (!cycle) return null;
+
+  const memberRow = await db.get<{ total_members: number }>(
+    `SELECT COUNT(*) as total_members FROM app_users WHERE household_id = ?`,
+    cycle.household_id
+  );
+
+  const approvalRows = await db.all<{ user_id: number }[]>(
+    `SELECT user_id FROM billing_cycle_approvals WHERE cycle_id = ?`,
+    cycleId
+  );
+
+  const approvedUserIds = approvalRows.map((row) => row.user_id);
+
+  return {
+    ...cycle,
+    approvals: {
+      total_members: memberRow?.total_members ?? 0,
+      approved_count: approvedUserIds.length,
+      approved_user_ids: approvedUserIds,
+      current_user_has_approved: approvedUserIds.includes(currentUserId),
+      all_approved: (memberRow?.total_members ?? 0) > 0 && approvedUserIds.length >= (memberRow?.total_members ?? 0),
+    },
+  };
+};
+
+const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number, householdId: number, actingUserId: number) => {
+  const recurringItems = await db.all<RecurringExpenseRow[]>(
+    `SELECT * FROM recurring_expenses
+     WHERE household_id = ? AND paused = 0`,
+    householdId
+  );
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  let total = 0;
+
+  for (const item of recurringItems) {
+    const creator = await db.get<{ username: string }>(
+      'SELECT username FROM app_users WHERE id = ?',
+      item.created_by_user_id
+    );
+    const paidBy = creator?.username || 'samuel';
+
+    await db.run(
+      `INSERT INTO expenses (description, amount, category, date, paid_by, paid_by_user_id, type, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'paid')`,
+      item.name,
+      item.amount,
+      item.category,
+      today,
+      paidBy,
+      item.created_by_user_id,
+      item.type
+    );
+
+    total += item.amount;
+  }
+
+  await db.run(
+    `UPDATE billing_cycles
+     SET status = 'active', approved_by_user_id = ?, started_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    actingUserId,
+    cycleId
+  );
+
+  await createNotification({
+    household_id: String(householdId),
+    recipient_user_id: null,
+    type: 'cycle_approved',
+    title: 'Ciclo reiniciado',
+    body: `Se registraron ${recurringItems.length} gastos recurrentes por un total de €${total.toFixed(2)}`,
+    metadata: { cycle_id: cycleId, count: recurringItems.length, total },
+  });
+};
+
 // Get current month's billing cycle
 router.get('/current', async (req: AuthRequest, res) => {
   try {
@@ -32,13 +117,18 @@ router.get('/current', async (req: AuthRequest, res) => {
     }
 
     const month = format(new Date(), 'yyyy-MM');
-    const cycle = await db.get(
-      'SELECT * FROM billing_cycles WHERE household_id = ? AND month = ?',
+    const cycle = await db.get<{ id: number }>(
+      'SELECT id FROM billing_cycles WHERE household_id = ? AND month = ?',
       user.household_id,
       month
     );
 
-    res.json(cycle || null);
+    if (!cycle) {
+      return res.json(null);
+    }
+
+    const detailedCycle = await getCycleWithApprovalState(db, cycle.id, req.user!.id);
+    res.json(detailedCycle);
   } catch (error) {
     console.error('Error fetching current billing cycle:', error);
     res.status(500).json({ error: 'Failed to fetch current billing cycle' });
@@ -59,14 +149,17 @@ router.post('/request', async (req: AuthRequest, res) => {
     }
 
     const month = format(new Date(), 'yyyy-MM');
-
-    const existing = await db.get(
-      'SELECT * FROM billing_cycles WHERE household_id = ? AND month = ?',
+    const existing = await db.get<{ id: number; status: string }>(
+      'SELECT id, status FROM billing_cycles WHERE household_id = ? AND month = ?',
       user.household_id,
       month
     );
 
     if (existing) {
+      if (existing.status === 'pending') {
+        const detailedExisting = await getCycleWithApprovalState(db, existing.id, req.user!.id);
+        return res.status(200).json(detailedExisting);
+      }
       return res.status(409).json({ error: 'A billing cycle already exists for this month' });
     }
 
@@ -78,11 +171,23 @@ router.post('/request', async (req: AuthRequest, res) => {
       req.user!.id
     );
 
-    const cycle = await db.get('SELECT * FROM billing_cycles WHERE id = ?', result.lastID);
+    await db.run(
+      `INSERT INTO billing_cycle_approvals (cycle_id, user_id, status)
+       VALUES (?, ?, 'approved')`,
+      result.lastID,
+      req.user!.id
+    );
 
-    await notifyPartner(req.user!.id, req.user!.username, 'cycle_requested', 'Ciclo de facturación',
-      `{name} solicitó iniciar el ciclo de ${month}`, { cycle_id: result.lastID });
+    await notifyPartner(
+      req.user!.id,
+      req.user!.username,
+      'cycle_requested',
+      'Reinicio de ciclo solicitado',
+      `{name} solicitó reiniciar el ciclo de ${month}`,
+      { cycle_id: result.lastID }
+    );
 
+    const cycle = await getCycleWithApprovalState(db, result.lastID!, req.user!.id);
     res.status(201).json(cycle);
   } catch (error) {
     console.error('Error requesting billing cycle:', error);
@@ -123,64 +228,26 @@ router.post('/approve', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Billing cycle is not pending' });
     }
 
-    // Requester cannot self-approve
-    if (cycle.requested_by_user_id === req.user!.id) {
-      return res.status(403).json({ error: 'You cannot approve your own billing cycle request' });
-    }
-
-    // Get all non-paused recurring expenses for the household
-    const recurringItems = await db.all<RecurringExpenseRow[]>(
-      `SELECT * FROM recurring_expenses
-       WHERE household_id = ? AND paused = 0`,
-      user.household_id
-    );
-
-    const today = format(new Date(), 'yyyy-MM-dd');
-    let total = 0;
-
-    // Insert each recurring expense as an actual expense
-    for (const item of recurringItems) {
-      const creator = await db.get<{ username: string }>(
-        'SELECT username FROM app_users WHERE id = ?',
-        item.created_by_user_id
-      );
-      const paidBy = creator?.username || req.user!.username;
-
-      await db.run(
-        `INSERT INTO expenses (description, amount, category, date, paid_by, paid_by_user_id, type, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'paid')`,
-        item.name,
-        item.amount,
-        item.category,
-        today,
-        paidBy,
-        item.created_by_user_id,
-        item.type
-      );
-
-      total += item.amount;
-    }
-
-    // Update cycle status
     await db.run(
-      `UPDATE billing_cycles SET status = 'active', approved_by_user_id = ?, started_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      req.user!.id,
-      cycle_id
+      `INSERT OR IGNORE INTO billing_cycle_approvals (cycle_id, user_id, status)
+       VALUES (?, ?, 'approved')`,
+      cycle_id,
+      req.user!.id
     );
 
-    const updatedCycle = await db.get('SELECT * FROM billing_cycles WHERE id = ?', cycle_id);
+    const detailedCycle = await getCycleWithApprovalState(db, cycle_id, req.user!.id);
 
-    // Broadcast notification to both users
-    await createNotification({
-      household_id: String(user.household_id),
-      recipient_user_id: null,
-      type: 'cycle_approved',
-      title: 'Ciclo de facturación activado',
-      body: `Se registraron ${recurringItems.length} gastos recurrentes por un total de €${total.toFixed(2)}`,
-      metadata: { cycle_id, count: recurringItems.length, total },
-    });
+    if (!detailedCycle) {
+      return res.status(404).json({ error: 'Billing cycle not found' });
+    }
 
-    res.json(updatedCycle);
+    if (detailedCycle.approvals.all_approved) {
+      await activateCycle(db, cycle_id, user.household_id, req.user!.id);
+      const activeCycle = await getCycleWithApprovalState(db, cycle_id, req.user!.id);
+      return res.json(activeCycle);
+    }
+
+    res.json(detailedCycle);
   } catch (error) {
     console.error('Error approving billing cycle:', error);
     res.status(500).json({ error: 'Failed to approve billing cycle' });
