@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Api } from '../api';
 import { showToast } from './Toast';
 import { EmojiPicker } from './EmojiPicker';
+import { useCategoryManagement } from '../hooks/useCategoryManagement';
 
 interface RecurringItem {
   id: number;
@@ -26,6 +27,12 @@ interface RecurringSectionProps {
   onCycleApproved?: () => void;
 }
 
+const TagIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
+    <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+  </svg>
+);
+
 export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved }) => {
   const [items, setItems] = useState<RecurringItem[]>([]);
   const [cycle, setCycle] = useState<Cycle | null>(null);
@@ -36,11 +43,33 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   // Form state for edit/add modal
   const [formName, setFormName] = useState('');
   const [formEmoji, setFormEmoji] = useState('🔁');
-  const [formAmount, setFormAmount] = useState('');
+  const [formAmount, setFormAmount] = useState('0');
   const [formCategory, setFormCategory] = useState('');
   const [formType, setFormType] = useState<'shared' | 'personal'>('shared');
   const [formNotes, setFormNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Category cmd-palette state
+  const { categories, getCategoryDef } = useCategoryManagement(formType);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const cmdRef = useRef<HTMLDivElement>(null);
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((item) =>
+      item.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
+    );
+  }, [categories, categorySearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cmdRef.current && !cmdRef.current.contains(e.target as Node)) {
+        setCmdOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -90,6 +119,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setFormCategory(item.category);
     setFormType(item.type);
     setFormNotes(item.notes || '');
+    setCategorySearch('');
+    setCmdOpen(false);
     setShowAddModal(false);
   };
 
@@ -97,20 +128,34 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setEditItem(null);
     setFormName('');
     setFormEmoji('🔁');
-    setFormAmount('');
+    setFormAmount('0');
     setFormCategory('');
     setFormType('shared');
     setFormNotes('');
+    setCategorySearch('');
+    setCmdOpen(false);
     setShowAddModal(true);
   };
 
   const closeModal = () => {
     setEditItem(null);
     setShowAddModal(false);
+    setCmdOpen(false);
+  };
+
+  // Numpad-style amount handler (matches AddExpense)
+  const handleAmountKey = (key: string) => {
+    if (key === 'del') {
+      setFormAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : '0'));
+    } else if (key === '.') {
+      if (!formAmount.includes('.')) setFormAmount((prev) => prev + '.');
+    } else {
+      setFormAmount((prev) => (prev === '0' ? key : prev + key));
+    }
   };
 
   const handleSave = async () => {
-    if (!formName.trim() || !formAmount) return;
+    if (!formName.trim() || parseFloat(formAmount) <= 0) return;
     setSaving(true);
     try {
       if (editItem) {
@@ -204,6 +249,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   }
 
   const isModalOpen = editItem !== null || showAddModal;
+  const numpadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
 
   return (
     <>
@@ -290,12 +336,9 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           </div>
         )}
 
-        {/* Footer actions */}
-        <div className="recurring-card__actions">
-          <div
-            className="add-cat-row recurring-card__add"
-            onClick={openAddModal}
-          >
+        {/* Footer — matches add-cat-row pattern from budget cards */}
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="add-cat-row" style={{ flex: 1 }} onClick={openAddModal}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path d="M12 4v16m-8-8h16" />
             </svg>
@@ -320,87 +363,204 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             <h3>{editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}</h3>
             <p>{editItem ? 'Modifica los datos del gasto recurrente' : 'Añade un gasto que se repite cada mes'}</p>
 
-            <div className="form-row">
-              <label>Emoji</label>
-              <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
+            {/* Amount — hero display like AddExpense */}
+            <div style={{ textAlign: 'center', padding: '24px 0 20px' }}>
+              <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--tm)', verticalAlign: 'super' }}>
+                &euro;
+              </span>
+              <span style={{
+                fontSize: 48,
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                color: formAmount === '0' ? 'var(--tm)' : 'var(--text)',
+                transition: 'color .2s',
+              }}>
+                {formAmount}
+              </span>
             </div>
 
-            <div className="form-row">
-              <label>Nombre</label>
-              <input
-                className="form-input"
-                value={formName}
-                onChange={e => setFormName(e.target.value)}
-                placeholder="Ej: Alquiler, Netflix..."
-              />
+            {/* Numpad */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 6,
+              marginBottom: 24,
+            }}>
+              {numpadKeys.map(key => (
+                <button
+                  key={key}
+                  type="button"
+                  className="numpad-key"
+                  onClick={() => handleAmountKey(key)}
+                >
+                  {key === 'del' ? '⌫' : key}
+                </button>
+              ))}
             </div>
 
-            <div className="form-row">
-              <label>Importe</label>
-              <span style={{ color: 'var(--tm)' }}>€</span>
-              <input
-                className="form-input"
-                type="number"
-                inputMode="decimal"
-                value={formAmount}
-                onChange={e => setFormAmount(e.target.value)}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                style={{ width: 120, textAlign: 'right' }}
-              />
-            </div>
-
-            <div className="form-row">
-              <label>Categoría</label>
-              <input
-                className="form-input"
-                value={formCategory}
-                onChange={e => setFormCategory(e.target.value)}
-                placeholder="Ej: Hogar, Seguros..."
-              />
-            </div>
-
-            <div className="form-row">
-              <label>Tipo</label>
-              <div style={{ display: 'flex', gap: 8, flex: 1 }}>
-                <div
-                  onClick={() => setFormType('shared')}
+            {/* Name + Emoji inline */}
+            <div style={{ marginBottom: 16 }}>
+              <div className="label">Nombre</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
                   style={{
-                    flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
-                    textAlign: 'center', fontSize: 13, fontWeight: 500,
-                    border: formType === 'shared' ? '2px solid var(--blue)' : '1px solid var(--glass-border)',
-                    background: formType === 'shared' ? 'var(--bl)' : 'var(--surface)',
-                    color: formType === 'shared' ? 'var(--blue)' : 'var(--ts)',
+                    flex: 1,
+                    padding: '12px 16px',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: 'var(--rs)',
+                    fontSize: 15,
+                    fontFamily: 'inherit',
+                    background: 'var(--surface)',
+                    color: 'var(--text)',
+                    transition: 'all .2s',
+                    outline: 'none',
                   }}
+                  placeholder="Ej: Alquiler, Netflix..."
+                  value={formName}
+                  onChange={e => setFormName(e.target.value)}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--green)';
+                    e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--glass-border)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+                <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
+              </div>
+            </div>
+
+            {/* Type selector — matches AddExpense type-sel */}
+            <div style={{ marginBottom: 16 }}>
+              <div className="label">Tipo de gasto</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div
+                  className="type-sel"
+                  onClick={() => setFormType('shared')}
+                  style={formType === 'shared'
+                    ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
+                    : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
                 >
                   Compartido
                 </div>
                 <div
+                  className="type-sel"
                   onClick={() => setFormType('personal')}
-                  style={{
-                    flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
-                    textAlign: 'center', fontSize: 13, fontWeight: 500,
-                    border: formType === 'personal' ? '2px solid var(--purple)' : '1px solid var(--glass-border)',
-                    background: formType === 'personal' ? 'var(--pl)' : 'var(--surface)',
-                    color: formType === 'personal' ? 'var(--purple)' : 'var(--ts)',
-                  }}
+                  style={formType === 'personal'
+                    ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
+                    : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
                 >
                   Personal
                 </div>
               </div>
             </div>
 
-            <div className="form-row">
-              <label>Notas</label>
+            {/* Category — smart cmd-palette like AddExpense */}
+            <div className="cmd-palette" ref={cmdRef} style={{ marginBottom: 16 }}>
+              <div className="label">Categoría</div>
+              <div className="cmd-input-wrap">
+                <TagIcon />
+                {formCategory && (() => {
+                  const catDef = getCategoryDef(formCategory);
+                  return (
+                    <span className="cmd-selected">
+                      <div className="cmd-icon" style={{
+                        background: catDef?.iconBg ?? 'var(--gl)',
+                        width: 20,
+                        height: 20,
+                      }}>
+                        <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
+                      </div>
+                      {formCategory}
+                      <span
+                        className="cmd-x"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormCategory('');
+                        }}
+                      >
+                        &times;
+                      </span>
+                    </span>
+                  );
+                })()}
+                <input
+                  className="cmd-input"
+                  placeholder="Buscar categoría..."
+                  value={categorySearch}
+                  onFocus={() => setCmdOpen(true)}
+                  onChange={(e) => {
+                    setCategorySearch(e.target.value);
+                    setCmdOpen(true);
+                  }}
+                />
+              </div>
+              <div className={`cmd-dropdown ${cmdOpen ? 'open' : ''}`}>
+                <div className="cmd-list">
+                  {filteredCategories.map((item) => (
+                    <div
+                      key={item.id ?? item.name}
+                      className={`cmd-option ${formCategory === item.name ? 'selected' : ''}`}
+                      onClick={() => {
+                        setFormCategory(item.name);
+                        setCategorySearch('');
+                        setCmdOpen(false);
+                      }}
+                    >
+                      <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
+                        <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
+                      </div>
+                      {item.name}
+                    </div>
+                  ))}
+                  {categorySearch.trim() && !filteredCategories.some(c => c.name.toLowerCase() === categorySearch.toLowerCase()) && (
+                    <div
+                      className="cmd-create"
+                      onClick={() => {
+                        setFormCategory(categorySearch.trim());
+                        setCategorySearch('');
+                        setCmdOpen(false);
+                      }}
+                    >
+                      + Crear "{categorySearch.trim()}"
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div style={{ marginBottom: 20 }}>
+              <div className="label">Notas</div>
               <input
-                className="form-input"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--rs)',
+                  fontSize: 15,
+                  fontFamily: 'inherit',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  transition: 'all .2s',
+                  outline: 'none',
+                }}
+                placeholder="Opcional..."
                 value={formNotes}
                 onChange={e => setFormNotes(e.target.value)}
-                placeholder="Opcional..."
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--green)';
+                  e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--glass-border)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
             </div>
 
+            {/* Footer */}
             <div className="modal-actions">
               {editItem && (
                 <button
@@ -413,10 +573,10 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
               )}
               {editItem && (
                 <button
-                  className="btn btn-sm"
+                  className="btn btn-outline"
                   onClick={handleDelete}
                   disabled={saving}
-                  style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}
+                  style={{ color: 'var(--red)', borderColor: 'rgba(248,113,113,0.3)', marginRight: 'auto' }}
                 >
                   Eliminar
                 </button>
@@ -427,7 +587,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
               <button
                 className="btn btn-primary"
                 onClick={handleSave}
-                disabled={saving || !formName.trim() || !formAmount}
+                disabled={saving || !formName.trim() || parseFloat(formAmount) <= 0}
               >
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
