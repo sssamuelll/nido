@@ -24,8 +24,13 @@ const defaultBudgetResponse = {
   personal_maria: 500,
 };
 
-const getPersonalBudgetForUser = (budget: BudgetRow | typeof defaultBudgetResponse, username: string): number =>
-  username === 'maria' ? budget.personal_maria : budget.personal_samuel;
+const getLegacyPersonKey = (user: { username?: string; email?: string | null } | undefined) => {
+  const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
+  return identity.includes('maria') || identity.includes('mara') ? 'maria' : 'samuel';
+};
+
+const getPersonalBudgetForUser = (budget: BudgetRow | typeof defaultBudgetResponse, user: { username?: string; email?: string | null }): number =>
+  getLegacyPersonKey(user) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 // Get budget for a specific month
 router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
@@ -52,7 +57,7 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
       id: response.id,
       month: response.month,
       shared_available: response.shared_available,
-      personal_budget: getPersonalBudgetForUser(response, req.user!.username),
+      personal_budget: getPersonalBudgetForUser(response, req.user!),
       pending_approval: pendingApproval,
       categories: categoryBudgets.reduce((acc: Record<string, number>, b: CategoryBudgetRow) => {
         acc[b.category] = b.amount;
