@@ -129,6 +129,13 @@ export const History: React.FC = () => {
     );
   }, [categories, categorySearch]);
 
+  useEffect(() => {
+    if (!selectedCategory) return;
+    if (!categories.some((item) => item.name === selectedCategory)) {
+      setSelectedCategory('');
+    }
+  }, [categories, selectedCategory]);
+
   const openEditModal = (expense: Expense) => {
     setEditingExpense(expense);
     setEditDescription(expense.description);
@@ -249,6 +256,25 @@ export const History: React.FC = () => {
         onChange={e => setSearchTerm(e.target.value)}
       />
 
+      <div className="an d2" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+        {selectedCategory && (
+          <button type="button" className="btn btn-ghost" onClick={() => setSelectedCategory('')}>
+            Categoría: {selectedCategory} ×
+          </button>
+        )}
+        {categories.map((item) => (
+          <button
+            key={item.id ?? item.name}
+            type="button"
+            className={selectedCategory === item.name ? 'btn btn-primary' : 'btn btn-ghost'}
+            style={{ minWidth: 0, padding: '8px 12px' }}
+            onClick={() => setSelectedCategory((current) => current === item.name ? '' : item.name)}
+          >
+            {item.emoji ?? '📂'} {item.name}
+          </button>
+        ))}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }} className="an d3 balance-row-3">
         <div className="card" style={{ textAlign: 'center', padding: '16px' }}>
           <div style={{ fontSize: '24px', fontWeight: 700 }}>{filteredExpenses.length}</div>
@@ -275,7 +301,7 @@ export const History: React.FC = () => {
         <div className="empty-view">
           <div className="empty-view__emoji">{searchTerm ? '🔍' : '📭'}</div>
           <div className="empty-view__text">
-            {searchTerm ? 'No se encontraron resultados para tu búsqueda' : 'No hay gastos registrados en este mes'}
+            {searchTerm || selectedCategory ? 'No se encontraron resultados con los filtros actuales' : 'No hay gastos registrados en este mes'}
           </div>
         </div>
       ) : (
