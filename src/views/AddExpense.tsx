@@ -37,7 +37,7 @@ export const AddExpense: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { categories, getCategoryDef } = useCategoryManagement();
+  const { categories, getCategoryDef } = useCategoryManagement(type);
   const [categorySearch, setCategorySearch] = useState('');
   const [cmdOpen, setCmdOpen] = useState(false);
   const [showNewCatModal, setShowNewCatModal] = useState(false);
@@ -353,7 +353,7 @@ export const AddExpense: React.FC = () => {
                   const emoji = newCatEmoji.trim() || '📂';
                   try {
                     setSavingCat(true);
-                    await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor });
+                    await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor, context: type });
                     showToast('Categoría registrada ✔');
                     navigate('/');
                   } catch {

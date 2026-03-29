@@ -57,7 +57,7 @@ export const PersonalDashboard: React.FC = () => {
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { getCategoryDef } = useCategoryManagement();
+  const { getCategoryDef } = useCategoryManagement('personal');
 
   useEffect(() => {
     const loadPersonalDashboard = async () => {

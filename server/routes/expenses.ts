@@ -38,6 +38,7 @@ interface CategoryBudgetRow {
   category: string;
   amount: number;
   context: string;
+  owner_user_id?: number | null;
 }
 
 interface CategoryRow {
@@ -251,27 +252,41 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const samuelBalance = samuelPaid - halfShared;
     const mariaBalance = mariaPaid - halfShared;
 
-    // Category breakdown with budgets (scoped by context)
+    // Category breakdown with budgets scoped by visibility
     const allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
-    const sharedBudgets = allCategoryBudgets.filter(b => b.context === 'shared');
-    const personalBudgets = allCategoryBudgets.filter(b => b.context === 'personal');
-    const householdCategories = await db.all<CategoryRow[]>(
-      'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) ORDER BY name',
+    const sharedBudgets = allCategoryBudgets.filter(b => b.context === 'shared' && b.owner_user_id == null);
+    const personalBudgets = allCategoryBudgets.filter(b => b.context === 'personal' && b.owner_user_id === req.user!.id);
+    const sharedCategories = await db.all<CategoryRow[]>(
+      'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) AND context = ? AND owner_user_id IS NULL ORDER BY name',
+      req.user!.id,
+      'shared',
+    );
+    const personalCategories = await db.all<CategoryRow[]>(
+      'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) AND context = ? AND owner_user_id = ? ORDER BY name',
+      req.user!.id,
+      'personal',
       req.user!.id,
     );
 
-    const categoryNames = Array.from(new Set(
+    const sharedCategoryNames = Array.from(new Set(
       [
-        ...householdCategories.map((category) => category.name),
-        ...allCategoryBudgets.map((budget) => budget.category),
-        ...expenses.map((expense) => expense.category),
+        ...sharedCategories.map((category) => category.name),
+        ...sharedBudgets.map((budget) => budget.category),
+        ...sharedExpenses.map((expense) => expense.category),
       ].filter((category): category is string => Boolean(category))
     ));
 
-    const visibleCategoryNames = categoryNames;
+    const userPersonalExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!));
+    const personalCategoryNames = Array.from(new Set(
+      [
+        ...personalCategories.map((category) => category.name),
+        ...personalBudgets.map((budget) => budget.category),
+        ...userPersonalExpenses.map((expense) => expense.category),
+      ].filter((category): category is string => Boolean(category))
+    ));
 
-    const buildBreakdown = (budgets: CategoryBudgetRow[], filteredExpenses: ExpenseRow[]) =>
-      visibleCategoryNames.map(category => {
+    const buildBreakdown = (categoryNames: string[], budgets: CategoryBudgetRow[], filteredExpenses: ExpenseRow[]) =>
+      categoryNames.map(category => {
         const catExpenses = filteredExpenses.filter((exp: ExpenseRow) => exp.category === category);
         const catTotal = catExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
         const budgetEntry = budgets.find((b: CategoryBudgetRow) => b.category === category);
@@ -283,10 +298,8 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
         };
       });
 
-    const userPersonalExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!));
-
-    const categoryBreakdown = buildBreakdown(sharedBudgets, sharedExpenses);
-    const personalCategoryBreakdown = buildBreakdown(personalBudgets, userPersonalExpenses);
+    const categoryBreakdown = buildBreakdown(sharedCategoryNames, sharedBudgets, sharedExpenses);
+    const personalCategoryBreakdown = buildBreakdown(personalCategoryNames, personalBudgets, userPersonalExpenses);
 
     // Recent transactions (last 5)
     const recentTransactions = expenses

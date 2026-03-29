@@ -120,17 +120,19 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
       const ctx = budgetContext || 'shared';
       const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
       for (const [category, amount] of Object.entries(categories)) {
+        const ownerUserId = ctx === 'personal' ? req.user!.id : null;
         await db.run(`
-          INSERT INTO category_budgets (month, category, amount, context)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(month, category, context) DO UPDATE SET amount = excluded.amount
-        `, month, category, amount, ctx);
+          INSERT INTO category_budgets (month, category, amount, context, owner_user_id)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(month, category, context, owner_user_id) DO UPDATE SET amount = excluded.amount
+        `, month, category, amount, ctx, ownerUserId);
 
-        // Auto-register category if it doesn't exist
+        // Auto-register category if it doesn't exist in the same visibility scope
         if (householdId) {
           await db.run(
-            'INSERT OR IGNORE INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)',
-            [householdId, category, '📂', '#6B7280']
+            `INSERT OR IGNORE INTO categories (household_id, name, emoji, color, context, owner_user_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [householdId, category, '📂', '#6B7280', ctx, ownerUserId]
           );
         }
       }

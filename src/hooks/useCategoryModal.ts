@@ -61,6 +61,7 @@ export const useCategoryModal = () => {
         name: trimmedName,
         emoji: emojiVal,
         color,
+        context: opts.context,
       });
       await Api.updateBudget({ month: opts.month, categories: cats, context: opts.context });
       setShowModal(false);
