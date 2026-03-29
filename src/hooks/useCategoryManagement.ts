@@ -9,11 +9,11 @@ export interface CategoryDef {
   iconBg?: string;
 }
 
-export const useCategoryManagement = () => {
+export const useCategoryManagement = (context: 'shared' | 'personal' = 'shared') => {
   const [categories, setCategories] = useState<CategoryDef[]>([]);
 
   const loadCategories = () => {
-    Api.getCategories()
+    Api.getCategories(context)
       .then((data: CategoryDef[]) => {
         setCategories(data.map(c => ({
           ...c,
@@ -24,7 +24,7 @@ export const useCategoryManagement = () => {
       .catch(() => setCategories([]));
   };
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => { loadCategories(); }, [context]);
 
   const getCategoryDef = (name: string) =>
     categories.find(c => c.name === name);

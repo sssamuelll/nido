@@ -192,11 +192,11 @@ export class Api {
     return this.request(`/expenses/summary?month=${month}`);
   }
 
-  static async getCategories(): Promise<Array<{ id: number; name: string; emoji: string; color: string }>> {
-    return this.request('/categories');
+  static async getCategories(context: 'shared' | 'personal' = 'shared'): Promise<Array<{ id: number; name: string; emoji: string; color: string }>> {
+    return this.request(`/categories?context=${context}`);
   }
 
-  static async saveCategory(category: { id?: number; name: string; emoji: string; color: string }) {
+  static async saveCategory(category: { id?: number; name: string; emoji: string; color: string; context?: 'shared' | 'personal' }) {
     return this.request('/categories', {
       method: 'POST',
       body: category,
