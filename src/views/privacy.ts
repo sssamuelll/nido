@@ -104,7 +104,19 @@ export const toVisibleBudgetFormData = (
 });
 
 const compareByNewest = (a: VisibleExpense, b: VisibleExpense) =>
-  new Date(b.created_at ?? b.date).getTime() - new Date(a.created_at ?? a.date).getTime();
+  new Date(b.created_at ?? `${b.date}T12:00:00`).getTime() - new Date(a.created_at ?? `${a.date}T12:00:00`).getTime();
+
+const getRecentExpenseWindow = (expenses: VisibleExpense[], maxItems = 5, maxDays = 3) => {
+  const sorted = [...expenses].sort(compareByNewest);
+  if (sorted.length === 0) return [];
+
+  const newestTs = new Date(sorted[0].created_at ?? `${sorted[0].date}T12:00:00`).getTime();
+  const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+
+  return sorted
+    .filter((expense) => newestTs - new Date(expense.created_at ?? `${expense.date}T12:00:00`).getTime() <= maxAgeMs)
+    .slice(0, maxItems);
+};
 
 const buildWeeklyChart = (expenses: VisibleExpense[]): PersonalAnalyticsPoint[] => {
   const buckets = [
@@ -202,7 +214,7 @@ export const buildPersonalDetailModel = ({
     averageExpense: privateExpenses.length > 0 ? personalSpent / privateExpenses.length : 0,
     topCategory: categories[0]?.category ?? 'Sin gastos',
     categories,
-    recentExpenses: privateExpenses.slice(0, 6),
+    recentExpenses: getRecentExpenseWindow(privateExpenses, 5, 3),
     chart: buildWeeklyChart(privateExpenses),
   };
 };
