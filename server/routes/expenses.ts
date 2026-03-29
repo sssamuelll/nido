@@ -54,8 +54,8 @@ const visibleExpensesWhere = `
   )
 `;
 
-const getPersonalBudgetForUser = (budget: Pick<BudgetRow, 'personal_samuel' | 'personal_maria'>, username: string): number =>
-  username === 'maria' ? budget.personal_maria : budget.personal_samuel;
+const getPersonalBudgetForUser = (budget: Pick<BudgetRow, 'personal_samuel' | 'personal_maria'>, user: { username?: string; email?: string | null }): number =>
+  getLegacyPaidBy(user as AuthRequest['user']) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 const emptyBudgetForMonth = (month: string): BudgetRow => ({
   id: 0,
@@ -297,7 +297,7 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const personalSpent = expenses
       .filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!))
       .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
-    const personalBudget = getPersonalBudgetForUser(budget, req.user!.username);
+    const personalBudget = getPersonalBudgetForUser(budget, req.user!);
 
     res.json({
       budget: {

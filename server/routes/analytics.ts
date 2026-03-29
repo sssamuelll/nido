@@ -47,8 +47,13 @@ interface BudgetRow {
   personal_maria: number;
 }
 
-const getPersonalBudgetForUser = (budget: BudgetRow, username: string): number =>
-  username === 'maria' ? budget.personal_maria : budget.personal_samuel;
+const getLegacyPersonKey = (user: { username?: string; email?: string | null } | undefined) => {
+  const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
+  return identity.includes('maria') || identity.includes('mara') ? 'maria' : 'samuel';
+};
+
+const getPersonalBudgetForUser = (budget: BudgetRow, user: { username?: string; email?: string | null }): number =>
+  getLegacyPersonKey(user) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
@@ -56,6 +61,7 @@ router.get('/', async (req: AuthRequest, res) => {
     const months = parseInt(req.query.months as string) || 6;
     const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
     const username = req.user!.username;
+    const currentUser = req.user!;
     const userId = req.user!.id;
 
     // Build date range
@@ -75,7 +81,7 @@ router.get('/', async (req: AuthRequest, res) => {
     const contextFilter = context === 'shared'
       ? "type = 'shared'"
       : `type = 'personal' AND paid_by = ?`;
-    const contextParams = context === 'personal' ? [username] : [];
+    const contextParams = context === 'personal' ? [getLegacyPersonKey(currentUser)] : [];
 
     // 1. Monthly totals
     const monthlyRows = await db.all<MonthlyRow[]>(`
@@ -127,7 +133,7 @@ router.get('/', async (req: AuthRequest, res) => {
       if (context === 'shared') {
         netSavings = budget.shared_available - totalSpent;
       } else {
-        netSavings = getPersonalBudgetForUser(budget, username) - totalSpent;
+        netSavings = getPersonalBudgetForUser(budget, currentUser) - totalSpent;
       }
     }
 
@@ -211,7 +217,7 @@ router.get('/', async (req: AuthRequest, res) => {
       const projectedSpend = (totalSpent / dayOfMonth) * daysInMonth;
       const budgetAmount = context === 'shared'
         ? budget.shared_available
-        : getPersonalBudgetForUser(budget, username);
+        : getPersonalBudgetForUser(budget, currentUser);
       const projectedSavings = budgetAmount - projectedSpend;
       if (projectedSavings > 0) {
         insights.push({
@@ -269,7 +275,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const budgetAmount = context === 'shared'
           ? mBudget.shared_available
-          : getPersonalBudgetForUser(mBudget, username);
+          : getPersonalBudgetForUser(mBudget, currentUser);
 
         if ((mSpent?.total ?? 0) < budgetAmount) {
           streak++;
