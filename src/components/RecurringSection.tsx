@@ -316,27 +316,28 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       {/* Edit / Add Modal */}
       {isModalOpen && (
         <div className="modal-overlay open" onClick={closeModal}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>
-              {editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
-            </h2>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>{editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}</h3>
+            <p>{editItem ? 'Modifica los datos del gasto recurrente' : 'Añade un gasto que se repite cada mes'}</p>
 
             <div className="form-row">
-              <label style={{ fontSize: 13, color: 'var(--tm)', marginBottom: 4 }}>Nombre</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
-                <input
-                  className="form-input"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="Nombre del gasto"
-                  style={{ flex: 1 }}
-                />
-              </div>
+              <label>Emoji</label>
+              <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
             </div>
 
             <div className="form-row">
-              <label style={{ fontSize: 13, color: 'var(--tm)', marginBottom: 4 }}>Importe (€)</label>
+              <label>Nombre</label>
+              <input
+                className="form-input"
+                value={formName}
+                onChange={e => setFormName(e.target.value)}
+                placeholder="Ej: Alquiler, Netflix..."
+              />
+            </div>
+
+            <div className="form-row">
+              <label>Importe</label>
+              <span style={{ color: 'var(--tm)' }}>€</span>
               <input
                 className="form-input"
                 type="number"
@@ -346,106 +347,90 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                 placeholder="0.00"
                 min="0"
                 step="0.01"
+                style={{ width: 120, textAlign: 'right' }}
               />
             </div>
 
             <div className="form-row">
-              <label style={{ fontSize: 13, color: 'var(--tm)', marginBottom: 4 }}>Categoría</label>
+              <label>Categoría</label>
               <input
                 className="form-input"
                 value={formCategory}
                 onChange={e => setFormCategory(e.target.value)}
-                placeholder="Ej: Hogar, Seguros, Suscripciones..."
+                placeholder="Ej: Hogar, Seguros..."
               />
             </div>
 
             <div className="form-row">
-              <label style={{ fontSize: 13, color: 'var(--tm)', marginBottom: 4 }}>Tipo</label>
-              <div style={{ display: 'flex', gap: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <button
-                  type="button"
+              <label>Tipo</label>
+              <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                <div
                   onClick={() => setFormType('shared')}
                   style={{
-                    flex: 1,
-                    padding: '8px 0',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: formType === 'shared' ? 'rgba(96,165,250,0.2)' : 'transparent',
-                    color: formType === 'shared' ? '#60A5FA' : 'var(--tm)',
-                    transition: 'all 0.15s',
+                    flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
+                    textAlign: 'center', fontSize: 13, fontWeight: 500,
+                    border: formType === 'shared' ? '2px solid var(--blue)' : '1px solid var(--glass-border)',
+                    background: formType === 'shared' ? 'var(--bl)' : 'var(--surface)',
+                    color: formType === 'shared' ? 'var(--blue)' : 'var(--ts)',
                   }}
                 >
                   Compartido
-                </button>
-                <button
-                  type="button"
+                </div>
+                <div
                   onClick={() => setFormType('personal')}
                   style={{
-                    flex: 1,
-                    padding: '8px 0',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: formType === 'personal' ? 'rgba(167,139,250,0.2)' : 'transparent',
-                    color: formType === 'personal' ? '#A78BFA' : 'var(--tm)',
-                    transition: 'all 0.15s',
+                    flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
+                    textAlign: 'center', fontSize: 13, fontWeight: 500,
+                    border: formType === 'personal' ? '2px solid var(--purple)' : '1px solid var(--glass-border)',
+                    background: formType === 'personal' ? 'var(--pl)' : 'var(--surface)',
+                    color: formType === 'personal' ? 'var(--purple)' : 'var(--ts)',
                   }}
                 >
                   Personal
-                </button>
+                </div>
               </div>
             </div>
 
             <div className="form-row">
-              <label style={{ fontSize: 13, color: 'var(--tm)', marginBottom: 4 }}>Notas</label>
+              <label>Notas</label>
               <input
                 className="form-input"
                 value={formNotes}
                 onChange={e => setFormNotes(e.target.value)}
-                placeholder="Notas opcionales..."
+                placeholder="Opcional..."
               />
             </div>
 
-            {/* Modal footer */}
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-              {editItem ? (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    className="btn btn-outline"
-                    onClick={handleTogglePause}
-                    disabled={saving}
-                    style={{ fontSize: 13 }}
-                  >
-                    {editItem.paused ? 'Activar' : 'Pausar'}
-                  </button>
-                  <button
-                    className="btn btn-outline"
-                    onClick={handleDelete}
-                    disabled={saving}
-                    style={{ fontSize: 13, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' }}
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              ) : (
-                <div />
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-outline" onClick={closeModal} style={{ fontSize: 13 }}>
-                  Cancelar
-                </button>
+            <div className="modal-actions">
+              {editItem && (
                 <button
-                  className="btn btn-primary"
-                  onClick={handleSave}
-                  disabled={saving || !formName.trim() || !formAmount}
-                  style={{ fontSize: 13 }}
+                  className="btn btn-outline"
+                  onClick={handleTogglePause}
+                  disabled={saving}
                 >
-                  Guardar
+                  {editItem.paused ? 'Activar' : 'Pausar'}
                 </button>
-              </div>
+              )}
+              {editItem && (
+                <button
+                  className="btn btn-sm"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}
+                >
+                  Eliminar
+                </button>
+              )}
+              <button className="btn btn-outline" onClick={closeModal}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving || !formName.trim() || !formAmount}
+              >
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
             </div>
           </div>
         </div>
