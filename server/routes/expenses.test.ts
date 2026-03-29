@@ -34,6 +34,59 @@ describe('expenses routes privacy', () => {
     vi.clearAllMocks();
   });
 
+  it('creates a new expense using the authenticated user as paid_by', async () => {
+    mockDb.run
+      .mockResolvedValueOnce({ lastID: 11 })
+      .mockResolvedValueOnce({ changes: 1 });
+    mockDb.get
+      .mockResolvedValueOnce({ household_id: 3 })
+      .mockResolvedValueOnce({
+        id: 11,
+        description: 'Coffee',
+        amount: 3.5,
+        category: 'Cafe',
+        date: '2026-03-29',
+        paid_by: 'samuel',
+        paid_by_user_id: 1,
+        type: 'shared',
+        status: 'paid',
+      });
+
+    const handler = getRouteHandler('/', 'post');
+    const req: any = {
+      validatedData: {
+        description: 'Coffee',
+        amount: 3.5,
+        category: 'Cafe',
+        date: '2026-03-29',
+        type: 'shared',
+        status: 'paid',
+      },
+      user: { id: 1, username: 'samuel' },
+    };
+    const res = createResponse();
+
+    await handler(req, res);
+
+    expect(mockDb.run).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('INSERT INTO expenses'),
+      'Coffee',
+      3.5,
+      'Cafe',
+      '2026-03-29',
+      'samuel',
+      undefined,
+      'shared',
+      'paid'
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      id: 11,
+      paid_by: 'samuel',
+    }));
+  });
+
   it('filters month expenses to shared plus the authenticated user personal expenses', async () => {
     mockDb.all.mockResolvedValue([
       { id: 1, description: 'Shared dinner', type: 'shared', paid_by: 'maria' },

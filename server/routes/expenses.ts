@@ -141,9 +141,8 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Forbidden: You can only edit your own personal expenses' });
     }
 
-    // Security: Do not allow changing the 'paid_by' field once created
-    const { paid_by: _, ...safeData } = validatedData;
-    const updated = { ...existing, ...safeData };
+    // Security: 'paid_by' is server-owned; merge only validated editable fields
+    const updated = { ...existing, ...validatedData };
 
     await db.run(`
       UPDATE expenses 
