@@ -101,13 +101,14 @@ export const Dashboard: React.FC = () => {
   const recentTxRaw = Array.isArray(expenses) ? expenses : [];
   const normalizedUserKey = (user?.username || '').toLowerCase().includes('maria') || (user?.username || '').toLowerCase().includes('mara') ? 'maria' : 'samuel';
   const personalRecentTxRaw = recentTxRaw.filter((tx) => tx.type === 'personal' && ((user?.id && tx.paid_by_user_id != null) ? tx.paid_by_user_id === user.id : tx.paid_by === normalizedUserKey));
+  const sharedMonthTransactions = recentTxRaw.filter((tx) => tx.type === 'shared');
   const personalTxCountRaw = Array.isArray(data?.personalCategoryBreakdown)
     ? data.personalCategoryBreakdown.reduce((sum, item) => sum + toNum(item.count), 0)
     : personalRecentTxRaw.length;
   const metricBudgetTarget = activeContext === 'shared' ? availableSharedRaw : personalBudgetRaw;
   const metricSpentTarget = activeContext === 'shared' ? totalSharedSpentRaw : personalSpentRaw;
   const metricAvgTarget = activeContext === 'shared'
-    ? (recentTxRaw.length > 0 ? Math.round(recentTxRaw.reduce((sum: number, t: VisibleExpense) => sum + toNum(t.amount), 0) / recentTxRaw.length) : 0)
+    ? (sharedMonthTransactions.length > 0 ? Math.round(sharedMonthTransactions.reduce((sum: number, t: VisibleExpense) => sum + toNum(t.amount), 0) / sharedMonthTransactions.length) : 0)
     : (personalTxCountRaw > 0 ? Math.round(personalSpentRaw / personalTxCountRaw) : 0);
   const animBudget = useCountUp(metricBudgetTarget);
   const animSpent = useCountUp(metricSpentTarget);
@@ -291,7 +292,7 @@ export const Dashboard: React.FC = () => {
               €{animSpent.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
-              {recentTransactions.length} gastos este mes
+              {activeContext === 'shared' ? sharedMonthTransactions.length : personalTxCountRaw} gastos este mes
             </div>
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(167,139,250,.15)' } as React.CSSProperties}>
@@ -301,7 +302,7 @@ export const Dashboard: React.FC = () => {
               €{animAvg.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
-              {recentTransactions.length} gastos registrados
+              {activeContext === 'shared' ? sharedMonthTransactions.length : personalTxCountRaw} gastos registrados
             </div>
           </div>
         </div>
