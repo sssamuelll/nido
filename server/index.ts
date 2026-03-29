@@ -316,8 +316,7 @@ app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
     const registered = await db.all<Array<{ id: number; name: string; emoji: string; color: string; context: string; owner_user_id?: number | null }>>(
       context === 'personal'
         ? `SELECT * FROM categories
-           WHERE household_id = ?
-             AND ((context = 'personal' AND owner_user_id = ?) OR (context = 'shared' AND owner_user_id IS NULL))`
+           WHERE household_id = ? AND context = 'personal' AND owner_user_id = ?`
         : `SELECT * FROM categories
            WHERE household_id = ? AND context = 'shared' AND owner_user_id IS NULL`,
       ...(context === 'personal' ? [householdId, req.user!.id] : [householdId])
