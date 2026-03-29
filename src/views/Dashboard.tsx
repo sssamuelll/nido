@@ -64,6 +64,21 @@ interface DashboardData {
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
+const compareByNewest = (a: VisibleExpense, b: VisibleExpense) =>
+  new Date(b.created_at ?? `${b.date}T12:00:00`).getTime() - new Date(a.created_at ?? `${a.date}T12:00:00`).getTime();
+
+const getRecentExpenseWindow = (expenses: VisibleExpense[], maxItems = 5, maxDays = 3) => {
+  const sorted = [...expenses].sort(compareByNewest);
+  if (sorted.length === 0) return [];
+
+  const newestTs = new Date(sorted[0].created_at ?? `${sorted[0].date}T12:00:00`).getTime();
+  const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+
+  return sorted
+    .filter((expense) => newestTs - new Date(expense.created_at ?? `${expense.date}T12:00:00`).getTime() <= maxAgeMs)
+    .slice(0, maxItems);
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -167,8 +182,8 @@ export const Dashboard: React.FC = () => {
   const personalCategoryBreakdown = Array.isArray(data.personalCategoryBreakdown) ? data.personalCategoryBreakdown : [];
   const categoryBreakdown = activeContext === 'shared' ? sharedCategoryBreakdown : personalCategoryBreakdown;
   const recentTransactions = activeContext === 'shared'
-    ? recentTxRaw.filter((tx) => tx.type === 'shared').sort((a, b) => new Date(b.created_at ?? b.date).getTime() - new Date(a.created_at ?? a.date).getTime()).slice(0, 10)
-    : personalRecentTxRaw.slice(0, 10);
+    ? getRecentExpenseWindow(recentTxRaw.filter((tx) => tx.type === 'shared'), 5, 3)
+    : getRecentExpenseWindow(personalRecentTxRaw, 5, 3);
 
   const availableShared = toNum(data?.budget?.availableShared);
   const totalSharedSpent = toNum(data?.spending?.totalSharedSpent);
