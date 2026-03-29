@@ -126,6 +126,10 @@ describe('expenses routes privacy', () => {
       ])
       .mockResolvedValueOnce([
         { category: 'Restaurant', amount: 200 },
+      ])
+      .mockResolvedValueOnce([
+        { name: 'Restaurant' },
+        { name: 'Otros' },
       ]);
     const handler = getRouteHandler('/summary', 'get');
     const req: any = { validatedMonth: '2026-03', user: { id: 1, username: 'samuel' } };

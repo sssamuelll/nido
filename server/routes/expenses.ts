@@ -65,6 +65,17 @@ const emptyBudgetForMonth = (month: string): BudgetRow => ({
   personal_maria: 0,
 });
 
+const getLegacyPaidBy = (user: AuthRequest['user']) => {
+  const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
+  if (identity.includes('maria') || identity.includes('mara')) {
+    return 'maria';
+  }
+  return 'samuel';
+};
+
+const isExpenseOwner = (expense: ExpenseRow, user: NonNullable<AuthRequest['user']>) =>
+  expense.paid_by_user_id === user.id || expense.paid_by === user.username;
+
 // Get expenses for a specific month
 router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
   const month = req.validatedMonth as string;
@@ -87,12 +98,12 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
   const { description, amount, category, date, type, status = 'paid' } = req.validatedData as ExpenseInput;
-  // Security: Force paid_by to be the current authenticated user
-  const paid_by = req.user!.username;
+  // Keep legacy-compatible labels in paid_by while using paid_by_user_id as the true owner.
+  const paid_by = getLegacyPaidBy(req.user);
 
   try {
     const db = getDatabase();
-    const paidByUserId = await findAppUserIdByUsername(paid_by);
+    const paidByUserId = req.user!.id;
     const result = await db.run(`
       INSERT INTO expenses (description, amount, category, date, paid_by, paid_by_user_id, type, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -134,7 +145,7 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
     }
 
     // Security check: Only allow editing if it's a shared expense OR if the user is the owner
-    const isOwner = existing.paid_by === req.user!.username;
+    const isOwner = isExpenseOwner(existing, req.user!);
     const isShared = existing.type === 'shared';
 
     if (!isShared && !isOwner) {
@@ -284,7 +295,7 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
 
     // Personal spending visible to the current user
     const personalSpent = expenses
-      .filter((exp: ExpenseRow) => exp.paid_by === req.user!.username && exp.type === 'personal')
+      .filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!))
       .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
     const personalBudget = getPersonalBudgetForUser(budget, req.user!.username);
 
