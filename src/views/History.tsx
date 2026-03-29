@@ -256,9 +256,9 @@ export const History: React.FC = () => {
         onChange={e => setSearchTerm(e.target.value)}
       />
 
-      <div className="an d2" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+      <div className="an d2 history-filter-row">
         {selectedCategory && (
-          <button type="button" className="btn btn-ghost" onClick={() => setSelectedCategory('')}>
+          <button type="button" className="history-filter-chip history-filter-chip--active" onClick={() => setSelectedCategory('')}>
             Categoría: {selectedCategory} ×
           </button>
         )}
@@ -266,8 +266,7 @@ export const History: React.FC = () => {
           <button
             key={item.id ?? item.name}
             type="button"
-            className={selectedCategory === item.name ? 'btn btn-primary' : 'btn btn-ghost'}
-            style={{ minWidth: 0, padding: '8px 12px' }}
+            className={selectedCategory === item.name ? 'history-filter-chip history-filter-chip--active' : 'history-filter-chip'}
             onClick={() => setSelectedCategory((current) => current === item.name ? '' : item.name)}
           >
             {item.emoji ?? '📂'} {item.name}
