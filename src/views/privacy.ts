@@ -38,6 +38,7 @@ export interface VisibleExpense {
   category: string;
   date: string;
   paid_by: string;
+  paid_by_user_id?: number | null;
   type: string;
   created_at?: string;
 }
@@ -130,11 +131,18 @@ const getLegacyPersonKey = (username: string) => {
 
 export const getPrivateExpensesForUser = (
   expenses: VisibleExpense[],
-  username: string
+  username: string,
+  userId?: number
 ): VisibleExpense[] => {
   const legacyKey = getLegacyPersonKey(username);
   return (Array.isArray(expenses) ? expenses : [])
-    .filter((expense) => expense?.type === 'personal' && expense?.paid_by === legacyKey)
+    .filter((expense) => {
+      if (expense?.type !== 'personal') return false;
+      if (userId && expense?.paid_by_user_id != null) {
+        return expense.paid_by_user_id === userId;
+      }
+      return expense?.paid_by === legacyKey;
+    })
     .sort(compareByNewest);
 };
 
@@ -143,16 +151,18 @@ export const buildPersonalDetailModel = ({
   budget,
   expenses,
   username,
+  userId,
 }: {
   summary?: DashboardSummaryData | null;
   budget?: VisibleBudgetFormData | null;
   expenses?: VisibleExpense[] | null;
   username: string;
+  userId?: number;
 }): PersonalDetailViewModel => {
   const ownerRaw = summary?.personal?.owner || username || 'samuel';
   const owner = ownerRaw.toLowerCase().includes('maria') ? 'maria' : 'samuel';
   const personalBudget = toNum(summary?.personal?.budget ?? budget?.personal_budget ?? summary?.budget?.personal);
-  const privateExpenses = getPrivateExpensesForUser(expenses ?? [], username);
+  const privateExpenses = getPrivateExpensesForUser(expenses ?? [], username, userId);
   const personalSpent = privateExpenses.reduce((sum, expense) => sum + toNum(expense.amount), 0);
   const remaining = personalBudget - personalSpent;
   const progress = personalBudget > 0 ? Math.min(100, Math.round((personalSpent / personalBudget) * 100)) : 0;
