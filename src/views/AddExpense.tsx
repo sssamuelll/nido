@@ -47,10 +47,16 @@ export const AddExpense: React.FC = () => {
   const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (categories.length > 0) {
-      setCategory((current) => current || categories[0].name);
+    if (categories.length === 0) {
+      setCategory('');
+      return;
     }
-  }, [categories]);
+
+    setCategory((current) => {
+      const existsInCurrentContext = categories.some((item) => item.name === current);
+      return existsInCurrentContext ? current : categories[0].name;
+    });
+  }, [categories, type]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

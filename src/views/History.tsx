@@ -141,6 +141,19 @@ export const History: React.FC = () => {
     setCmdOpen(false);
   };
 
+  useEffect(() => {
+    if (!editingExpense) return;
+    if (categories.length === 0) {
+      setEditCategory('');
+      return;
+    }
+
+    setEditCategory((current) => {
+      const existsInCurrentContext = categories.some((item) => item.name === current);
+      return existsInCurrentContext ? current : categories[0].name;
+    });
+  }, [categories, editType, editingExpense]);
+
   const closeEditModal = () => {
     if (savingEdit) return;
     setEditingExpense(null);
