@@ -374,6 +374,7 @@ export const Dashboard: React.FC = () => {
                           date={tx.date}
                           indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
                           isPositive={false}
+                          onClick={() => navigate('/history', { state: { initialContext: tx.type === 'shared' ? 'shared' : 'personal', initialCategory: tx.category } })}
                         />
                       ))}
                     </React.Fragment>

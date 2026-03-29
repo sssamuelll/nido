@@ -238,6 +238,7 @@ export const PersonalDashboard: React.FC = () => {
                     date={expense.date}
                     indicatorColor={ownerTheme.base}
                     isPositive={false}
+                    onClick={() => navigate('/history', { state: { initialContext: 'personal', initialCategory: expense.category } })}
                   />
                 );
               })
