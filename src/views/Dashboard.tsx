@@ -83,9 +83,11 @@ export const Dashboard: React.FC = () => {
   const personalBudgetRaw = toNum(data?.personal?.budget);
   const personalSpentRaw = toNum(data?.personal?.spent);
   const recentTxRaw = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const normalizedUserKey = (user?.username || '').toLowerCase().includes('maria') || (user?.username || '').toLowerCase().includes('mara') ? 'maria' : 'samuel';
+  const personalRecentTxRaw = recentTxRaw.filter((tx) => tx.type === 'personal' && ((user?.id && tx.paid_by_user_id != null) ? tx.paid_by_user_id === user.id : tx.paid_by === normalizedUserKey));
   const personalTxCountRaw = Array.isArray(data?.personalCategoryBreakdown)
     ? data.personalCategoryBreakdown.reduce((sum, item) => sum + toNum(item.count), 0)
-    : 0;
+    : personalRecentTxRaw.length;
   const metricBudgetTarget = activeContext === 'shared' ? availableSharedRaw : personalBudgetRaw;
   const metricSpentTarget = activeContext === 'shared' ? totalSharedSpentRaw : personalSpentRaw;
   const metricAvgTarget = activeContext === 'shared'
@@ -162,7 +164,10 @@ export const Dashboard: React.FC = () => {
   const sharedCategoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];
   const personalCategoryBreakdown = Array.isArray(data.personalCategoryBreakdown) ? data.personalCategoryBreakdown : [];
   const categoryBreakdown = activeContext === 'shared' ? sharedCategoryBreakdown : personalCategoryBreakdown;
-  const recentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const allRecentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const recentTransactions = activeContext === 'shared'
+    ? allRecentTransactions.filter((tx) => tx.type === 'shared')
+    : allRecentTransactions.filter((tx) => tx.type === 'personal' && ((user?.id && tx.paid_by_user_id != null) ? tx.paid_by_user_id === user.id : tx.paid_by === normalizedUserKey));
 
   const availableShared = toNum(data?.budget?.availableShared);
   const totalSharedSpent = toNum(data?.spending?.totalSharedSpent);
