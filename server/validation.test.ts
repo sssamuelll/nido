@@ -73,9 +73,9 @@ describe('Validation Schemas', () => {
       expect(expenseCreateSchema.safeParse(invalid).success).toBe(false);
     });
 
-    it('should reject invalid paid_by', () => {
-      const invalid = { ...validExpense, paid_by: 'john' };
-      expect(expenseCreateSchema.safeParse(invalid).success).toBe(false);
+    it('should ignore client-side paid_by and still validate the payload shape', () => {
+      const withLegacyPaidBy = { ...validExpense, paid_by: 'john' };
+      expect(expenseCreateSchema.safeParse(withLegacyPaidBy).success).toBe(true);
     });
 
     it('should reject invalid type', () => {
