@@ -357,98 +357,51 @@ export const Settings: React.FC = () => {
             </div>
           </div>
 
-          {/* Billing cycle — restart monthly cycle with partner approval */}
+          {/* Billing cycle — restart requires approval from all members */}
           <div className="card settings-section an d5">
             <h3>
               <RefreshCw size={18} />
-              {' '}Ciclo mensual
+              {' '}Reiniciar ciclo
             </h3>
 
             {cycleLoading ? (
-              <div style={{ padding: '12px', textAlign: 'center', color: 'var(--tm)' }}>Cargando ciclo...</div>
+              <div style={{ padding: '12px', textAlign: 'center', color: 'var(--tm)' }}>Cargando estado...</div>
             ) : currentCycle ? (
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                  Estado: {currentCycle.status === 'pending' ? '🟡 Pendiente' : '🟢 Activo'}
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
+                  {currentCycle.status === 'active' ? 'Ciclo ya reiniciado este mes' : 'Solicitud de reinicio pendiente'}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
-                  {currentCycle.status === 'pending'
-                    ? `Solicitado por ${currentCycle.requested_by_username || 'tu pareja'}`
-                    : `Ciclo activo desde ${new Date(currentCycle.started_at || '').toLocaleDateString('es-ES')}`}
+                  {currentCycle.status === 'active'
+                    ? `Ejecutado el ${new Date(currentCycle.started_at || '').toLocaleDateString('es-ES')}`
+                    : `Aprobaciones: ${currentCycle.approvals?.approved_count || 0}/${currentCycle.approvals?.total_members || members.length}`}
                 </div>
 
-                {currentCycle.status === 'pending' && currentCycle.requested_by_user_id !== user?.id && (
-                  <button
-                    className="btn btn-primary btn-sm"
-                    style={{ marginBottom: '8px' }}
-                    onClick={handleApproveCycle}
-                    disabled={saving}
-                  >
-                    Aprobar ciclo
+                {currentCycle.status === 'pending' && (
+                  <div className="approval-note" style={{ marginBottom: '12px' }}>
+                    {currentCycle.requested_by_user_id === user?.id
+                      ? `Tu solicitud está esperando al resto del Nido.`
+                      : `${formatDisplayName(currentCycle.requested_by_username)} pidió reiniciar el ciclo.`}
+                  </div>
+                )}
+
+                {currentCycle.status === 'pending' && !currentCycle.approvals?.current_user_has_approved && (
+                  <button className="btn btn-primary btn-sm" onClick={handleApproveCycle} disabled={saving}>
+                    {saving ? 'Aprobando...' : 'Aprobar reinicio'}
                   </button>
-                )}
-                {currentCycle.status === 'pending' && currentCycle.requested_by_user_id === user?.id && (
-                  <div style={{ fontSize: '12px', color: '#FBBF24' }}>
-                    Esperando aprobación de {partnerName}
-                  </div>
-                )}
-                {currentCycle.status === 'active' && (
-                  <div style={{ fontSize: '12px', color: 'var(--green)' }}>
-                    Ciclo activo. Los gastos recurrentes ya están registrados.
-                  </div>
                 )}
               </div>
             ) : (
               <div>
                 <div style={{ fontSize: '14px', marginBottom: '12px' }}>
-                  No hay ciclo activo para este mes.
+                  Crea una solicitud para reiniciar el ciclo. Se ejecuta solo cuando apruebe todo el Nido.
                 </div>
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={handleRequestCycle}
                   disabled={saving}
                 >
-                  Reiniciar ciclo
-                </button>
-                <div style={{ fontSize: '11px', color: 'var(--tm)', marginTop: '8px' }}>
-                  Requiere aprobación de ambos. Se registrarán los gastos recurrentes.
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Billing cycle — restart requires both approvals */}
-          <div className="card settings-section an d5">
-            <h3>
-              <RefreshCw size={18} />
-              {' '}Ciclo de facturación
-            </h3>
-            {cycleLoading ? (
-              <div>Cargando...</div>
-            ) : currentCycle ? (
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                  {currentCycle.status === 'active' ? 'Ciclo activo' : currentCycle.status === 'pending' ? 'Pendiente de aprobación' : 'Cerrado'}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
-                  {currentCycle.status === 'active' ? `Iniciado el ${format(new Date(currentCycle.started_at || ''), 'dd/MM/yyyy')}` :
-                   currentCycle.status === 'pending' ? `Solicitado por ${currentCycle.requested_by_username === user?.username ? 'ti' : currentCycle.requested_by_username}` :
-                   'Finalizado'}
-                </div>
-                {currentCycle.status === 'pending' && currentCycle.requested_by_user_id !== user?.id && (
-                  <button className="btn btn-primary btn-sm" onClick={handleApproveCycle} disabled={saving}>
-                    {saving ? 'Aprobando...' : 'Aprobar ciclo'}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>No hay ciclo activo</div>
-                <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
-                  Un ciclo registra los gastos recurrentes mensuales.
-                </div>
-                <button className="btn btn-primary btn-sm" onClick={handleRequestCycle} disabled={saving}>
-                  {saving ? 'Solicitando...' : 'Solicitar nuevo ciclo'}
+                  {saving ? 'Solicitando...' : 'Solicitar reinicio'}
                 </button>
               </div>
             )}

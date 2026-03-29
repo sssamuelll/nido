@@ -337,6 +337,17 @@ export const initDatabase = async () => {
       FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
       UNIQUE(household_id, month)
     );
+
+    CREATE TABLE IF NOT EXISTS billing_cycle_approvals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cycle_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('approved')),
+      approved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(cycle_id, user_id),
+      FOREIGN KEY (cycle_id) REFERENCES billing_cycles(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+    );
   `);
 
   // Migrations: Ensure 'pin' column exists
@@ -347,6 +358,8 @@ export const initDatabase = async () => {
   await ensureSessionColumns(database);
   await database.exec('CREATE INDEX IF NOT EXISTS idx_expenses_paid_by_user_id ON expenses(paid_by_user_id)');
   await database.exec('CREATE INDEX IF NOT EXISTS idx_categories_household_context_owner ON categories(household_id, context, owner_user_id)');
+  await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_cycle_id ON billing_cycle_approvals(cycle_id)');
+  await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_user_id ON billing_cycle_approvals(user_id)');
 
   // Seed users
   let defaultPassword = envDefaultPassword;
