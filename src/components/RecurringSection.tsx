@@ -246,27 +246,32 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
               <div
                 key={item.id}
                 onClick={() => openEditModal(item)}
-                className={`recurring-card__item${item.paused ? ' recurring-card__item--paused' : ''}`}
+                className={`budget-item recurring-card__item${item.paused ? ' recurring-card__item--paused' : ''}`}
               >
-                <span className="recurring-card__emoji">{item.emoji}</span>
-                <div className="recurring-card__item-body">
-                  <div className="recurring-card__item-title-row">
-                    <span className="recurring-card__item-title">{item.name}</span>
-                    {item.type === 'personal' && (
-                      <span className="recurring-card__pill recurring-card__pill--personal">
-                        personal
-                      </span>
-                    )}
-                    {item.paused && (
-                      <span className="recurring-card__pill recurring-card__pill--paused">
-                        pausado
-                      </span>
-                    )}
-                  </div>
+                <div className="icon-c recurring-card__icon">
+                  <span className="recurring-card__emoji">{item.emoji}</span>
                 </div>
-                <span className="recurring-card__amount">
-                  €{item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+                <div className="recurring-card__item-body">
+                  <div className="recurring-card__item-top-row">
+                    <div className="recurring-card__item-title-row">
+                      <span className="recurring-card__item-title">{item.name}</span>
+                      {item.type === 'personal' && (
+                        <span className="recurring-card__pill recurring-card__pill--personal">
+                          personal
+                        </span>
+                      )}
+                      {item.paused && (
+                        <span className="recurring-card__pill recurring-card__pill--paused">
+                          pausado
+                        </span>
+                      )}
+                    </div>
+                    <span className="recurring-card__amount">
+                      €{item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="recurring-card__subline">{item.category || 'Sin categoría'}</div>
+                </div>
               </div>
             ))}
           </div>
