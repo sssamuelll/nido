@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
@@ -66,13 +67,16 @@ const payerDisplayName = (p: string) => {
 };
 
 export const History: React.FC = () => {
+  const location = useLocation();
+  const incomingState = (location.state ?? {}) as { initialContext?: 'shared' | 'personal'; initialCategory?: string };
   const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
-  const { activeContext, setActiveContext } = useContextSelector();
+  const { activeContext, setActiveContext } = useContextSelector(incomingState.initialContext ?? 'shared');
   const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>(incomingState.initialCategory ?? '');
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editDescription, setEditDescription] = useState('');
