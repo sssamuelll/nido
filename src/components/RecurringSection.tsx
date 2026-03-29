@@ -197,7 +197,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
 
   if (loading) {
     return (
-      <div className="card an d4" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+      <div className="card an d4 recurring-card">
         <div className="skeleton skeleton--card-sm" />
       </div>
     );
@@ -207,44 +207,27 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
 
   return (
     <>
-      <div className="card an d4" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+      <div className="card an d4 recurring-card">
         {/* Header */}
-        <div className="sh" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="sh recurring-card__header">
+          <div className="recurring-card__title-row">
             <span className="st">Gastos fijos del ciclo</span>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--tp)' }}>
+            <span className="recurring-card__total">
               €{total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-          {cycleStatusLabel && (
-            <span style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '2px 8px',
-              borderRadius: 999,
-              background: (cycleStatusColor ?? '#888') + '22',
-              color: cycleStatusColor,
-            }}>
+          {cycleStatusLabel ? (
+            <span className="recurring-card__status" style={{ background: (cycleStatusColor ?? '#888') + '22', color: cycleStatusColor }}>
               {cycleStatusLabel}
             </span>
-          )}
-          {!cycleStatusLabel && (
-            <span style={{
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '2px 8px',
-              borderRadius: 999,
-              background: 'rgba(255,255,255,0.06)',
-              color: 'var(--tm)',
-            }}>
-              —
-            </span>
+          ) : (
+            <span className="recurring-card__status recurring-card__status--idle">—</span>
           )}
         </div>
 
         {/* Subtitle */}
         {items.length > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--tm)', marginBottom: 12, paddingLeft: 2 }}>
+          <div className="recurring-card__meta">
             {activeItems.length} activo{activeItems.length !== 1 ? 's' : ''}
             {sharedCount > 0 && personalCount > 0 && (
               <> · {sharedCount} compartido{sharedCount !== 1 ? 's' : ''}, {personalCount} personal{personalCount !== 1 ? 'es' : ''}</>
@@ -254,59 +237,34 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
 
         {/* Items list */}
         {items.length === 0 ? (
-          <div className="empty-view" style={{ padding: '24px 0', fontSize: 13, color: 'var(--tm)' }}>
+          <div className="empty-view recurring-card__empty">
             No hay gastos fijos configurados
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="recurring-card__list">
             {items.map(item => (
               <div
                 key={item.id}
                 onClick={() => openEditModal(item)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '8px 4px',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  opacity: item.paused ? 0.45 : 1,
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                className={`recurring-card__item${item.paused ? ' recurring-card__item--paused' : ''}`}
               >
-                <span style={{ fontSize: 18, width: 28, textAlign: 'center' }}>{item.emoji}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                <span className="recurring-card__emoji">{item.emoji}</span>
+                <div className="recurring-card__item-body">
+                  <div className="recurring-card__item-title-row">
+                    <span className="recurring-card__item-title">{item.name}</span>
                     {item.type === 'personal' && (
-                      <span style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: '1px 6px',
-                        borderRadius: 999,
-                        background: 'rgba(167,139,250,0.15)',
-                        color: '#A78BFA',
-                      }}>
+                      <span className="recurring-card__pill recurring-card__pill--personal">
                         personal
                       </span>
                     )}
                     {item.paused && (
-                      <span style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: '1px 6px',
-                        borderRadius: 999,
-                        background: 'rgba(255,255,255,0.06)',
-                        color: 'var(--tm)',
-                      }}>
+                      <span className="recurring-card__pill recurring-card__pill--paused">
                         pausado
                       </span>
                     )}
                   </div>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--tp)' }}>
+                <span className="recurring-card__amount">
                   €{item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
@@ -316,22 +274,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
 
         {/* Approval banner */}
         {showApprovalBanner && (
-          <div style={{
-            marginTop: 12,
-            padding: '10px 14px',
-            borderRadius: 8,
-            background: 'rgba(251,191,36,0.10)',
-            border: '1px solid rgba(251,191,36,0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 13,
-          }}>
-            <span style={{ color: '#FBBF24' }}>Ciclo pendiente de aprobación</span>
+          <div className="recurring-card__approval-banner">
+            <span className="recurring-card__approval-text">Ciclo pendiente de aprobación</span>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary recurring-card__approval-btn"
               onClick={handleApproveCycle}
-              style={{ fontSize: 12, padding: '4px 14px', minWidth: 0 }}
             >
               Aprobar
             </button>
@@ -339,11 +286,10 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
         )}
 
         {/* Footer actions */}
-        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+        <div className="recurring-card__actions">
           <div
-            className="add-cat-row"
+            className="add-cat-row recurring-card__add"
             onClick={openAddModal}
-            style={{ flex: 1 }}
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path d="M12 4v16m-8-8h16" />
