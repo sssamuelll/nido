@@ -1159,16 +1159,6 @@ a:hover { color: var(--text) }
   padding: 4px 14px;
   min-width: 0;
 }
-.recurring-card__actions {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border2);
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.recurring-card__add { flex: 1; }
-
 .dashboard,
 .add-expense,
 .history,
