@@ -173,7 +173,6 @@ export class Api {
     amount: number;
     category: string;
     date: string;
-    paid_by?: string;
     type: string;
     status?: string;
   }) {

@@ -91,7 +91,6 @@ export const AddExpense: React.FC = () => {
         category,
         date: format(new Date(), 'yyyy-MM-dd'),
         type,
-        paid_by: user?.username || 'samuel',
       });
 
       const isNewCategory = !categories.some(

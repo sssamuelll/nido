@@ -22,7 +22,6 @@ export const expenseCreateSchema = z.object({
   amount: z.coerce.number().positive('El monto debe ser un número positivo'),
   category: z.string().min(1, 'La categoría es requerida'),
   date: dateSchema,
-  paid_by: z.enum(['samuel', 'maria']),
   type: z.enum(['shared', 'personal'], {
     errorMap: () => ({ message: 'El tipo debe ser shared o personal' })
   }),
