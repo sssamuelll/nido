@@ -69,6 +69,7 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { activeContext, setActiveContext } = useContextSelector();
@@ -82,7 +83,7 @@ export const Dashboard: React.FC = () => {
   const totalSharedSpentRaw = toNum(data?.spending?.totalSharedSpent);
   const personalBudgetRaw = toNum(data?.personal?.budget);
   const personalSpentRaw = toNum(data?.personal?.spent);
-  const recentTxRaw = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const recentTxRaw = Array.isArray(expenses) ? expenses : [];
   const normalizedUserKey = (user?.username || '').toLowerCase().includes('maria') || (user?.username || '').toLowerCase().includes('mara') ? 'maria' : 'samuel';
   const personalRecentTxRaw = recentTxRaw.filter((tx) => tx.type === 'personal' && ((user?.id && tx.paid_by_user_id != null) ? tx.paid_by_user_id === user.id : tx.paid_by === normalizedUserKey));
   const personalTxCountRaw = Array.isArray(data?.personalCategoryBreakdown)
@@ -111,11 +112,12 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const [summary] = await Promise.all([
+      const [summary, nextExpenses] = await Promise.all([
         Api.getSummary(currentMonth),
         Api.getExpenses(currentMonth),
       ]);
       setData(summary);
+      setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
     } catch {
       setError('Error al cargar los datos');
     } finally {
@@ -164,10 +166,9 @@ export const Dashboard: React.FC = () => {
   const sharedCategoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];
   const personalCategoryBreakdown = Array.isArray(data.personalCategoryBreakdown) ? data.personalCategoryBreakdown : [];
   const categoryBreakdown = activeContext === 'shared' ? sharedCategoryBreakdown : personalCategoryBreakdown;
-  const allRecentTransactions = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
   const recentTransactions = activeContext === 'shared'
-    ? allRecentTransactions.filter((tx) => tx.type === 'shared')
-    : allRecentTransactions.filter((tx) => tx.type === 'personal' && ((user?.id && tx.paid_by_user_id != null) ? tx.paid_by_user_id === user.id : tx.paid_by === normalizedUserKey));
+    ? recentTxRaw.filter((tx) => tx.type === 'shared').sort((a, b) => new Date(b.created_at ?? b.date).getTime() - new Date(a.created_at ?? a.date).getTime()).slice(0, 10)
+    : personalRecentTxRaw.slice(0, 10);
 
   const availableShared = toNum(data?.budget?.availableShared);
   const totalSharedSpent = toNum(data?.spending?.totalSharedSpent);
