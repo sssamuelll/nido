@@ -123,6 +123,7 @@ export const PersonalDashboard: React.FC = () => {
     budget,
     expenses,
     username: user.username,
+    userId: user.id,
   });
 
   const ownerTheme = OWNER_THEMES[detail.owner];
