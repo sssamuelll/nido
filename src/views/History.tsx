@@ -121,7 +121,8 @@ export const History: React.FC = () => {
     const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesContext = activeContext === 'shared' ? e.type === 'shared' : e.type === 'personal';
-    return matchesSearch && matchesContext;
+    const matchesCategory = selectedCategory === '' || e.category === selectedCategory;
+    return matchesSearch && matchesContext && matchesCategory;
   });
 
   const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
