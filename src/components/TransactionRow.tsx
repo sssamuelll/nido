@@ -9,6 +9,7 @@ interface TransactionRowProps {
   indicatorColor?: string;
   isPositive?: boolean;
   onDelete?: () => void;
+  onClick?: () => void;
   payerColor?: string;
 }
 
@@ -21,6 +22,7 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
   indicatorColor = '#8bdc6b',
   isPositive = false,
   onDelete,
+  onClick,
   payerColor,
 }) => {
   return (
