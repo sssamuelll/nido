@@ -83,9 +83,14 @@ export const Dashboard: React.FC = () => {
   const personalBudgetRaw = toNum(data?.personal?.budget);
   const personalSpentRaw = toNum(data?.personal?.spent);
   const recentTxRaw = Array.isArray(data?.recentTransactions) ? data.recentTransactions : [];
+  const personalTxCountRaw = Array.isArray(data?.personalCategoryBreakdown)
+    ? data.personalCategoryBreakdown.reduce((sum, item) => sum + toNum(item.count), 0)
+    : 0;
   const metricBudgetTarget = activeContext === 'shared' ? availableSharedRaw : personalBudgetRaw;
   const metricSpentTarget = activeContext === 'shared' ? totalSharedSpentRaw : personalSpentRaw;
-  const metricAvgTarget = recentTxRaw.length > 0 ? Math.round(recentTxRaw.reduce((sum: number, t: VisibleExpense) => sum + toNum(t.amount), 0) / recentTxRaw.length) : 0;
+  const metricAvgTarget = activeContext === 'shared'
+    ? (recentTxRaw.length > 0 ? Math.round(recentTxRaw.reduce((sum: number, t: VisibleExpense) => sum + toNum(t.amount), 0) / recentTxRaw.length) : 0)
+    : (personalTxCountRaw > 0 ? Math.round(personalSpentRaw / personalTxCountRaw) : 0);
   const animBudget = useCountUp(metricBudgetTarget);
   const animSpent = useCountUp(metricSpentTarget);
   const animAvg = useCountUp(metricAvgTarget);
