@@ -187,6 +187,30 @@ export const AddExpense: React.FC = () => {
             />
           </div>
 
+          <div className="an d4" style={{ marginBottom: 24 }}>
+            <div className="label">Tipo de gasto</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div
+                className="type-sel"
+                onClick={() => setType('shared')}
+                style={type === 'shared'
+                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
+                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
+              >
+                Compartido
+              </div>
+              <div
+                className="type-sel"
+                onClick={() => setType('personal')}
+                style={type === 'personal'
+                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
+                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
+              >
+                Personal
+              </div>
+            </div>
+          </div>
+
           <div className="an d3 cmd-palette" ref={cmdRef}>
             <div className="label">Categoria</div>
             <div className="cmd-input-wrap">
@@ -259,30 +283,6 @@ export const AddExpense: React.FC = () => {
                   <PlusIcon /> Usar &ldquo;{categorySearch.trim()}&rdquo; en este gasto
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="an d4" style={{ marginBottom: 24 }}>
-            <div className="label">Tipo de gasto</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div
-                className="type-sel"
-                onClick={() => setType('shared')}
-                style={type === 'shared'
-                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
-              >
-                Compartido
-              </div>
-              <div
-                className="type-sel"
-                onClick={() => setType('personal')}
-                style={type === 'personal'
-                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
-              >
-                Personal
-              </div>
             </div>
           </div>
 
