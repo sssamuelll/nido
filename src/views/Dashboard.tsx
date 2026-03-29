@@ -74,7 +74,7 @@ export const Dashboard: React.FC = () => {
   const { activeContext, setActiveContext } = useContextSelector();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement();
+  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
 
   // useCountUp hooks must be called unconditionally (before any early returns)

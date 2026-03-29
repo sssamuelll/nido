@@ -311,31 +311,48 @@ app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
-    // Registered categories
-    const registered = await db.all<Array<{ id: number; name: string; emoji: string; color: string }>>(
-      'SELECT * FROM categories WHERE household_id = ?', householdId
-    );
-    const registeredNames = new Set(registered.map(c => c.name));
+    const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
 
-    // Categories from budgets or expenses not yet in categories table
+    const registered = await db.all<Array<{ id: number; name: string; emoji: string; color: string; context: string; owner_user_id?: number | null }>>(
+      context === 'personal'
+        ? `SELECT * FROM categories
+           WHERE household_id = ?
+             AND ((context = 'personal' AND owner_user_id = ?) OR (context = 'shared' AND owner_user_id IS NULL))`
+        : `SELECT * FROM categories
+           WHERE household_id = ? AND context = 'shared' AND owner_user_id IS NULL`,
+      ...(context === 'personal' ? [householdId, req.user!.id] : [householdId])
+    );
+
     const budgetCats = await db.all<Array<{ category: string }>>(
-      'SELECT DISTINCT category FROM category_budgets WHERE amount > 0'
-    );
-    const expenseCats = await db.all<Array<{ category: string }>>(
-      `SELECT DISTINCT category FROM expenses WHERE category IS NOT NULL AND (
-        type = 'shared' OR paid_by_user_id IN (SELECT id FROM app_users WHERE household_id = ?)
-      )`, householdId
+      context === 'personal'
+        ? `SELECT DISTINCT category FROM category_budgets
+           WHERE amount > 0 AND context = 'personal' AND owner_user_id = ?`
+        : `SELECT DISTINCT category FROM category_budgets
+           WHERE amount > 0 AND context = 'shared' AND owner_user_id IS NULL`,
+      ...(context === 'personal' ? [req.user!.id] : [])
     );
 
-    const unregistered = Array.from(new Set([
+    const expenseCats = await db.all<Array<{ category: string }>>(
+      context === 'personal'
+        ? `SELECT DISTINCT category FROM expenses
+           WHERE category IS NOT NULL AND type = 'personal' AND (paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))`
+        : `SELECT DISTINCT category FROM expenses
+           WHERE category IS NOT NULL AND type = 'shared'`,
+      ...(context === 'personal' ? [req.user!.id, req.user!.username] : [])
+    );
+
+    const candidateNames = Array.from(new Set([
+      ...registered.map(c => c.name),
       ...budgetCats.map(b => b.category),
       ...expenseCats.map(e => e.category),
-    ])).filter(name => !registeredNames.has(name));
+    ]));
 
-    const all = [
-      ...registered,
-      ...unregistered.map(name => ({ id: 0, name, emoji: '📂', color: '#6B7280' })),
-    ];
+    const all = candidateNames.map((name) => {
+      const personalMatch = registered.find(c => c.name === name && c.context === 'personal' && c.owner_user_id === req.user!.id);
+      const sharedMatch = registered.find(c => c.name === name && c.context === 'shared' && (c.owner_user_id == null));
+      const match = personalMatch || sharedMatch;
+      return match ?? { id: 0, name, emoji: '📂', color: '#6B7280' };
+    });
 
     res.json(all);
   } catch (error) {
@@ -344,19 +361,27 @@ app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 app.post('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
-  const { name, emoji, color, id } = req.body;
+  const { name, emoji, color, id, context } = req.body;
   if (!name || !emoji || !color) return res.status(400).json({ error: 'Name, emoji and color are required' });
 
   try {
     const db = getDatabase();
-    const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const nextContext = context === 'personal' ? 'personal' : 'shared';
+    const ownerUserId = nextContext === 'personal' ? req.user!.id : null;
     
     if (id) {
-      await db.run('UPDATE categories SET name = ?, emoji = ?, color = ? WHERE id = ? AND household_id = ?',
-        name, emoji, color, id, user.household_id);
+      await db.run(
+        `UPDATE categories SET name = ?, emoji = ?, color = ?
+         WHERE id = ? AND household_id = ? AND ((context = 'personal' AND owner_user_id = ?) OR (context = 'shared' AND owner_user_id IS NULL))`,
+        name, emoji, color, id, user.household_id, req.user!.id
+      );
     } else {
-      await db.run('INSERT INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)',
-        user.household_id, name, emoji, color);
+      await db.run(
+        'INSERT INTO categories (household_id, name, emoji, color, context, owner_user_id) VALUES (?, ?, ?, ?, ?, ?)',
+        user.household_id, name, emoji, color, nextContext, ownerUserId
+      );
     }
 
     await notifyPartner(req.user!.id, req.user!.username,

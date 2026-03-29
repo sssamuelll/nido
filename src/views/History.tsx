@@ -68,7 +68,7 @@ const payerDisplayName = (p: string) => {
 export const History: React.FC = () => {
   const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
   const { activeContext, setActiveContext } = useContextSelector();
-  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement();
+  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

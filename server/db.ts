@@ -232,9 +232,11 @@ export const initDatabase = async () => {
       name TEXT NOT NULL,
       emoji TEXT NOT NULL,
       color TEXT NOT NULL,
+      context TEXT NOT NULL DEFAULT 'shared',
+      owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
-      UNIQUE(household_id, name)
+      UNIQUE(household_id, name, context, owner_user_id)
     );
 
     CREATE TABLE IF NOT EXISTS budget_approvals (
@@ -340,8 +342,11 @@ export const initDatabase = async () => {
   // Migrations: Ensure 'pin' column exists
   await ensureColumn(database, 'users', 'pin', `TEXT DEFAULT '1234'`);
   await ensureColumn(database, 'expenses', 'paid_by_user_id', 'INTEGER REFERENCES app_users(id) ON DELETE SET NULL');
+  await ensureColumn(database, 'categories', 'context', `TEXT NOT NULL DEFAULT 'shared'`);
+  await ensureColumn(database, 'categories', 'owner_user_id', 'INTEGER REFERENCES app_users(id) ON DELETE CASCADE');
   await ensureSessionColumns(database);
   await database.exec('CREATE INDEX IF NOT EXISTS idx_expenses_paid_by_user_id ON expenses(paid_by_user_id)');
+  await database.exec('CREATE INDEX IF NOT EXISTS idx_categories_household_context_owner ON categories(household_id, context, owner_user_id)');
 
   // Seed users
   let defaultPassword = envDefaultPassword;
@@ -376,8 +381,8 @@ export const initDatabase = async () => {
     await database.exec('ALTER TABLE budgets_new RENAME TO budgets');
   }
 
-  // Migration: Add context column to category_budgets
-  if (!(await hasColumn(database, 'category_budgets', 'context'))) {
+  // Migration: category_budgets needs context + owner_user_id for per-user personal budgets
+  if (!(await hasColumn(database, 'category_budgets', 'context')) || !(await hasColumn(database, 'category_budgets', 'owner_user_id'))) {
     await database.exec(`
       CREATE TABLE category_budgets_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -385,10 +390,11 @@ export const initDatabase = async () => {
         category TEXT NOT NULL,
         amount REAL NOT NULL,
         context TEXT NOT NULL DEFAULT 'shared',
-        UNIQUE(month, category, context)
+        owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
+        UNIQUE(month, category, context, owner_user_id)
       );
-      INSERT INTO category_budgets_new (month, category, amount, context)
-        SELECT month, category, amount, 'shared' FROM category_budgets;
+      INSERT INTO category_budgets_new (month, category, amount, context, owner_user_id)
+        SELECT month, category, amount, COALESCE(context, 'shared'), NULL FROM category_budgets;
       DROP TABLE category_budgets;
       ALTER TABLE category_budgets_new RENAME TO category_budgets;
     `);
