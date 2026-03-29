@@ -173,10 +173,6 @@ export const Dashboard: React.FC = () => {
 
   const personalCard = getPersonalBalanceCardModel(data);
 
-  useEffect(() => {
-    setExpandedCategory(null);
-  }, [activeContext, currentMonth]);
-
   const normalizedUser = user?.username?.toLowerCase().trim() || '';
   const userName = normalizedUser === 'maria' ? 'María' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
 
@@ -307,57 +303,32 @@ export const Dashboard: React.FC = () => {
                 const color = catDef?.color ?? '#60A5FA';
                 const iconBg = color + '1A';
                 const emoji = catDef?.emoji;
-                const isExpanded = expandedCategory === cat.category;
-                const categoryExpenses = visibleCategoryExpenses
-                  .filter((tx) => tx.category === cat.category)
-                  .sort((a, b) => new Date(b.created_at ?? b.date).getTime() - new Date(a.created_at ?? a.date).getTime());
                 return (
-                  <div key={cat.category}>
-                    <div
-                      className="budget-item"
-                      style={{ width: '100%', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
-                      onClick={() => setExpandedCategory((current) => current === cat.category ? null : cat.category)}
-                    >
-                      <div className="icon-c" style={{ background: iconBg }}>
-                        {emoji
-                          ? <span style={{ fontSize: 18 }}>{emoji}</span>
-                          : <MoreHorizontal size={18} color={color} />}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 500 }}>{cat.category}</div>
-                        <div className="budget-bar-wrap">
-                          <div className="budget-bar" style={{ width: `${Math.min(pct, 100)}%`, background: color, color }} />
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                        €{spent.toLocaleString('es-ES')} <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/ €{budget.toLocaleString('es-ES')}</small>
-                      </div>
-                      <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); catModal.openEdit(cat.category, budget, getCategoryDef(cat.category)); }}>
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                          <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                      </button>
+                  <div
+                    key={cat.category}
+                    className="budget-item"
+                    style={{ width: '100%', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
+                    onClick={() => navigate('/history', { state: { initialContext: activeContext, initialCategory: cat.category, initialMonth: currentMonth } })}
+                  >
+                    <div className="icon-c" style={{ background: iconBg }}>
+                      {emoji
+                        ? <span style={{ fontSize: 18 }}>{emoji}</span>
+                        : <MoreHorizontal size={18} color={color} />}
                     </div>
-                    {isExpanded && (
-                      <div style={{ padding: '0 0 12px 52px' }}>
-                        {categoryExpenses.length === 0 ? (
-                          <div className="empty-view" style={{ padding: '8px 0 4px', fontSize: 13 }}>Sin gastos en esta categoría todavía.</div>
-                        ) : (
-                          categoryExpenses.map((tx) => (
-                            <TransactionRow
-                              key={tx.id}
-                              emoji={getCategoryDef(tx.category)?.emoji ?? '🦋'}
-                              name={tx.description}
-                              payer={activeContext === 'shared' ? tx.paid_by : 'Privado'}
-                              amount={`-€${toNum(tx.amount).toFixed(2)}`}
-                              date={tx.date}
-                              indicatorColor={activeContext === 'shared' ? (INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']) : '#A78BFA'}
-                              isPositive={false}
-                            />
-                          ))
-                        )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500 }}>{cat.category}</div>
+                      <div className="budget-bar-wrap">
+                        <div className="budget-bar" style={{ width: `${Math.min(pct, 100)}%`, background: color, color }} />
                       </div>
-                    )}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                      €{spent.toLocaleString('es-ES')} <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/ €{budget.toLocaleString('es-ES')}</small>
+                    </div>
+                    <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); catModal.openEdit(cat.category, budget, getCategoryDef(cat.category)); }}>
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
                   </div>
                 );
               })
