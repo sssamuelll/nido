@@ -43,7 +43,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   // Form state for edit/add modal
   const [formName, setFormName] = useState('');
   const [formEmoji, setFormEmoji] = useState('🔁');
-  const [formAmount, setFormAmount] = useState('0');
+  const [formAmount, setFormAmount] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formType, setFormType] = useState<'shared' | 'personal'>('shared');
   const [formNotes, setFormNotes] = useState('');
@@ -128,7 +128,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setEditItem(null);
     setFormName('');
     setFormEmoji('🔁');
-    setFormAmount('0');
+    setFormAmount('');
     setFormCategory('');
     setFormType('shared');
     setFormNotes('');
@@ -143,19 +143,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setCmdOpen(false);
   };
 
-  // Numpad-style amount handler (matches AddExpense)
-  const handleAmountKey = (key: string) => {
-    if (key === 'del') {
-      setFormAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : '0'));
-    } else if (key === '.') {
-      if (!formAmount.includes('.')) setFormAmount((prev) => prev + '.');
-    } else {
-      setFormAmount((prev) => (prev === '0' ? key : prev + key));
-    }
-  };
-
   const handleSave = async () => {
-    if (!formName.trim() || parseFloat(formAmount) <= 0) return;
+    if (!formName.trim() || !formAmount || parseFloat(formAmount) <= 0) return;
     setSaving(true);
     try {
       if (editItem) {
@@ -249,7 +238,6 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   }
 
   const isModalOpen = editItem !== null || showAddModal;
-  const numpadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
 
   return (
     <>
@@ -363,78 +351,24 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             <h3>{editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}</h3>
             <p>{editItem ? 'Modifica los datos del gasto recurrente' : 'Añade un gasto que se repite cada mes'}</p>
 
-            {/* Amount — hero display like AddExpense */}
-            <div style={{ textAlign: 'center', padding: '24px 0 20px' }}>
-              <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--tm)', verticalAlign: 'super' }}>
-                &euro;
-              </span>
-              <span style={{
-                fontSize: 48,
-                fontWeight: 700,
-                fontVariantNumeric: 'tabular-nums',
-                color: formAmount === '0' ? 'var(--tm)' : 'var(--text)',
-                transition: 'color .2s',
-              }}>
-                {formAmount}
-              </span>
+            {/* Name + Emoji */}
+            <div className="form-row">
+              <label>Nombre</label>
+              <input className="form-input" type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ej: Alquiler, Netflix..." style={{ flex: 1 }} />
+              <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
             </div>
 
-            {/* Numpad */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 6,
-              marginBottom: 24,
-            }}>
-              {numpadKeys.map(key => (
-                <button
-                  key={key}
-                  type="button"
-                  className="numpad-key"
-                  onClick={() => handleAmountKey(key)}
-                >
-                  {key === 'del' ? '⌫' : key}
-                </button>
-              ))}
+            {/* Amount */}
+            <div className="form-row">
+              <label>Importe</label>
+              <span style={{ color: 'var(--tm)' }}>€</span>
+              <input className="form-input" type="number" inputMode="decimal" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="900" min="0" step="0.01" style={{ width: 120, textAlign: 'right' }} />
             </div>
 
-            {/* Name + Emoji inline */}
-            <div style={{ marginBottom: 16 }}>
-              <div className="label">Nombre</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                  style={{
-                    flex: 1,
-                    padding: '12px 16px',
-                    border: '1px solid var(--glass-border)',
-                    borderRadius: 'var(--rs)',
-                    fontSize: 15,
-                    fontFamily: 'inherit',
-                    background: 'var(--surface)',
-                    color: 'var(--text)',
-                    transition: 'all .2s',
-                    outline: 'none',
-                  }}
-                  placeholder="Ej: Alquiler, Netflix..."
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--green)';
-                    e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--glass-border)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-                <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
-              </div>
-            </div>
-
-            {/* Type selector — matches AddExpense type-sel */}
-            <div style={{ marginBottom: 16 }}>
-              <div className="label">Tipo de gasto</div>
-              <div style={{ display: 'flex', gap: 8 }}>
+            {/* Type */}
+            <div className="form-row">
+              <label>Tipo</label>
+              <div style={{ display: 'flex', gap: 8, flex: 1 }}>
                 <div
                   className="type-sel"
                   onClick={() => setFormType('shared')}
@@ -456,57 +390,40 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
               </div>
             </div>
 
-            {/* Category — smart cmd-palette like AddExpense */}
-            <div className="cmd-palette" ref={cmdRef} style={{ marginBottom: 16 }}>
-              <div className="label">Categoría</div>
-              <div className="cmd-input-wrap">
-                <TagIcon />
-                {formCategory && (() => {
-                  const catDef = getCategoryDef(formCategory);
-                  return (
-                    <span className="cmd-selected">
-                      <div className="cmd-icon" style={{
-                        background: catDef?.iconBg ?? 'var(--gl)',
-                        width: 20,
-                        height: 20,
-                      }}>
-                        <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
-                      </div>
-                      {formCategory}
-                      <span
-                        className="cmd-x"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormCategory('');
-                        }}
-                      >
-                        &times;
+            {/* Category — smart cmd-palette */}
+            <div className="cmd-palette" ref={cmdRef}>
+              <div className="form-row" style={{ marginBottom: 0 }}>
+                <label>Categoría</label>
+                <div className="cmd-input-wrap" style={{ flex: 1 }}>
+                  <TagIcon />
+                  {formCategory && (() => {
+                    const catDef = getCategoryDef(formCategory);
+                    return (
+                      <span className="cmd-selected">
+                        <div className="cmd-icon" style={{ background: catDef?.iconBg ?? 'var(--gl)', width: 20, height: 20 }}>
+                          <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
+                        </div>
+                        {formCategory}
+                        <span className="cmd-x" onClick={(e) => { e.stopPropagation(); setFormCategory(''); }}>&times;</span>
                       </span>
-                    </span>
-                  );
-                })()}
-                <input
-                  className="cmd-input"
-                  placeholder="Buscar categoría..."
-                  value={categorySearch}
-                  onFocus={() => setCmdOpen(true)}
-                  onChange={(e) => {
-                    setCategorySearch(e.target.value);
-                    setCmdOpen(true);
-                  }}
-                />
+                    );
+                  })()}
+                  <input
+                    className="cmd-input"
+                    placeholder="Buscar categoría..."
+                    value={categorySearch}
+                    onFocus={() => setCmdOpen(true)}
+                    onChange={(e) => { setCategorySearch(e.target.value); setCmdOpen(true); }}
+                  />
+                </div>
               </div>
-              <div className={`cmd-dropdown ${cmdOpen ? 'open' : ''}`}>
+              <div className={`cmd-dropdown${cmdOpen ? ' open' : ''}`}>
                 <div className="cmd-list">
-                  {filteredCategories.map((item) => (
+                  {filteredCategories.map((item, idx) => (
                     <div
-                      key={item.id ?? item.name}
-                      className={`cmd-option ${formCategory === item.name ? 'selected' : ''}`}
-                      onClick={() => {
-                        setFormCategory(item.name);
-                        setCategorySearch('');
-                        setCmdOpen(false);
-                      }}
+                      key={`${item.id ?? ''}-${item.name}-${idx}`}
+                      className={`cmd-option${formCategory === item.name ? ' selected' : ''}`}
+                      onClick={() => { setFormCategory(item.name); setCategorySearch(''); setCmdOpen(false); }}
                     >
                       <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
                         <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
@@ -515,15 +432,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                     </div>
                   ))}
                   {categorySearch.trim() && !filteredCategories.some(c => c.name.toLowerCase() === categorySearch.toLowerCase()) && (
-                    <div
-                      className="cmd-create"
-                      onClick={() => {
-                        setFormCategory(categorySearch.trim());
-                        setCategorySearch('');
-                        setCmdOpen(false);
-                      }}
-                    >
-                      + Crear "{categorySearch.trim()}"
+                    <div className="cmd-create" onClick={() => { setFormCategory(categorySearch.trim()); setCategorySearch(''); setCmdOpen(false); }}>
+                      + Crear &ldquo;{categorySearch.trim()}&rdquo;
                     </div>
                   )}
                 </div>
@@ -531,64 +441,25 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             </div>
 
             {/* Notes */}
-            <div style={{ marginBottom: 20 }}>
-              <div className="label">Notas</div>
-              <input
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--rs)',
-                  fontSize: 15,
-                  fontFamily: 'inherit',
-                  background: 'var(--surface)',
-                  color: 'var(--text)',
-                  transition: 'all .2s',
-                  outline: 'none',
-                }}
-                placeholder="Opcional..."
-                value={formNotes}
-                onChange={e => setFormNotes(e.target.value)}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--green)';
-                  e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--glass-border)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
+            <div className="form-row">
+              <label>Notas</label>
+              <input className="form-input" value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Opcional..." style={{ flex: 1 }} />
             </div>
 
             {/* Footer */}
             <div className="modal-actions">
               {editItem && (
-                <button
-                  className="btn btn-outline"
-                  onClick={handleTogglePause}
-                  disabled={saving}
-                >
+                <button className="btn btn-outline" onClick={handleTogglePause} disabled={saving}>
                   {editItem.paused ? 'Activar' : 'Pausar'}
                 </button>
               )}
               {editItem && (
-                <button
-                  className="btn btn-outline"
-                  onClick={handleDelete}
-                  disabled={saving}
-                  style={{ color: 'var(--red)', borderColor: 'rgba(248,113,113,0.3)', marginRight: 'auto' }}
-                >
+                <button className="btn btn-outline" onClick={handleDelete} disabled={saving} style={{ color: 'var(--red)', borderColor: 'rgba(248,113,113,0.3)', marginRight: 'auto' }}>
                   Eliminar
                 </button>
               )}
-              <button className="btn btn-outline" onClick={closeModal}>
-                Cancelar
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={saving || !formName.trim() || parseFloat(formAmount) <= 0}
-              >
+              <button className="btn btn-outline" onClick={closeModal}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving || !formName.trim() || !formAmount || parseFloat(formAmount) <= 0}>
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
