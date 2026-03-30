@@ -15,12 +15,13 @@ interface Props {
   onBudgetChange: (v: string) => void;
   onClose: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }
 
 export const CategoryModal: React.FC<Props> = ({
   isOpen, mode, name, onNameChange, emoji, onEmojiChange,
   color, onColorChange, colorOptions, budget, onBudgetChange,
-  onClose, onSave,
+  onClose, onSave, onDelete,
 }) => {
   if (!isOpen) return null;
   return (
@@ -55,6 +56,11 @@ export const CategoryModal: React.FC<Props> = ({
         </div>
 
         <div className="modal-actions">
+          {mode === 'edit' && onDelete && (
+            <button type="button" onClick={onDelete} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>
+              Eliminar
+            </button>
+          )}
           <button className="btn btn-outline" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={onSave}>Guardar</button>
         </div>

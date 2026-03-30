@@ -72,9 +72,25 @@ export const useCategoryModal = () => {
     }
   };
 
+  const remove = async (opts: {
+    categories: CategoryDef[];
+    onSuccess: () => void;
+  }) => {
+    const existingCat = opts.categories.find(c => c.name === originalName);
+    if (!existingCat?.id) { showToast('No se puede eliminar esta categoría'); return; }
+    try {
+      await Api.deleteCategory(existingCat.id);
+      setShowModal(false);
+      opts.onSuccess();
+      showToast('Categoría eliminada');
+    } catch (error: any) {
+      showToast(error?.message || 'Error al eliminar la categoría');
+    }
+  };
+
   return {
     showModal, mode, name, setName, originalName, budget, setBudget,
     emoji, setEmoji, color, setColor, colorOptions: COLOR_OPTIONS,
-    openAdd, openEdit, close, save,
+    openAdd, openEdit, close, save, remove,
   };
 };
