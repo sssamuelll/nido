@@ -126,15 +126,6 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
           VALUES (?, ?, ?, ?, ?)
           ON CONFLICT(month, category, context, owner_user_id) DO UPDATE SET amount = excluded.amount
         `, month, category, amount, ctx, ownerUserId);
-
-        // Auto-register category if it doesn't exist in the same visibility scope
-        if (householdId) {
-          await db.run(
-            `INSERT OR IGNORE INTO categories (household_id, name, emoji, color, context, owner_user_id)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [householdId, category, '📂', '#6B7280', ctx, ownerUserId]
-          );
-        }
       }
     }
 
