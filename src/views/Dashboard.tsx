@@ -439,6 +439,10 @@ export const Dashboard: React.FC = () => {
             categories,
             onSuccess: () => { reloadCategories(); loadDashboardData(); },
           })}
+          onDelete={() => catModal.remove({
+            categories,
+            onSuccess: () => { reloadCategories(); loadDashboardData(); },
+          })}
         />
     </>
   );
