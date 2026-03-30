@@ -110,15 +110,6 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, description, amount, category, date, paid_by, paidByUserId, type, status);
 
-    // Auto-register category if it doesn't exist
-    const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
-    if (householdId && category) {
-      await db.run(
-        'INSERT OR IGNORE INTO categories (household_id, name, emoji, color) VALUES (?, ?, ?, ?)',
-        [householdId, category, '📂', '#6B7280']
-      );
-    }
-
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
 
     if (type === 'shared') {
