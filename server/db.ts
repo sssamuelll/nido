@@ -374,11 +374,24 @@ export const initDatabase = async () => {
 
   if (defaultPassword) {
     const saltedPassword = bcrypt.hashSync(defaultPassword, 10);
-    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', saltedPassword, '1234']);
-    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', saltedPassword, '1234']);
+    const hashedPin = bcrypt.hashSync('1234', 10);
+    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', saltedPassword, hashedPin]);
+    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', saltedPassword, hashedPin]);
     console.log(`Seeded default users (password from ${passwordSource})`);
   } else if (isProduction) {
     console.log('Skipping user seeding in production - DEFAULT_PASSWORD not set (assuming existing users)');
+  }
+
+  // Migration: Hash any plaintext PINs still in the database
+  const usersWithPlaintextPin = await database.all<{ id: number; pin: string }[]>(
+    `SELECT id, pin FROM users WHERE pin NOT LIKE '$2a$%' AND pin NOT LIKE '$2b$%'`
+  );
+  for (const user of usersWithPlaintextPin) {
+    const hashed = bcrypt.hashSync(user.pin, 10);
+    await database.run('UPDATE users SET pin = ? WHERE id = ?', [hashed, user.id]);
+  }
+  if (usersWithPlaintextPin.length > 0) {
+    console.log(`Migrated ${usersWithPlaintextPin.length} plaintext PIN(s) to bcrypt`);
   }
 
   // Migration: Transfer data from budgets to budgets_new
