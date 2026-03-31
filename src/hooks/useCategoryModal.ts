@@ -57,7 +57,7 @@ export const useCategoryModal = () => {
     try {
       const existingCat = opts.categories.find(c => c.name === originalName);
       await Api.saveCategory({
-        id: mode === 'edit' && existingCat ? existingCat.id : undefined,
+        id: mode === 'edit' && existingCat?.id ? existingCat.id : undefined,
         name: trimmedName,
         emoji: emojiVal,
         color,
