@@ -316,7 +316,7 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
     const nextContext = context === 'personal' ? 'personal' : 'shared';
     const ownerUserId = nextContext === 'personal' ? req.user!.id : null;
     
-    if (id) {
+    if (id && id !== 0) {
       await db.run(
         `UPDATE categories SET name = ?, emoji = ?, color = ?
          WHERE id = ? AND household_id = ? AND ((context = 'personal' AND owner_user_id = ?) OR (context = 'shared' AND owner_user_id IS NULL))`,
@@ -324,7 +324,9 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
       );
     } else {
       await db.run(
-        'INSERT INTO categories (household_id, name, emoji, color, context, owner_user_id) VALUES (?, ?, ?, ?, ?, ?)',
+        `INSERT INTO categories (household_id, name, emoji, color, context, owner_user_id)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(household_id, name) DO UPDATE SET emoji = excluded.emoji, color = excluded.color`,
         user.household_id, name, emoji, color, nextContext, ownerUserId
       );
     }
