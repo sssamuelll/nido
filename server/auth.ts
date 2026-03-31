@@ -1,11 +1,8 @@
-import jwt, { VerifyErrors, JwtPayload } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { randomBytes, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { getDatabase, ensureSessionColumns } from './db.js';
 import {
-  jwtSecret,
-  isSupabaseAuthConfigured,
   supabaseUrl,
   supabaseAnonKey,
   supabaseServiceRoleKey,
@@ -29,12 +26,6 @@ export interface AuthRequest extends Request {
   validatedMonth?: string;
 }
 
-interface LegacyUserRow {
-  id: number;
-  username: string;
-  password: string;
-}
-
 interface AppUserRow {
   id: number;
   username: string;
@@ -43,7 +34,7 @@ interface AppUserRow {
 
 export type MagicLinkResult =
   | { success: true }
-  | { success: false; reason: 'disabled' | 'forbidden' }
+  | { success: false; reason: 'forbidden' }
   | {
       success: false;
       reason: 'rate_limited' | 'auth' | 'upstream';
@@ -53,7 +44,7 @@ export type MagicLinkResult =
 
 export type SupabaseUserSyncResult =
   | { success: true; user: AuthUser }
-  | { success: false; reason: 'disabled' | 'forbidden' }
+  | { success: false; reason: 'forbidden' }
   | {
       success: false;
       reason: 'auth' | 'upstream';
@@ -63,7 +54,6 @@ export type SupabaseUserSyncResult =
 
 export type MagicLinkConfirmResult =
   | { success: true; accessToken: string }
-  | { success: false; reason: 'disabled' }
   | {
       success: false;
       reason: 'auth' | 'upstream';
@@ -167,34 +157,6 @@ const findAvailableUsername = async (baseUsername: string) => {
   }
 };
 
-export const isMagicLinkEnabled = () => isSupabaseAuthConfigured;
-
-// Login function
-export const login = async (username: string, password: string): Promise<{ token: string; user: AuthUser } | null> => {
-  try {
-    const db = getDatabase();
-    const user = await db.get<LegacyUserRow>('SELECT * FROM users WHERE username = ?', username);
-
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-      return null;
-    }
-
-    const token = jwt.sign(
-      { id: user.id, username: user.username },
-      jwtSecret,
-      { expiresIn: '365d' }
-    );
-
-    return {
-      token,
-      user: { id: user.id, username: user.username }
-    };
-  } catch (error) {
-    console.error('Login error:', error);
-    return null;
-  }
-};
-
 export const createAppSession = async (appUserId: number, req: Request) => {
   const db = getDatabase();
   const sessionToken = randomBytes(32).toString('hex');
@@ -279,12 +241,8 @@ const getAppUserFromSession = async (sessionToken: string): Promise<AuthUser | n
 
 const fetchSupabaseUser = async (accessToken: string): Promise<
   | { success: true; identity: { id: string; email?: string | null } }
-  | { success: false; reason: 'disabled' | 'auth' | 'upstream'; status?: number; error?: string }
+  | { success: false; reason: 'auth' | 'upstream'; status: number; error: string }
 > => {
-  if (!isSupabaseAuthConfigured || !supabaseUrl || !supabaseAnonKey) {
-    return { success: false, reason: 'disabled' };
-  }
-
   const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -309,10 +267,6 @@ export const findOrCreateAppUserFromSupabase = async (accessToken: string): Prom
   try {
     const identityResult = await fetchSupabaseUser(accessToken);
     if (!identityResult.success) {
-      if (identityResult.reason === 'disabled') {
-        return { success: false, reason: 'disabled' };
-      }
-
       return {
         success: false,
         reason: identityResult.reason,
@@ -367,10 +321,6 @@ export const findOrCreateAppUserFromSupabase = async (accessToken: string): Prom
 };
 
 export const sendMagicLink = async (email: string): Promise<MagicLinkResult> => {
-  if (!isSupabaseAuthConfigured || !supabaseUrl || !supabaseAnonKey) {
-    return { success: false as const, reason: 'disabled' as const };
-  }
-
   if (!isMagicLinkEmailAllowed(email)) {
     return { success: false as const, reason: 'forbidden' as const };
   }
@@ -399,10 +349,6 @@ export const sendMagicLink = async (email: string): Promise<MagicLinkResult> => 
 };
 
 export const confirmMagicLink = async (tokenHash: string, type: string): Promise<MagicLinkConfirmResult> => {
-  if (!isSupabaseAuthConfigured || !supabaseUrl || !supabaseAnonKey) {
-    return { success: false, reason: 'disabled' };
-  }
-
   const response = await fetch(`${supabaseUrl}/auth/v1/verify`, {
     method: 'POST',
     headers: {
@@ -454,10 +400,9 @@ export const verifyPin = async (username: string, pin: string): Promise<boolean>
   }
 };
 
-// Auth middleware
+// Auth middleware — app sessions only (magic link)
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // Try app session (auth-v2) first
     const sessionToken = req.cookies?.[appSessionCookieName];
     if (sessionToken) {
       const user = await getAppUserFromSession(sessionToken);
@@ -467,29 +412,8 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       }
     }
 
-    // Fall back to legacy JWT
-    const cookieToken = req.cookies?.token;
-    const authHeader = req.headers.authorization;
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const token = cookieToken || bearerToken;
-
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const decoded = await new Promise<JwtPayload | string | undefined>((resolve, reject) => {
-      jwt.verify(token, jwtSecret, (err: VerifyErrors | null, payload: JwtPayload | string | undefined) => {
-        if (err) reject(err);
-        else resolve(payload);
-      });
-    });
-
-    req.user = decoded as AuthUser;
-    next();
+    res.status(401).json({ error: 'Unauthorized' });
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({ error: 'Session expired' });
-    }
     console.error('Auth middleware error:', error);
     res.status(401).json({ error: 'Unauthorized' });
   }

@@ -2,31 +2,13 @@ import React, { useState } from 'react';
 import { useAuth } from '../auth';
 
 export const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, startMagicLink, isMagicLinkEnabled } = useAuth();
+  const { startMagicLink } = useAuth();
 
-  const handleLegacySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username) { setError('Por favor ingresa tu usuario'); return; }
-    if (!password) { setError('Por favor ingresa la contraseña'); return; }
-
-    try {
-      setIsLoading(true);
-      setError('');
-      await login(username, password);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) { setError('Por favor ingresa tu email'); return; }
 
@@ -80,79 +62,39 @@ export const Login: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Side - Forms */}
+      {/* Right Side - Magic Link Form */}
       <div className="login-right">
         <h2>Bienvenido de vuelta</h2>
         <div className="login-desc">
-          {isMagicLinkEnabled
-            ? 'Entra con magic link y deja el fallback clásico como red de seguridad'
-            : 'Entra en vuestro nido financiero'}
+          Entra en vuestro nido financiero
         </div>
 
-        {isMagicLinkEnabled && (
-          <form onSubmit={handleMagicLinkSubmit}>
-            <div className="login-field">
-              <div className="label">Email</div>
-              <input
-                className="login-input"
-                placeholder="samuel@... o maria@..."
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading || magicLinkSent}
-              />
-            </div>
-
-            {magicLinkSent && (
-              <div style={{ color: 'var(--color-success, #8bdc6b)', fontFamily: 'var(--font-body)', fontSize: 13, textAlign: 'center', lineHeight: 1.5 }}>
-                Revisa tu email y abre el magic link en este dispositivo para terminar el acceso.
-              </div>
-            )}
-
-            <button
-              className="login-btn"
-              type="submit"
+        <form onSubmit={handleSubmit}>
+          <div className="login-field">
+            <div className="label">Email</div>
+            <input
+              className="login-input"
+              placeholder="samuel@... o maria@..."
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading || magicLinkSent}
-            >
-              {isLoading ? 'Enviando...' : 'Enviar magic link'}
-            </button>
-          </form>
-        )}
-
-        {isMagicLinkEnabled && (
-          <div className="login-divider">o acceso clásico</div>
-        )}
-
-        <form onSubmit={handleLegacySubmit}>
-          <div className="login-field">
-            <div className="label">Usuario</div>
-            <input
-              className="login-input"
-              placeholder="samuel o maria"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
             />
           </div>
-          <div className="login-field">
-            <div className="label">Contraseña</div>
-            <input
-              className="login-input"
-              type="password"
-              placeholder="Ingresa tu contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
+
+          {magicLinkSent && (
+            <div style={{ color: 'var(--color-success, #8bdc6b)', fontFamily: 'var(--font-body)', fontSize: 13, textAlign: 'center', lineHeight: 1.5 }}>
+              Revisa tu email y abre el magic link en este dispositivo para terminar el acceso.
+            </div>
+          )}
 
           {error && <div className="error-view__msg u-text-center">{error}</div>}
 
           <button
             className="login-btn"
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || magicLinkSent}
           >
-            {isLoading ? 'Entrando...' : isMagicLinkEnabled ? 'Entrar con acceso clásico' : 'Iniciar Sesión'}
+            {isLoading ? 'Enviando...' : 'Enviar magic link'}
           </button>
         </form>
       </div>
