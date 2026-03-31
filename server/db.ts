@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { databaseUrl, defaultPassword as envDefaultPassword, isProduction } from './config.js';
+import { databaseUrl, isProduction } from './config.js';
 
 const format = (d: Date, fmt: string) => {
   const y = d.getFullYear();
@@ -361,26 +361,11 @@ export const initDatabase = async () => {
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_cycle_id ON billing_cycle_approvals(cycle_id)');
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_user_id ON billing_cycle_approvals(user_id)');
 
-  // Seed users
-  let defaultPassword = envDefaultPassword;
-  let passwordSource = 'env';
-  
-  if (!defaultPassword && !isProduction) {
-    defaultPassword = randomBytes(12).toString('hex');
-    passwordSource = 'generated';
-    console.warn(`⚠️  DEFAULT_PASSWORD not set in development. Generated random password: ${defaultPassword}`);
-    console.warn('   Please set DEFAULT_PASSWORD in .env for consistency.');
-  }
-
-  if (defaultPassword) {
-    const saltedPassword = bcrypt.hashSync(defaultPassword, 10);
-    const hashedPin = bcrypt.hashSync('1234', 10);
-    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', saltedPassword, hashedPin]);
-    await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', saltedPassword, hashedPin]);
-    console.log(`Seeded default users (password from ${passwordSource})`);
-  } else if (isProduction) {
-    console.log('Skipping user seeding in production - DEFAULT_PASSWORD not set (assuming existing users)');
-  }
+  // Seed users (password column kept for schema compatibility; auth is via magic link)
+  const hashedPin = bcrypt.hashSync('1234', 10);
+  const placeholder = bcrypt.hashSync(randomBytes(16).toString('hex'), 10);
+  await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', placeholder, hashedPin]);
+  await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', placeholder, hashedPin]);
 
   // Migration: Hash any plaintext PINs still in the database
   const usersWithPlaintextPin = await database.all<{ id: number; pin: string }[]>(

@@ -11,11 +11,9 @@ import { z } from 'zod';
 import './config.js'; // Validate environment first
 import { getDatabase, initDatabase, notifyPartner } from './db.js';
 import {
-  login,
   authenticateToken,
   AuthRequest,
   verifyPin,
-  isMagicLinkEnabled,
   sendMagicLink,
   confirmMagicLink,
   findOrCreateAppUserFromSupabase,
@@ -84,20 +82,10 @@ app.use(cors({
 app.use(express.json());
 app.use(csrfCheck);
 
-app.get('/api/auth/config', (_req, res) => {
-  res.json({
-    magicLinkEnabled: isMagicLinkEnabled(),
-  });
-});
-
 app.post('/api/auth/magic-link/start', loginLimiter, async (req, res) => {
   const validation = magicLinkSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({ error: 'Email inválido' });
-  }
-
-  if (!isMagicLinkEnabled()) {
-    return res.status(404).json({ error: 'Magic link auth is not configured' });
   }
 
   const result = await sendMagicLink(validation.data.email.trim().toLowerCase());
@@ -105,10 +93,6 @@ app.post('/api/auth/magic-link/start', loginLimiter, async (req, res) => {
   if (!result.success) {
     if (result.reason === 'forbidden') {
       return res.status(403).json({ error: 'Magic link no permitido para este email' });
-    }
-
-    if (result.reason === 'disabled') {
-      return res.status(404).json({ error: 'Magic link auth is not configured' });
     }
 
     if (result.reason === 'rate_limited') {
@@ -135,18 +119,10 @@ app.post('/api/auth/session/exchange', loginLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Access token inválido' });
   }
 
-  if (!isMagicLinkEnabled()) {
-    return res.status(404).json({ error: 'Magic link auth is not configured' });
-  }
-
   const result = await findOrCreateAppUserFromSupabase(validation.data.accessToken);
   if (!result.success) {
     if (result.reason === 'forbidden') {
       return res.status(403).json({ error: 'Supabase session is not allowed' });
-    }
-
-    if (result.reason === 'disabled') {
-      return res.status(404).json({ error: 'Magic link auth is not configured' });
     }
 
     if (result.reason === 'auth') {
@@ -172,16 +148,8 @@ app.post('/api/auth/magic-link/confirm', loginLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Parámetros de confirmación inválidos' });
   }
 
-  if (!isMagicLinkEnabled()) {
-    return res.status(404).json({ error: 'Magic link auth is not configured' });
-  }
-
   const confirmResult = await confirmMagicLink(validation.data.tokenHash, validation.data.type);
   if (!confirmResult.success) {
-    if (confirmResult.reason === 'disabled') {
-      return res.status(404).json({ error: 'Magic link auth is not configured' });
-    }
-
     return res.status(confirmResult.status).json({ error: confirmResult.error });
   }
 
@@ -189,10 +157,6 @@ app.post('/api/auth/magic-link/confirm', loginLimiter, async (req, res) => {
   if (!result.success) {
     if (result.reason === 'forbidden') {
       return res.status(403).json({ error: 'Supabase session is not allowed' });
-    }
-
-    if (result.reason === 'disabled') {
-      return res.status(404).json({ error: 'Magic link auth is not configured' });
     }
 
     if ('status' in result) {
@@ -206,35 +170,6 @@ app.post('/api/auth/magic-link/confirm', loginLimiter, async (req, res) => {
   setAppSessionCookie(res, sessionToken);
 
   res.json({ user: result.user });
-});
-
-// Legacy auth endpoint kept as staged fallback.
-app.post('/api/auth/login', loginLimiter, async (req, res) => {
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
-  }
-
-  try {
-    const result = await login(username, password);
-
-    if (!result) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    res.cookie('token', result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 365 * 24 * 60 * 60 * 1000
-    });
-
-    res.json({ user: result.user, token: result.token, authMode: 'legacy' });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
 });
 
 const respondWithAuthenticatedUser = (req: AuthRequest, res: express.Response) => {
