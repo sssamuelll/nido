@@ -300,16 +300,25 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
-app.use('/api/expenses', authenticateToken, expensesRouter);
-app.use('/api/budgets', authenticateToken, budgetsRouter);
-app.use('/api/goals', authenticateToken, goalsRouter);
-app.use('/api/analytics', authenticateToken, analyticsRouter);
-app.use('/api/notifications', authenticateToken, notificationsRouter);
-app.use('/api/recurring', authenticateToken, recurringRouter);
-app.use('/api/cycles', authenticateToken, cyclesRouter);
+// General rate limit for all authenticated API routes
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again in a moment' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/expenses', authenticateToken, apiLimiter, expensesRouter);
+app.use('/api/budgets', authenticateToken, apiLimiter, budgetsRouter);
+app.use('/api/goals', authenticateToken, apiLimiter, goalsRouter);
+app.use('/api/analytics', authenticateToken, apiLimiter, analyticsRouter);
+app.use('/api/notifications', authenticateToken, apiLimiter, notificationsRouter);
+app.use('/api/recurring', authenticateToken, apiLimiter, recurringRouter);
+app.use('/api/cycles', authenticateToken, apiLimiter, cyclesRouter);
 
 // Categories routes
-app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
+app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
@@ -361,7 +370,7 @@ app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
-app.post('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
+app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   const { name, emoji, color, id, context } = req.body;
   if (!name || !emoji || !color) return res.status(400).json({ error: 'Name, emoji and color are required' });
 
@@ -397,7 +406,7 @@ app.post('/api/categories', authenticateToken, async (req: AuthRequest, res) => 
   }
 });
 
-app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, res) => {
+app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
@@ -417,7 +426,7 @@ app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, re
 });
 
 // Household members
-app.get('/api/household/members', authenticateToken, async (req: AuthRequest, res) => {
+app.get('/api/household/members', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     // In this app, we assume all users in the 'users' table belong to the same household for now
