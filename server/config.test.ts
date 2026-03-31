@@ -137,6 +137,7 @@ describe('Configuration module', () => {
       process.env.NODE_ENV = 'production';
       process.env.JWT_SECRET = 'a'.repeat(64);
       process.env.DEFAULT_PASSWORD = 'very-long-strong-password-123';
+      process.env.ALLOWED_ORIGINS = 'https://nido.example.com';
       const config = await importConfig();
       const result = config.validateSecurity();
       expect(result.valid).toBe(true);
