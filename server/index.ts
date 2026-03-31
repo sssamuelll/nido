@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import bcrypt from 'bcryptjs';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -279,7 +280,8 @@ app.post('/api/auth/update-pin', authenticateToken, async (req: AuthRequest, res
 
   try {
     const db = getDatabase();
-    await db.run('UPDATE users SET pin = ? WHERE username = ?', pin, username);
+    const hashedPin = bcrypt.hashSync(pin, 10);
+    await db.run('UPDATE users SET pin = ? WHERE username = ?', hashedPin, username);
     res.json({ success: true, message: 'PIN actualizado correctamente' });
   } catch (error) {
     console.error('PIN update error:', error);

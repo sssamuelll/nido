@@ -442,7 +442,12 @@ export const verifyPin = async (username: string, pin: string): Promise<boolean>
   try {
     const db = getDatabase();
     const user = await db.get<{ pin: string }>('SELECT pin FROM users WHERE username = ?', username);
-    return !!user && user.pin === pin;
+    if (!user) return false;
+    // Support both hashed and legacy plaintext PINs
+    if (user.pin.startsWith('$2a$') || user.pin.startsWith('$2b$')) {
+      return bcrypt.compare(pin, user.pin);
+    }
+    return user.pin === pin;
   } catch (error) {
     console.error('PIN verify error:', error);
     return false;
