@@ -44,6 +44,9 @@ const envSchema = z.object({
   MAGIC_LINK_ALLOWED_EMAILS: z.string().optional(),
   APP_SESSION_DAYS: z.string().regex(/^\d+$/).transform(Number).default('30'),
   APP_SESSION_COOKIE_NAME: z.string().min(1).default('nido_session'),
+
+  // CORS – required in production to prevent wildcard origin with credentials
+  ALLOWED_ORIGINS: z.string().min(1).optional(),
 });
 
 // Type inference
@@ -71,6 +74,7 @@ class Config {
         MAGIC_LINK_ALLOWED_EMAILS: process.env.MAGIC_LINK_ALLOWED_EMAILS,
         APP_SESSION_DAYS: process.env.APP_SESSION_DAYS,
         APP_SESSION_COOKIE_NAME: process.env.APP_SESSION_COOKIE_NAME,
+        ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
       };
 
       return envSchema.parse(rawEnv);
@@ -155,6 +159,12 @@ class Config {
     return this.config.APP_SESSION_COOKIE_NAME;
   }
 
+  get allowedOrigins(): string[] | undefined {
+    return this.config.ALLOWED_ORIGINS
+      ? this.config.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+      : undefined;
+  }
+
   get isSupabaseAuthConfigured(): boolean {
     return Boolean(this.config.SUPABASE_URL && this.config.SUPABASE_ANON_KEY);
   }
@@ -163,6 +173,10 @@ class Config {
     const warnings: string[] = [];
 
     if (this.isProduction) {
+      if (!this.config.ALLOWED_ORIGINS) {
+        warnings.push('ALLOWED_ORIGINS is not set - CORS will reject all cross-origin requests in production');
+      }
+
       if (this.config.DEFAULT_PASSWORD && this.config.DEFAULT_PASSWORD.length < 12) {
         warnings.push('DEFAULT_PASSWORD is less than 12 characters in production - consider using stronger default');
       }
@@ -202,5 +216,6 @@ export const {
   magicLinkAllowedEmails,
   appSessionDays,
   appSessionCookieName,
+  allowedOrigins,
   isSupabaseAuthConfigured,
 } = config;
