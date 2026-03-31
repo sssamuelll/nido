@@ -15,8 +15,8 @@ describe('Database bootstrap', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.stubEnv('NODE_ENV', 'test');
-    vi.stubEnv('JWT_SECRET', 'test-jwt-secret-minimum-32-characters-long');
-    vi.stubEnv('DEFAULT_PASSWORD', 'test-password');
+    vi.stubEnv('SUPABASE_URL', 'https://test.supabase.co');
+    vi.stubEnv('SUPABASE_ANON_KEY', 'test-anon-key');
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'nido-db-test-'));
     databasePath = path.join(tempDir, 'nido.test.db');
     vi.stubEnv('DATABASE_URL', databasePath);

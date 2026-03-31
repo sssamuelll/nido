@@ -44,7 +44,6 @@ export class Api {
 
       if (
         response.status === 401 &&
-        endpoint !== '/auth/login' &&
         endpoint !== '/auth/verify-pin' &&
         endpoint !== '/auth/me' &&
         endpoint !== '/auth/session' &&
@@ -61,17 +60,6 @@ export class Api {
     }
 
     return await response.json();
-  }
-
-  static async getAuthConfig(): Promise<{ magicLinkEnabled: boolean }> {
-    return this.request('/auth/config');
-  }
-
-  static async login(username: string, password: string) {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: { username, password },
-    });
   }
 
   static async startMagicLink(email: string) {
