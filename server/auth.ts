@@ -455,60 +455,42 @@ export const verifyPin = async (username: string, pin: string): Promise<boolean>
 };
 
 // Auth middleware
-export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const sessionToken = req.cookies?.[appSessionCookieName];
-
-  if (sessionToken) {
-    void getAppUserFromSession(sessionToken)
-      .then((user) => {
-        if (user) {
-          req.user = user;
-          next();
-          return;
-        }
-
-        const cookieToken = req.cookies?.token;
-        const authHeader = req.headers.authorization;
-        const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        const token = cookieToken || bearerToken;
-
-        if (!token) {
-          res.status(401).json({ error: 'Unauthorized' });
-          return;
-        }
-
-        jwt.verify(token, jwtSecret, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
-          if (err) {
-            res.status(401).json({ error: 'Session expired' });
-            return;
-          }
-
-          req.user = decoded as AuthUser;
-          next();
-        });
-      })
-      .catch((error) => {
-        console.error('Session auth error:', error);
-        res.status(401).json({ error: 'Unauthorized' });
-      });
-    return;
-  }
-
-  const cookieToken = req.cookies?.token;
-  const authHeader = req.headers.authorization;
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const token = cookieToken || bearerToken;
-
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  jwt.verify(token, jwtSecret, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
-    if (err) {
-      return res.status(401).json({ error: 'Session expired' });
+export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // Try app session (auth-v2) first
+    const sessionToken = req.cookies?.[appSessionCookieName];
+    if (sessionToken) {
+      const user = await getAppUserFromSession(sessionToken);
+      if (user) {
+        req.user = user;
+        return next();
+      }
     }
+
+    // Fall back to legacy JWT
+    const cookieToken = req.cookies?.token;
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = cookieToken || bearerToken;
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const decoded = await new Promise<JwtPayload | string | undefined>((resolve, reject) => {
+      jwt.verify(token, jwtSecret, (err: VerifyErrors | null, payload: JwtPayload | string | undefined) => {
+        if (err) reject(err);
+        else resolve(payload);
+      });
+    });
 
     req.user = decoded as AuthUser;
     next();
-  });
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ error: 'Unauthorized' });
+  }
 };
