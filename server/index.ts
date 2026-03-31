@@ -30,7 +30,7 @@ import analyticsRouter from './routes/analytics.js';
 import notificationsRouter from './routes/notifications.js';
 import recurringRouter from './routes/recurring.js';
 import cyclesRouter from './routes/cycles.js';
-import { port, appSessionCookieName } from './config.js';
+import { port, appSessionCookieName, allowedOrigins, isProduction } from './config.js';
 import { pinSchema } from './validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -75,7 +75,7 @@ const csrfCheck = (req: express.Request, res: express.Response, next: express.Ne
 };
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+  origin: allowedOrigins ?? (isProduction ? false : '*'),
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-nido-request'],
   credentials: true
