@@ -1438,9 +1438,14 @@ a:hover { color: var(--text) }
   animation: ep-in .15s ease-out;
 }
 @keyframes ep-in { from { opacity: 0; transform: translateX(-50%) translateY(-4px) } to { opacity: 1; transform: translateX(-50%) translateY(0) } }
+.ep-header {
+  display: flex; align-items: center;
+  border-bottom: 1px solid var(--glass-border);
+}
+.ep-back { display: none }
 .ep-search {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px; border-bottom: 1px solid var(--glass-border);
+  padding: 10px 12px; flex: 1;
 }
 .ep-search input {
   border: none; background: transparent; outline: none;
@@ -1481,6 +1486,47 @@ a:hover { color: var(--text) }
 }
 .ep-tab:hover { background: var(--surface2) }
 .ep-tab.active { background: var(--gl) }
+
+/* Emoji Picker — Mobile full-screen */
+.ep-fullscreen {
+  position: fixed; inset: 0;
+  background: var(--modal-bg);
+  z-index: 700;
+  display: flex; flex-direction: column;
+  animation: ep-fs-in .2s ease-out;
+}
+@keyframes ep-fs-in { from { opacity: 0; transform: translateY(100%) } to { opacity: 1; transform: translateY(0) } }
+.ep-fullscreen .ep-header {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--glass-border);
+  gap: 4px;
+}
+.ep-fullscreen .ep-back {
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border: none; background: transparent;
+  color: var(--text); cursor: pointer; border-radius: 10px;
+  flex-shrink: 0;
+}
+.ep-fullscreen .ep-back:active { background: var(--surface2) }
+.ep-fullscreen .ep-search { padding: 8px 12px 8px 0 }
+.ep-fullscreen .ep-search input { font-size: 16px }
+.ep-fullscreen .ep-grid {
+  flex: 1; max-height: none; overflow-y: auto;
+  padding: 8px 12px;
+}
+.ep-fullscreen .ep-emojis {
+  grid-template-columns: repeat(7, 1fr); gap: 4px;
+}
+.ep-fullscreen .ep-item { font-size: 28px }
+.ep-fullscreen .ep-cat-label {
+  font-size: 12px; padding: 12px 4px 6px;
+}
+.ep-fullscreen .ep-tabs {
+  padding: 8px 10px; gap: 4px;
+  border-top: 1px solid var(--glass-border);
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+.ep-fullscreen .ep-tab { font-size: 20px; padding: 10px 0 }
 
 /* ============================================
    SECTION 31: Toast
