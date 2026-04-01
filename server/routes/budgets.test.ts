@@ -50,7 +50,7 @@ describe('budgets routes privacy', () => {
       .mockResolvedValueOnce(null); // pending approval query
     mockDb.all.mockResolvedValue([{ category: 'Restaurant', amount: 200 }]);
     const handler = getRouteHandler('/', 'get');
-    const req: any = { validatedMonth: '2026-03', query: {}, user: { id: 2, username: 'maria' } };
+    const req: any = { query: { month: '2026-03' }, user: { id: 2, username: 'maria' } };
     const res = createResponse();
 
     await handler(req, res);
@@ -84,7 +84,7 @@ describe('budgets routes privacy', () => {
     mockDb.all.mockResolvedValue([{ category: 'Restaurant', amount: 200 }]);
 
     const handler = getRouteHandler('/', 'get');
-    const req: any = { validatedMonth: '2026-03', query: {}, user: { id: 2, username: 'maria' } };
+    const req: any = { query: { month: '2026-03' }, user: { id: 2, username: 'maria' } };
     const res = createResponse();
 
     await handler(req, res);
@@ -114,7 +114,7 @@ describe('budgets routes privacy', () => {
 
     const handler = getRouteHandler('/', 'put');
     const req: any = {
-      validatedData: {
+      body: {
         month: '2026-03',
         shared_available: 2400,
       },
@@ -153,7 +153,7 @@ describe('budgets routes privacy', () => {
     mockDb.run.mockResolvedValue({ changes: 1 });
     const handler = getRouteHandler('/', 'put');
     const req: any = {
-      validatedData: {
+      body: {
         month: '2026-03',
         personal_budget: 650,
         categories: { Restaurant: 250 },

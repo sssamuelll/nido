@@ -28,10 +28,12 @@ export const Settings: React.FC = () => {
     id: number;
     month: string;
     status: 'pending' | 'active' | 'closed';
+    start_date?: string;
     requested_by_user_id: number;
     requested_by_username?: string;
     approved_by_user_id?: number;
     started_at?: string;
+    approvals?: { approved_count: number; total_members: number; current_user_has_approved: boolean };
   } | null>(null);
   const [cycleLoading, setCycleLoading] = useState(false);
 
@@ -66,8 +68,11 @@ export const Settings: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      // Load cycle first to determine budget source
+      const cycle = await Api.getCurrentCycle().catch(() => null);
+      setCurrentCycle(cycle);
       const [budgetData, membersData] = await Promise.all([
-        Api.getBudget(currentMonth),
+        cycle?.id ? Api.getBudget({ cycle_id: cycle.id, month: currentMonth }) : Api.getBudget(currentMonth),
         Api.getMembers()
       ]);
 
@@ -77,7 +82,6 @@ export const Settings: React.FC = () => {
 
       setBudget(budgetData);
       setMembers(membersData);
-      await loadCycle();
     } catch {
       setToast({ type: 'error', msg: 'Error al cargar datos' });
     } finally {
@@ -91,6 +95,7 @@ export const Settings: React.FC = () => {
       setSaving(true);
       const res = await Api.updateBudget({
         month: currentMonth,
+        cycle_id: currentCycle?.id,
         shared_available: budget.shared_available,
         personal_budget: budget.personal_budget,
         categories: budget.categories
@@ -124,7 +129,7 @@ export const Settings: React.FC = () => {
   };
 
   const handleRequestCycle = async () => {
-    if (!confirm('¿Reiniciar ciclo mensual? Los gastos recurrentes se activarán una vez tu pareja apruebe.')) return;
+    if (!confirm('¿Iniciar nuevo ciclo? Los gastos recurrentes se registrarán una vez tu pareja apruebe.')) return;
     try {
       setSaving(true);
       await Api.requestCycle();
@@ -369,11 +374,11 @@ export const Settings: React.FC = () => {
             ) : currentCycle ? (
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
-                  {currentCycle.status === 'active' ? 'Ciclo ya reiniciado este mes' : 'Solicitud de reinicio pendiente'}
+                  {currentCycle.status === 'active' ? 'Ciclo activo' : 'Solicitud pendiente'}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
                   {currentCycle.status === 'active'
-                    ? `Ejecutado el ${new Date(currentCycle.started_at || '').toLocaleDateString('es-ES')}`
+                    ? `Iniciado el ${new Date(currentCycle.started_at || '').toLocaleDateString('es-ES')}`
                     : `Aprobaciones: ${currentCycle.approvals?.approved_count || 0}/${currentCycle.approvals?.total_members || members.length}`}
                 </div>
 
@@ -394,7 +399,7 @@ export const Settings: React.FC = () => {
             ) : (
               <div>
                 <div style={{ fontSize: '14px', marginBottom: '12px' }}>
-                  Crea una solicitud para reiniciar el ciclo. Se ejecuta solo cuando apruebe todo el Nido.
+                  Inicia un nuevo ciclo cuando le paguen a Maria. Se activa cuando apruebe todo el Nido.
                 </div>
                 <button
                   className="btn btn-primary btn-sm"

@@ -41,8 +41,19 @@ const getCycleWithApprovalState = async (db: ReturnType<typeof getDatabase>, cyc
 
   const approvedUserIds = approvalRows.map((row) => row.user_id);
 
+  // Compute end_date from the next cycle's start_date
+  const nextCycle = await db.get<{ start_date: string }>(
+    `SELECT start_date FROM billing_cycles
+     WHERE household_id = ? AND start_date > COALESCE(?, '0000-00-00') AND id != ?
+     ORDER BY start_date ASC LIMIT 1`,
+    cycle.household_id,
+    cycle.start_date,
+    cycleId
+  );
+
   return {
     ...cycle,
+    end_date: nextCycle?.start_date ?? null,
     approvals: {
       total_members: memberRow?.total_members ?? 0,
       approved_count: approvedUserIds.length,
@@ -54,13 +65,14 @@ const getCycleWithApprovalState = async (db: ReturnType<typeof getDatabase>, cyc
 };
 
 const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number, householdId: number, actingUserId: number) => {
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   const recurringItems = await db.all<RecurringExpenseRow[]>(
     `SELECT * FROM recurring_expenses
      WHERE household_id = ? AND paused = 0`,
     householdId
   );
 
-  const today = format(new Date(), 'yyyy-MM-dd');
   let total = 0;
 
   for (const item of recurringItems) {
@@ -87,9 +99,10 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
 
   await db.run(
     `UPDATE billing_cycles
-     SET status = 'active', approved_by_user_id = ?, started_at = CURRENT_TIMESTAMP
+     SET status = 'active', approved_by_user_id = ?, started_at = CURRENT_TIMESTAMP, start_date = ?
      WHERE id = ?`,
     actingUserId,
+    today,
     cycleId
   );
 
@@ -103,7 +116,7 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
   });
 };
 
-// Get current month's billing cycle
+// Get the active billing cycle (most recent active, regardless of calendar month)
 router.get('/current', async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
@@ -116,12 +129,23 @@ router.get('/current', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const month = format(new Date(), 'yyyy-MM');
-    const cycle = await db.get<{ id: number }>(
-      'SELECT id FROM billing_cycles WHERE household_id = ? AND month = ?',
-      user.household_id,
-      month
+    // First try: most recent active cycle
+    let cycle = await db.get<{ id: number }>(
+      `SELECT id FROM billing_cycles
+       WHERE household_id = ? AND status = 'active'
+       ORDER BY COALESCE(start_date, created_at) DESC LIMIT 1`,
+      user.household_id
     );
+
+    // Second try: any pending cycle
+    if (!cycle) {
+      cycle = await db.get<{ id: number }>(
+        `SELECT id FROM billing_cycles
+         WHERE household_id = ? AND status = 'pending'
+         ORDER BY created_at DESC LIMIT 1`,
+        user.household_id
+      );
+    }
 
     if (!cycle) {
       return res.json(null);
@@ -135,7 +159,7 @@ router.get('/current', async (req: AuthRequest, res) => {
   }
 });
 
-// Request a new billing cycle for the current month
+// Request a new billing cycle
 router.post('/request', async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
@@ -148,26 +172,27 @@ router.post('/request', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const month = format(new Date(), 'yyyy-MM');
-    const existing = await db.get<{ id: number; status: string }>(
-      'SELECT id, status FROM billing_cycles WHERE household_id = ? AND month = ?',
-      user.household_id,
-      month
+    // Check if there's already a pending cycle
+    const pendingCycle = await db.get<{ id: number }>(
+      `SELECT id FROM billing_cycles
+       WHERE household_id = ? AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`,
+      user.household_id
     );
 
-    if (existing) {
-      if (existing.status === 'pending') {
-        const detailedExisting = await getCycleWithApprovalState(db, existing.id, req.user!.id);
-        return res.status(200).json(detailedExisting);
-      }
-      return res.status(409).json({ error: 'A billing cycle already exists for this month' });
+    if (pendingCycle) {
+      const detailedExisting = await getCycleWithApprovalState(db, pendingCycle.id, req.user!.id);
+      return res.status(200).json(detailedExisting);
     }
+
+    // Use a unique label for the month column (date-based to avoid UNIQUE conflicts)
+    const cycleLabel = format(new Date(), 'yyyy-MM-dd');
 
     const result = await db.run(
       `INSERT INTO billing_cycles (household_id, month, requested_by_user_id)
        VALUES (?, ?, ?)`,
       user.household_id,
-      month,
+      cycleLabel,
       req.user!.id
     );
 
@@ -183,7 +208,7 @@ router.post('/request', async (req: AuthRequest, res) => {
       req.user!.username,
       'cycle_requested',
       'Reinicio de ciclo solicitado',
-      `{name} solicitó reiniciar el ciclo de ${month}`,
+      `{name} solicitó reiniciar el ciclo`,
       { cycle_id: result.lastID }
     );
 
