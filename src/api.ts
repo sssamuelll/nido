@@ -137,8 +137,15 @@ export class Api {
     }
   }
 
-  static async getExpenses(month: string) {
-    return this.request(`/expenses?month=${month}`);
+  static async getExpenses(month: string): Promise<any[]>;
+  static async getExpenses(opts: { start_date: string; end_date?: string | null }): Promise<any[]>;
+  static async getExpenses(arg: string | { start_date: string; end_date?: string | null }) {
+    if (typeof arg === 'string') {
+      return this.request(`/expenses?month=${arg}`);
+    }
+    const params = new URLSearchParams({ start_date: arg.start_date });
+    if (arg.end_date) params.set('end_date', arg.end_date);
+    return this.request(`/expenses?${params}`);
   }
 
   static async createExpense(expense: {
@@ -176,8 +183,16 @@ export class Api {
     });
   }
 
-  static async getSummary(month: string) {
-    return this.request(`/expenses/summary?month=${month}`);
+  static async getSummary(month: string): Promise<any>;
+  static async getSummary(opts: { start_date: string; end_date?: string | null; cycle_id?: number }): Promise<any>;
+  static async getSummary(arg: string | { start_date: string; end_date?: string | null; cycle_id?: number }) {
+    if (typeof arg === 'string') {
+      return this.request(`/expenses/summary?month=${arg}`);
+    }
+    const params = new URLSearchParams({ start_date: arg.start_date });
+    if (arg.end_date) params.set('end_date', arg.end_date);
+    if (arg.cycle_id) params.set('cycle_id', String(arg.cycle_id));
+    return this.request(`/expenses/summary?${params}`);
   }
 
   static async getCategories(context: 'shared' | 'personal' = 'shared'): Promise<Array<{ id: number; name: string; emoji: string; color: string }>> {
@@ -197,12 +212,21 @@ export class Api {
     });
   }
 
-  static async getBudget(month: string) {
-    return this.request(`/budgets?month=${month}`);
+  static async getBudget(month: string): Promise<any>;
+  static async getBudget(opts: { cycle_id: number; month?: string }): Promise<any>;
+  static async getBudget(arg: string | { cycle_id: number; month?: string }) {
+    if (typeof arg === 'string') {
+      return this.request(`/budgets?month=${arg}`);
+    }
+    const params = new URLSearchParams();
+    params.set('cycle_id', String(arg.cycle_id));
+    if (arg.month) params.set('month', arg.month);
+    return this.request(`/budgets?${params}`);
   }
 
   static async updateBudget(budget: {
-    month: string;
+    month?: string;
+    cycle_id?: number;
     shared_available?: number;
     personal_budget?: number;
     categories?: Record<string, number>;

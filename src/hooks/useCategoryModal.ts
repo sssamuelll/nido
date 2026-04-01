@@ -37,7 +37,8 @@ export const useCategoryModal = () => {
   const close = () => setShowModal(false);
 
   const save = async (opts: {
-    month: string;
+    month?: string;
+    cycle_id?: number;
     context: 'shared' | 'personal';
     categoryBreakdown: Array<{ category: string; budget: number }>;
     categories: CategoryDef[];
@@ -63,7 +64,7 @@ export const useCategoryModal = () => {
         color,
         context: opts.context,
       });
-      await Api.updateBudget({ month: opts.month, categories: cats, context: opts.context });
+      await Api.updateBudget({ month: opts.month, cycle_id: opts.cycle_id, categories: cats, context: opts.context });
       setShowModal(false);
       opts.onSuccess();
       showToast(mode === 'add' ? 'Categoría creada' : 'Categoría actualizada');

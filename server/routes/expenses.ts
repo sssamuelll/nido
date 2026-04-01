@@ -46,8 +46,17 @@ interface CategoryRow {
 }
 
 const router = Router();
-const visibleExpensesWhere = `
+const visibleExpensesWhereMonth = `
   date LIKE ?
+  AND (
+    type = 'shared'
+    OR paid_by_user_id = ?
+    OR (paid_by_user_id IS NULL AND paid_by = ?)
+  )
+`;
+const visibleExpensesWhereRange = `
+  date >= ?
+  AND (? IS NULL OR date < ?)
   AND (
     type = 'shared'
     OR paid_by_user_id = ?
@@ -77,17 +86,31 @@ const getLegacyPaidBy = (user: AuthRequest['user']) => {
 const isExpenseOwner = (expense: ExpenseRow, user: NonNullable<AuthRequest['user']>) =>
   expense.paid_by_user_id === user.id || expense.paid_by === user.username;
 
-// Get expenses for a specific month
-router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
-  const month = req.validatedMonth as string;
-  
+// Get expenses — supports both month (legacy) and date range (cycle-based)
+router.get('/', async (req: AuthRequest, res) => {
+  const startDate = req.query.start_date as string | undefined;
+  const endDate = req.query.end_date as string | undefined;
+  const month = req.query.month as string | undefined;
+
   try {
     const db = getDatabase();
-    const expenses = await db.all(`
-      SELECT * FROM expenses 
-      WHERE ${visibleExpensesWhere}
-      ORDER BY date DESC, created_at DESC
-    `, `${month}%`, req.user!.id, req.user!.username);
+    let expenses;
+
+    if (startDate) {
+      expenses = await db.all(`
+        SELECT * FROM expenses
+        WHERE ${visibleExpensesWhereRange}
+        ORDER BY date DESC, created_at DESC
+      `, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username);
+    } else if (month) {
+      expenses = await db.all(`
+        SELECT * FROM expenses
+        WHERE ${visibleExpensesWhereMonth}
+        ORDER BY date DESC, created_at DESC
+      `, `${month}%`, req.user!.id, req.user!.username);
+    } else {
+      return res.status(400).json({ error: 'Either month or start_date is required' });
+    }
 
     res.json(expenses);
   } catch (error) {
@@ -200,30 +223,47 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-// Get dashboard summary
-router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
-  const month = req.validatedMonth as string;
-  
+// Get dashboard summary — supports month (legacy) or date range (cycle-based)
+router.get('/summary', async (req: AuthRequest, res) => {
+  const startDate = req.query.start_date as string | undefined;
+  const endDate = req.query.end_date as string | undefined;
+  const month = req.query.month as string | undefined;
+  const cycleId = req.query.cycle_id ? Number(req.query.cycle_id) : undefined;
+
   try {
     const db = getDatabase();
-    
-    // Get budget for the month. If none exists yet, return a safe empty-state summary
-    // so the dashboard can load before the first production budget is configured.
-    const storedBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
-    const budget = storedBudget ?? emptyBudgetForMonth(month);
+
+    // Resolve budget: prefer cycle_id, fall back to month
+    let storedBudget: BudgetRow | undefined;
+    let budgetMonth = month ?? '';
+    if (cycleId) {
+      storedBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE cycle_id = ?', cycleId);
+    }
+    if (!storedBudget && month) {
+      storedBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+    }
+    const budget = storedBudget ?? emptyBudgetForMonth(budgetMonth);
 
     // Support both legacy and current budget schemas.
     const availableShared = typeof budget.shared_available === 'number'
       ? budget.shared_available
       : (budget.total_budget ?? 0) - (budget.rent ?? 0) - (budget.savings ?? 0) - budget.personal_samuel - budget.personal_maria;
 
-    // Get expenses visible to the current user for the month
-    const expenses = await db.all<ExpenseRow[]>(
-      `SELECT * FROM expenses WHERE ${visibleExpensesWhere}`,
-      `${month}%`,
-      req.user!.id,
-      req.user!.username
-    );
+    // Get expenses: date range (cycle) or month (legacy)
+    let expenses: ExpenseRow[];
+    if (startDate) {
+      expenses = await db.all<ExpenseRow[]>(
+        `SELECT * FROM expenses WHERE ${visibleExpensesWhereRange}`,
+        startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
+      );
+    } else if (month) {
+      expenses = await db.all<ExpenseRow[]>(
+        `SELECT * FROM expenses WHERE ${visibleExpensesWhereMonth}`,
+        `${month}%`, req.user!.id, req.user!.username
+      );
+    } else {
+      return res.status(400).json({ error: 'Either month or start_date is required' });
+    }
 
     // Calculate totals
     const totalSpent = expenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
@@ -243,8 +283,19 @@ router.get('/summary', validateMonthParam, async (req: AuthRequest, res) => {
     const samuelBalance = samuelPaid - halfShared;
     const mariaBalance = mariaPaid - halfShared;
 
-    // Category breakdown with budgets scoped by visibility
-    const allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    // Category breakdown: prefer cycle_id for budgets, fall back to month
+    let allCategoryBudgets: CategoryBudgetRow[];
+    if (cycleId) {
+      allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE cycle_id = ?', cycleId);
+      // Fall back to month-based if no cycle budgets found yet
+      if (allCategoryBudgets.length === 0 && month) {
+        allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+      }
+    } else if (month) {
+      allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    } else {
+      allCategoryBudgets = [];
+    }
     const sharedBudgets = allCategoryBudgets.filter(b => b.context === 'shared' && b.owner_user_id == null);
     const personalBudgets = allCategoryBudgets.filter(b => b.context === 'personal' && b.owner_user_id === req.user!.id);
     const sharedCategories = await db.all<CategoryRow[]>(

@@ -93,7 +93,7 @@ describe('expenses routes privacy', () => {
       { id: 2, description: 'Headphones', type: 'personal', paid_by: 'samuel' },
     ]);
     const handler = getRouteHandler('/', 'get');
-    const req: any = { validatedMonth: '2026-03', user: { id: 1, username: 'samuel' } };
+    const req: any = { query: { month: '2026-03' }, user: { id: 1, username: 'samuel' } };
     const res = createResponse();
 
     await handler(req, res);
@@ -132,7 +132,7 @@ describe('expenses routes privacy', () => {
         { name: 'Otros' },
       ]);
     const handler = getRouteHandler('/summary', 'get');
-    const req: any = { validatedMonth: '2026-03', user: { id: 1, username: 'samuel' } };
+    const req: any = { query: { month: '2026-03' }, user: { id: 1, username: 'samuel' } };
     const res = createResponse();
 
     await handler(req, res);
@@ -160,7 +160,7 @@ describe('expenses routes privacy', () => {
       .mockResolvedValueOnce([]);
 
     const handler = getRouteHandler('/summary', 'get');
-    const req: any = { validatedMonth: '2026-03', user: { id: 1, username: 'samuel' } };
+    const req: any = { query: { month: '2026-03' }, user: { id: 1, username: 'samuel' } };
     const res = createResponse();
 
     await handler(req, res);

@@ -361,6 +361,11 @@ export const initDatabase = async () => {
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_cycle_id ON billing_cycle_approvals(cycle_id)');
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_user_id ON billing_cycle_approvals(user_id)');
 
+  // Cycle-based architecture: cycles track start_date, budgets link to cycles
+  await ensureColumn(database, 'billing_cycles', 'start_date', 'TEXT');
+  await ensureColumn(database, 'budgets', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
+  await ensureColumn(database, 'category_budgets', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
+
   // Seed users (password column kept for schema compatibility; auth is via magic link)
   const hashedPin = bcrypt.hashSync('1234', 10);
   const placeholder = bcrypt.hashSync(randomBytes(16).toString('hex'), 10);

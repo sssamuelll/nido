@@ -32,15 +32,34 @@ const getLegacyPersonKey = (user: { username?: string; email?: string | null } |
 const getPersonalBudgetForUser = (budget: BudgetRow | typeof defaultBudgetResponse, user: { username?: string; email?: string | null }): number =>
   getLegacyPersonKey(user) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
-// Get budget for a specific month
-router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
-  const month = req.validatedMonth as string;
-  
+// Get budget — supports month (legacy) or cycle_id (cycle-based)
+router.get('/', async (req: AuthRequest, res) => {
+  const month = req.query.month as string | undefined;
+  const cycleId = req.query.cycle_id ? Number(req.query.cycle_id) : undefined;
+
+  if (!month && !cycleId) {
+    return res.status(400).json({ error: 'Either month or cycle_id is required' });
+  }
+
   try {
     const db = getDatabase();
-    const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+    let budget: BudgetRow | undefined;
+    if (cycleId) {
+      budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE cycle_id = ?', cycleId);
+    }
+    if (!budget && month) {
+      budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
+    }
     const budgetContext = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
-    const categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ? AND context = ?', month, budgetContext);
+    let categoryBudgets: CategoryBudgetRow[];
+    if (cycleId) {
+      categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE cycle_id = ? AND context = ?', cycleId, budgetContext);
+      if (categoryBudgets.length === 0 && month) {
+        categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ? AND context = ?', month, budgetContext);
+      }
+    } else {
+      categoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ? AND context = ?', month, budgetContext);
+    }
     const pendingApproval = await db.get(`
       SELECT ba.*, au.username as requested_by_username 
       FROM budget_approvals ba
@@ -71,19 +90,29 @@ router.get('/', validateMonthParam, async (req: AuthRequest, res) => {
 });
 
 // Update budget (personal or request shared change)
-router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
-  const { month, shared_available, personal_budget, categories, context: budgetContext } = req.validatedData as BudgetInput;
+router.put('/', async (req: AuthRequest, res) => {
+  const { month, shared_available, personal_budget, categories, context: budgetContext, cycle_id } = req.body;
   const username = req.user!.username;
+
+  if (!month && !cycle_id) {
+    return res.status(400).json({ error: 'Either month or cycle_id is required' });
+  }
 
   try {
     const db = getDatabase();
-    let budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
-    
+    let budget: any;
+    if (cycle_id) {
+      budget = await db.get('SELECT * FROM budgets WHERE cycle_id = ?', cycle_id);
+    }
+    if (!budget && month) {
+      budget = await db.get('SELECT * FROM budgets WHERE month = ?', month);
+    }
+
     if (!budget) {
       const result = await db.run(`
-        INSERT INTO budgets (month, shared_available, personal_samuel, personal_maria)
-        VALUES (?, ?, ?, ?)
-      `, month, defaultBudgetResponse.shared_available, defaultBudgetResponse.personal_samuel, defaultBudgetResponse.personal_maria);
+        INSERT INTO budgets (month, shared_available, personal_samuel, personal_maria, cycle_id)
+        VALUES (?, ?, ?, ?, ?)
+      `, month || '', defaultBudgetResponse.shared_available, defaultBudgetResponse.personal_samuel, defaultBudgetResponse.personal_maria, cycle_id || null);
       budget = await db.get('SELECT * FROM budgets WHERE id = ?', result.lastID);
     }
 
@@ -121,15 +150,31 @@ router.put('/', validate(budgetUpdateSchema), async (req: AuthRequest, res) => {
       const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
       for (const [category, amount] of Object.entries(categories)) {
         const ownerUserId = ctx === 'personal' ? req.user!.id : null;
-        await db.run(`
-          INSERT INTO category_budgets (month, category, amount, context, owner_user_id)
-          VALUES (?, ?, ?, ?, ?)
-          ON CONFLICT(month, category, context, owner_user_id) DO UPDATE SET amount = excluded.amount
-        `, month, category, amount, ctx, ownerUserId);
+        if (cycle_id) {
+          // Cycle-based: upsert by cycle_id
+          const existing = await db.get(
+            'SELECT id FROM category_budgets WHERE cycle_id = ? AND category = ? AND context = ? AND owner_user_id IS ?',
+            cycle_id, category, ctx, ownerUserId
+          );
+          if (existing) {
+            await db.run('UPDATE category_budgets SET amount = ? WHERE id = ?', amount, existing.id);
+          } else {
+            await db.run(
+              'INSERT INTO category_budgets (month, category, amount, context, owner_user_id, cycle_id) VALUES (?, ?, ?, ?, ?, ?)',
+              month || '', category, amount, ctx, ownerUserId, cycle_id
+            );
+          }
+        } else {
+          await db.run(`
+            INSERT INTO category_budgets (month, category, amount, context, owner_user_id)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(month, category, context, owner_user_id) DO UPDATE SET amount = excluded.amount
+          `, month, category, amount, ctx, ownerUserId);
+        }
       }
     }
 
-    await syncBudgetAllocationsForMonth(month);
+    if (month) await syncBudgetAllocationsForMonth(month);
     res.json({ success: true, pending_approval: shared_available !== undefined && shared_available !== budget.shared_available });
   } catch (error) {
     console.error('Error updating budget:', error);
