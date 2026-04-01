@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -13,7 +13,6 @@ import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
-import { useMonthNavigation } from '../hooks/useMonthNavigation';
 import { useCategoryModal } from '../hooks/useCategoryModal';
 import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
@@ -61,6 +60,14 @@ interface DashboardData {
   recentTransactions: VisibleExpense[];
 }
 
+interface ActiveCycle {
+  id: number;
+  status: 'active' | 'pending';
+  start_date: string | null;
+  end_date: string | null;
+  started_at: string | null;
+}
+
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
@@ -79,10 +86,18 @@ const getRecentExpenseWindow = (expenses: VisibleExpense[], maxItems = 5, maxDay
     .slice(0, maxItems);
 };
 
+const formatCycleLabel = (cycle: ActiveCycle | null) => {
+  if (!cycle?.start_date) return 'Ciclo actual';
+  const d = new Date(cycle.start_date + 'T12:00:00');
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `Desde ${d.getDate()} ${months[d.getMonth()]}`;
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
+  const [activeCycle, setActiveCycle] = useState<ActiveCycle | null>(null);
+  const [cycleLoaded, setCycleLoaded] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +107,9 @@ export const Dashboard: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
+
+  // Fallback month for when no cycle exists
+  const currentMonth = format(new Date(), 'yyyy-MM');
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -114,9 +132,17 @@ export const Dashboard: React.FC = () => {
   const animSpent = useCountUp(metricSpentTarget);
   const animAvg = useCountUp(metricAvgTarget);
 
+  // Load cycle first, then data
   useEffect(() => {
-    loadDashboardData();
-  }, [currentMonth]);
+    Api.getCurrentCycle()
+      .then((cycle: ActiveCycle | null) => setActiveCycle(cycle))
+      .catch(() => setActiveCycle(null))
+      .finally(() => setCycleLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    if (cycleLoaded) loadDashboardData();
+  }, [cycleLoaded, activeCycle?.id]);
 
   useEffect(() => {
     Api.getNotifications()
@@ -124,14 +150,28 @@ export const Dashboard: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const [summary, nextExpenses] = await Promise.all([
-        Api.getSummary(currentMonth),
-        Api.getExpenses(currentMonth),
-      ]);
+
+      let summary, nextExpenses;
+
+      if (activeCycle?.start_date) {
+        // Cycle-based: use date range
+        const range = { start_date: activeCycle.start_date, end_date: activeCycle.end_date ?? undefined };
+        [summary, nextExpenses] = await Promise.all([
+          Api.getSummary({ ...range, cycle_id: activeCycle.id }),
+          Api.getExpenses(range),
+        ]);
+      } else {
+        // No active cycle: fall back to current month
+        [summary, nextExpenses] = await Promise.all([
+          Api.getSummary(currentMonth),
+          Api.getExpenses(currentMonth),
+        ]);
+      }
+
       setData(summary);
       setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
     } catch {
@@ -139,7 +179,18 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeCycle, currentMonth]);
+
+  const handleCycleChanged = useCallback(async () => {
+    // Reload cycle state after approval
+    try {
+      const cycle = await Api.getCurrentCycle();
+      setActiveCycle(cycle);
+    } catch {
+      setActiveCycle(null);
+    }
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   if (loading) {
     return (
@@ -196,7 +247,7 @@ export const Dashboard: React.FC = () => {
   const personalCard = getPersonalBalanceCardModel(data);
 
   const normalizedUser = user?.username?.toLowerCase().trim() || '';
-  const userName = normalizedUser === 'maria' ? 'María' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
+  const userName = normalizedUser === 'maria' ? 'Maria' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
 
   // Group recent transactions by date for the date pill display
   const groupedTransactions: { date: string; items: VisibleExpense[] }[] = [];
@@ -219,9 +270,16 @@ export const Dashboard: React.FC = () => {
     const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
     if (dateStr === todayStr) return 'Hoy';
     if (dateStr === yesterdayStr) return 'Ayer';
-    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const days = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
     return `${days[d.getDay()]} ${d.getDate()}`;
   };
+
+  const cycleLabel = formatCycleLabel(activeCycle);
+
+  // For budget save: use cycle_id if available, otherwise month
+  const budgetSaveContext = activeCycle?.id
+    ? { cycle_id: activeCycle.id }
+    : { month: currentMonth };
 
   return (
     <>
@@ -231,7 +289,7 @@ export const Dashboard: React.FC = () => {
             <div className="couple-ring">🏠</div>
             <div>
               <h1>El Nido</h1>
-              <p style={{ fontSize: '13px', color: 'var(--ts)' }}>Samuel &amp; María — {formatMonthName(currentMonth)}</p>
+              <p style={{ fontSize: '13px', color: 'var(--ts)' }}>Samuel &amp; Maria &mdash; {cycleLabel}</p>
             </div>
           </div>
           <div className="dashboard__actions">
@@ -252,7 +310,7 @@ export const Dashboard: React.FC = () => {
         {/* Context Tabs */}
         <ContextTabs active={activeContext} onChange={setActiveContext} className="an d2" />
 
-        {/* Insight Strip — computed from real data */}
+        {/* Insight Strip */}
         <div className="dashboard__insight-strip an d3">
           <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -261,10 +319,10 @@ export const Dashboard: React.FC = () => {
             {activeContext === 'shared'
               ? (availableShared > 0 && totalSharedSpent > 0
                   ? <>Llevan <strong>€{totalSharedSpent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</strong> gastados de €{availableShared.toLocaleString('es-ES', { maximumFractionDigits: 0 })} compartidos</>
-                  : <>Sin gastos compartidos este mes</>)
+                  : <>Sin gastos compartidos en este ciclo</>)
               : (toNum(data?.personal?.budget) > 0
                   ? <>Llevas <strong>€{toNum(data?.personal?.spent).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</strong> gastados de tu presupuesto personal</>
-                  : <>Sin gastos personales este mes</>)}
+                  : <>Sin gastos personales en este ciclo</>)}
           </span>
         </div>
 
@@ -287,12 +345,12 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(52,211,153,.15)' } as React.CSSProperties}>
             <div className="accent-bar" style={{ background: '#34D399', boxShadow: '0 0 8px #34D399' }} />
-            <div className="label">Gastado este mes</div>
+            <div className="label">Gastado este ciclo</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
               €{animSpent.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
-              {activeContext === 'shared' ? sharedMonthTransactions.length : personalTxCountRaw} gastos este mes
+              {activeContext === 'shared' ? sharedMonthTransactions.length : personalTxCountRaw} gastos este ciclo
             </div>
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(167,139,250,.15)' } as React.CSSProperties}>
@@ -309,13 +367,13 @@ export const Dashboard: React.FC = () => {
 
         {/* Bottom split */}
         <div className="dashboard__bottom">
-          {/* Budget section — 1:1 design reference */}
+          {/* Budget section */}
           <div className="card an d4">
             <div className="sh">
               <div className="st">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
             </div>
             {categoryBreakdown.length === 0 ? (
-              <div className="empty-view">Sin datos de categorías</div>
+              <div className="empty-view">Sin datos de categorias</div>
             ) : (
               categoryBreakdown.filter(cat => toNum(cat?.budget) > 0).map(cat => {
                 const catDef = getCategoryDef(cat.category);
@@ -330,7 +388,7 @@ export const Dashboard: React.FC = () => {
                     key={cat.category}
                     className="budget-item"
                     style={{ width: '100%', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
-                    onClick={() => navigate('/history', { state: { initialContext: activeContext, initialCategory: cat.category, initialMonth: currentMonth } })}
+                    onClick={() => navigate('/history', { state: { initialContext: activeContext, initialCategory: cat.category } })}
                   >
                     <div className="icon-c" style={{ background: iconBg }}>
                       {emoji
@@ -357,11 +415,11 @@ export const Dashboard: React.FC = () => {
             )}
             <div className="add-cat-row" onClick={catModal.openAdd}>
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>
-              {' '}Añadir categoría
+              {' '}Añadir categoria
             </div>
           </div>
 
-          <RecurringSection userId={user?.id ?? 0} onCycleApproved={loadDashboardData} />
+          <RecurringSection userId={user?.id ?? 0} onCycleApproved={handleCycleChanged} />
 
           {/* Recent Transactions section */}
           <div className="card dashboard__section an d5">
@@ -433,7 +491,7 @@ export const Dashboard: React.FC = () => {
           onBudgetChange={catModal.setBudget}
           onClose={catModal.close}
           onSave={() => catModal.save({
-            month: currentMonth,
+            ...budgetSaveContext,
             context: activeContext,
             categoryBreakdown: categoryBreakdown.map(c => ({ category: c.category, budget: toNum(c.budget) })),
             categories,

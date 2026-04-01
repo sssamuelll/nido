@@ -361,6 +361,11 @@ export const initDatabase = async () => {
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_cycle_id ON billing_cycle_approvals(cycle_id)');
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_user_id ON billing_cycle_approvals(user_id)');
 
+  // Cycle-based architecture: cycles track start_date, budgets link to cycles
+  await ensureColumn(database, 'billing_cycles', 'start_date', 'TEXT');
+  await ensureColumn(database, 'budgets', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
+  await ensureColumn(database, 'category_budgets', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
+
   // Seed users (password column kept for schema compatibility; auth is via magic link)
   const hashedPin = bcrypt.hashSync('1234', 10);
   const placeholder = bcrypt.hashSync(randomBytes(16).toString('hex'), 10);
@@ -414,12 +419,17 @@ export const initDatabase = async () => {
   // Ensure primary household exists (no default categories seeded — users create their own)
   const householdId = await ensurePrimaryHousehold(database);
 
-  // Migration: remove seeded default categories that were auto-created
-  const seededNames = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
-  await database.run(
-    `DELETE FROM categories WHERE household_id = ? AND name IN (${seededNames.map(() => '?').join(',')})`,
-    [householdId, ...seededNames]
-  );
+  // Migration: remove seeded default categories (run once, guarded by flag)
+  await database.exec(`CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+  const alreadyRan = await database.get<{ name: string }>(`SELECT name FROM migrations WHERE name = 'remove_seeded_categories'`);
+  if (!alreadyRan) {
+    const seededNames = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+    await database.run(
+      `DELETE FROM categories WHERE household_id = ? AND name IN (${seededNames.map(() => '?').join(',')})`,
+      [householdId, ...seededNames]
+    );
+    await database.run(`INSERT INTO migrations (name) VALUES ('remove_seeded_categories')`);
+  }
   await syncAppUsersFromLegacyUsers(database, householdId);
   await backfillExpenseUserIds(database);
   await syncBudgetAllocations(database);
