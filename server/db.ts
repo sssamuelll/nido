@@ -414,12 +414,17 @@ export const initDatabase = async () => {
   // Ensure primary household exists (no default categories seeded — users create their own)
   const householdId = await ensurePrimaryHousehold(database);
 
-  // Migration: remove seeded default categories that were auto-created
-  const seededNames = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
-  await database.run(
-    `DELETE FROM categories WHERE household_id = ? AND name IN (${seededNames.map(() => '?').join(',')})`,
-    [householdId, ...seededNames]
-  );
+  // Migration: remove seeded default categories (run once, guarded by flag)
+  await database.exec(`CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, applied_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+  const alreadyRan = await database.get<{ name: string }>(`SELECT name FROM migrations WHERE name = 'remove_seeded_categories'`);
+  if (!alreadyRan) {
+    const seededNames = ['Restaurant', 'Gastos', 'Servicios', 'Ocio', 'Inversión', 'Otros'];
+    await database.run(
+      `DELETE FROM categories WHERE household_id = ? AND name IN (${seededNames.map(() => '?').join(',')})`,
+      [householdId, ...seededNames]
+    );
+    await database.run(`INSERT INTO migrations (name) VALUES ('remove_seeded_categories')`);
+  }
   await syncAppUsersFromLegacyUsers(database, householdId);
   await backfillExpenseUserIds(database);
   await syncBudgetAllocations(database);
