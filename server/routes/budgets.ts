@@ -68,7 +68,7 @@ router.get('/', async (req: AuthRequest, res) => {
     `, budget?.id);
     
     const response: BudgetRow | (typeof defaultBudgetResponse & { month: string; id?: undefined }) = budget || {
-      month,
+      month: month || '',
       ...defaultBudgetResponse
     };
 
