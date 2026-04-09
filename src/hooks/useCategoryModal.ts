@@ -78,9 +78,12 @@ export const useCategoryModal = () => {
     onSuccess: () => void;
   }) => {
     const existingCat = opts.categories.find(c => c.name === originalName);
-    if (!existingCat?.id) { showToast('No se puede eliminar esta categoría'); return; }
     try {
-      await Api.deleteCategory(existingCat.id);
+      if (existingCat?.id) {
+        await Api.deleteCategory(existingCat.id);
+      } else {
+        await Api.deleteCategoryByName(originalName);
+      }
       setShowModal(false);
       opts.onSuccess();
       showToast('Categoría eliminada');
