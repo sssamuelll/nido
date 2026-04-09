@@ -32,6 +32,17 @@ const getLegacyPersonKey = (user: { username?: string; email?: string | null } |
 const getPersonalBudgetForUser = (budget: BudgetRow | typeof defaultBudgetResponse, user: { username?: string; email?: string | null }): number =>
   getLegacyPersonKey(user) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
+// Get the most recent month that has a budget
+router.get('/latest-month', async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    const row = await db.get<{ month: string }>('SELECT month FROM budgets ORDER BY month DESC LIMIT 1');
+    res.json({ month: row?.month ?? null });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch latest budget month' });
+  }
+});
+
 // Get budget — supports month (legacy) or cycle_id (cycle-based)
 router.get('/', async (req: AuthRequest, res) => {
   const month = req.query.month as string | undefined;
