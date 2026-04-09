@@ -176,11 +176,19 @@ router.put('/', async (req: AuthRequest, res) => {
             );
           }
         } else {
-          await db.run(`
-            INSERT INTO category_budgets (month, category, amount, context, owner_user_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(month, category, context, owner_user_id) DO UPDATE SET amount = excluded.amount
-          `, month, category, amount, ctx, ownerUserId);
+          // Manual upsert: ON CONFLICT doesn't match NULL owner_user_id in SQLite
+          const existing = await db.get(
+            'SELECT id FROM category_budgets WHERE month = ? AND category = ? AND context = ? AND owner_user_id IS ?',
+            month, category, ctx, ownerUserId
+          );
+          if (existing) {
+            await db.run('UPDATE category_budgets SET amount = ? WHERE id = ?', amount, existing.id);
+          } else {
+            await db.run(
+              'INSERT INTO category_budgets (month, category, amount, context, owner_user_id) VALUES (?, ?, ?, ?, ?)',
+              month, category, amount, ctx, ownerUserId
+            );
+          }
         }
       }
     }
