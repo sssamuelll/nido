@@ -51,7 +51,6 @@ export const PersonalDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const chartGradientId = useId();
-  const currentMonth = format(new Date(), 'yyyy-MM');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [budget, setBudget] = useState<VisibleBudgetFormData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
@@ -65,22 +64,25 @@ export const PersonalDashboard: React.FC = () => {
         setLoading(true);
         setError('');
 
-        // Try cycle-based loading first
-        const cycle = await Api.getCurrentCycle().catch(() => null);
+        const [cycle, latestBudget] = await Promise.all([
+          Api.getCurrentCycle().catch(() => null),
+          Api.getLatestBudgetMonth().catch(() => ({ month: null })),
+        ]);
+        const month = latestBudget?.month ?? format(new Date(), 'yyyy-MM');
 
         let nextSummary, nextBudget, nextExpenses;
         if (cycle?.start_date) {
           const range = { start_date: cycle.start_date, end_date: cycle.end_date ?? undefined };
           [nextSummary, nextBudget, nextExpenses] = await Promise.all([
             Api.getSummary({ ...range, cycle_id: cycle.id }),
-            Api.getBudget({ cycle_id: cycle.id, month: currentMonth }),
+            Api.getBudget({ cycle_id: cycle.id, month }),
             Api.getExpenses(range),
           ]);
         } else {
           [nextSummary, nextBudget, nextExpenses] = await Promise.all([
-            Api.getSummary(currentMonth),
-            Api.getBudget(currentMonth),
-            Api.getExpenses(currentMonth),
+            Api.getSummary(month),
+            Api.getBudget(month),
+            Api.getExpenses(month),
           ]);
         }
 
