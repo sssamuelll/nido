@@ -45,10 +45,12 @@ jobs:
             package.json package-lock.json \
             ubuntu@${HOST}:/var/www/nido/
 
-          # Install production deps & restart
+          # Install production deps, fix service path if needed, & restart
           ssh -i ~/.ssh/deploy_key ubuntu@${HOST} "
             cd /var/www/nido &&
             npm ci --production &&
+            sudo sed -i 's|server/dist/server/index.js|server/index.js|' /etc/systemd/system/nido.service &&
+            sudo systemctl daemon-reload &&
             sudo systemctl restart nido
           "
 
