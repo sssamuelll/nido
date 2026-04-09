@@ -212,6 +212,10 @@ export class Api {
     });
   }
 
+  static async getLatestBudgetMonth(): Promise<{ month: string | null }> {
+    return this.request('/budgets/latest-month');
+  }
+
   static async getBudget(month: string): Promise<any>;
   static async getBudget(opts: { cycle_id: number; month?: string }): Promise<any>;
   static async getBudget(arg: string | { cycle_id: number; month?: string }) {

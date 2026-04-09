@@ -108,8 +108,8 @@ export const Dashboard: React.FC = () => {
   const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
 
-  // Fallback month for when no cycle exists
-  const currentMonth = format(new Date(), 'yyyy-MM');
+  // Fallback month: latest budget month, or current month if none exists
+  const [fallbackMonth, setFallbackMonth] = useState(format(new Date(), 'yyyy-MM'));
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -134,10 +134,14 @@ export const Dashboard: React.FC = () => {
 
   // Load cycle first, then data
   useEffect(() => {
-    Api.getCurrentCycle()
-      .then((cycle: ActiveCycle | null) => setActiveCycle(cycle))
-      .catch(() => setActiveCycle(null))
-      .finally(() => setCycleLoaded(true));
+    Promise.all([
+      Api.getCurrentCycle().catch(() => null),
+      Api.getLatestBudgetMonth().catch(() => ({ month: null })),
+    ]).then(([cycle, latest]) => {
+      setActiveCycle(cycle);
+      if (latest?.month) setFallbackMonth(latest.month);
+      setCycleLoaded(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -165,10 +169,10 @@ export const Dashboard: React.FC = () => {
           Api.getExpenses(range),
         ]);
       } else {
-        // No active cycle: fall back to current month
+        // No active cycle: fall back to latest budget month
         [summary, nextExpenses] = await Promise.all([
-          Api.getSummary(currentMonth),
-          Api.getExpenses(currentMonth),
+          Api.getSummary(fallbackMonth),
+          Api.getExpenses(fallbackMonth),
         ]);
       }
 
@@ -179,7 +183,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeCycle, currentMonth]);
+  }, [activeCycle, fallbackMonth]);
 
   const handleCycleChanged = useCallback(async () => {
     // Reload cycle state after approval
@@ -279,7 +283,7 @@ export const Dashboard: React.FC = () => {
   // For budget save: use cycle_id if available, otherwise month
   const budgetSaveContext = activeCycle?.id
     ? { cycle_id: activeCycle.id }
-    : { month: currentMonth };
+    : { month: fallbackMonth };
 
   return (
     <>
