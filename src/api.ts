@@ -212,6 +212,12 @@ export class Api {
     });
   }
 
+  static async deleteCategoryByName(name: string) {
+    return this.request(`/categories/by-name/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+  }
+
   static async getLatestBudgetMonth(): Promise<{ month: string | null }> {
     return this.request('/budgets/latest-month');
   }

@@ -343,6 +343,26 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
   }
 });
 
+app.delete('/api/categories/by-name/:name', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const name = decodeURIComponent(req.params.name);
+
+    await db.run('DELETE FROM categories WHERE household_id = ? AND name = ?', user.household_id, name);
+    await db.run('DELETE FROM category_budgets WHERE month IN (SELECT month FROM category_budgets) AND category = ? AND context = ? AND owner_user_id IS NULL',
+      name, 'shared');
+
+    await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categoría eliminada',
+      `{name} eliminó la categoría "${name}"`, { category_name: name });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+});
+
 app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
@@ -350,8 +370,9 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
     const existing = await db.get<{ name: string; emoji: string }>('SELECT name, emoji FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
     await db.run('DELETE FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
 
-    // Notify partner
     if (existing) {
+      await db.run('DELETE FROM category_budgets WHERE category = ? AND context = ? AND owner_user_id IS NULL',
+        existing.name, 'shared');
       await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categoría eliminada',
         `{name} eliminó la categoría "${existing.name}" ${existing.emoji}`, { category_name: existing.name });
     }
