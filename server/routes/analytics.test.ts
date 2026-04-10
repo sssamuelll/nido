@@ -70,21 +70,21 @@ describe('analytics routes', () => {
       categoryBudgets = [],
     } = overrides;
 
-    // We need to set up mocks in the order the handler calls them:
-    // 1. db.all - monthly totals
-    // 2. db.get - current month total
-    // 3. db.get - current month count
-    // 4. db.get - prev month total
-    // 5. db.get - budget
-    // 6. db.all - category breakdown
-    // 7. db.get - household user
-    // 8. db.all - category colors
-    // 9. db.all - category budgets
+    // Call order in the handler (analytics.ts):
+    // 1. db.all  - monthly totals
+    // 2. db.get  - current month total
+    // 3. db.get  - current month count
+    // 4. db.get  - prev month total
+    // 5. db.get  - householdUser (app_users)
+    // 6. db.get  - budget (household_budget)
+    // 7. db.all  - category breakdown
+    // 8. db.all  - category colors (if householdId)
+    // 9. db.all  - category budgets (if householdId)
     // Then variable number of db.get calls for anomaly/streak insights
 
     mockDb.all
       .mockResolvedValueOnce(monthlyRows)       // 1. monthly totals
-      .mockResolvedValueOnce(categoryRows)       // 6. category breakdown
+      .mockResolvedValueOnce(categoryRows)       // 7. category breakdown
       .mockResolvedValueOnce(categoryColors)     // 8. category colors
       .mockResolvedValueOnce(categoryBudgets);   // 9. category budgets
 
@@ -92,8 +92,8 @@ describe('analytics routes', () => {
       .mockResolvedValueOnce({ total: currentMonthTotal })  // 2. current month total
       .mockResolvedValueOnce({ count: currentMonthCount })  // 3. current month count
       .mockResolvedValueOnce({ total: prevMonthTotal })     // 4. prev month total
-      .mockResolvedValueOnce(budget)                        // 5. budget
-      .mockResolvedValueOnce(householdUser);                // 7. household user
+      .mockResolvedValueOnce(householdUser)                 // 5. household user
+      .mockResolvedValueOnce(budget);                       // 6. budget
   };
 
   describe('GET /', () => {
@@ -124,7 +124,7 @@ describe('analytics routes', () => {
         currentMonthTotal: 600,
         currentMonthCount: 20,
         prevMonthTotal: 800,
-        budget: { shared_available: 2000, personal_samuel: 500, personal_maria: 500 },
+        budget: { total_amount: 2000, personal_samuel: 500, personal_maria: 500 },
       });
 
       const handler = getRouteHandler('/', 'get');
@@ -209,7 +209,7 @@ describe('analytics routes', () => {
         currentMonthCount: 15,
         prevMonthTotal: 450, // same, no positive trend
         categoryRows,
-        categoryBudgets: [{ category: 'Restaurant', amount: 500 }], // 450/500 = 90%
+        categoryBudgets: [{ name: 'Restaurant', budget_amount: 500 }], // 450/500 = 90%
       });
       // Anomaly queries
       mockDb.get.mockResolvedValueOnce({ total: 450 }); // historical avg

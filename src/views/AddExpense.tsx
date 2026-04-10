@@ -95,6 +95,7 @@ export const AddExpense: React.FC = () => {
         description,
         amount: parseFloat(amount),
         category,
+        category_id: categories.find(c => c.name === category)?.id,
         date: format(new Date(), 'yyyy-MM-dd'),
         type,
       });

@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { 
-  monthSchema, 
-  dateSchema, 
-  expenseCreateSchema, 
-  expenseUpdateSchema, 
-  budgetUpdateSchema 
+import {
+  monthSchema,
+  dateSchema,
+  expenseCreateSchema,
+  expenseUpdateSchema,
 } from './validation.js';
 
 describe('Validation Schemas', () => {
@@ -110,65 +109,4 @@ describe('Validation Schemas', () => {
     });
   });
 
-  describe('budgetUpdateSchema', () => {
-    const validBudget = {
-      month: '2024-12',
-      shared_available: 2000,
-      personal_budget: 500
-    };
-
-    it('should validate correct budget', () => {
-      expect(budgetUpdateSchema.safeParse(validBudget).success).toBe(true);
-    });
-
-    it('should reject negative shared_available', () => {
-      const invalid = { ...validBudget, shared_available: -100 };
-      expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
-    });
-
-    it('should accept zero shared_available', () => {
-      const valid = { ...validBudget, shared_available: 0 };
-      expect(budgetUpdateSchema.safeParse(valid).success).toBe(true);
-    });
-
-    it('should reject negative personal values', () => {
-      const invalid = { ...validBudget, personal_budget: -10 };
-      expect(budgetUpdateSchema.safeParse(invalid).success).toBe(false);
-    });
-
-    it('should accept all optional fields', () => {
-      const full = {
-        month: '2024-12',
-        shared_available: 2000,
-        personal_budget: 500,
-        personal_samuel: 450,
-        personal_maria: 550,
-        categories: { Restaurant: 200 }
-      };
-      expect(budgetUpdateSchema.safeParse(full).success).toBe(true);
-    });
-
-    it('should coerce string numbers', () => {
-      const withStrings = {
-        month: '2024-12',
-        shared_available: '2000',
-        personal_budget: '500'
-      };
-      const result = budgetUpdateSchema.safeParse(withStrings);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.shared_available).toBe(2000);
-      }
-    });
-
-    it('should accept legacy personal_samuel/personal_maria payload', () => {
-      const legacyBudget = {
-        month: '2024-12',
-        personal_samuel: 500,
-        personal_maria: 500,
-      };
-
-      expect(budgetUpdateSchema.safeParse(legacyBudget).success).toBe(true);
-    });
-  });
 });

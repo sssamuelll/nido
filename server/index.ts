@@ -23,7 +23,7 @@ import {
   revokeAppSession,
 } from './auth.js';
 import expensesRouter from './routes/expenses.js';
-import budgetsRouter from './routes/budgets.js';
+import householdBudgetRouter from './routes/household-budget.js';
 import goalsRouter from './routes/goals.js';
 import analyticsRouter from './routes/analytics.js';
 import notificationsRouter from './routes/notifications.js';
@@ -245,7 +245,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/expenses', authenticateToken, apiLimiter, expensesRouter);
-app.use('/api/budgets', authenticateToken, apiLimiter, budgetsRouter);
+app.use('/api/household/budget', authenticateToken, apiLimiter, householdBudgetRouter);
 app.use('/api/goals', authenticateToken, apiLimiter, goalsRouter);
 app.use('/api/analytics', authenticateToken, apiLimiter, analyticsRouter);
 app.use('/api/notifications', authenticateToken, apiLimiter, notificationsRouter);
@@ -256,85 +256,92 @@ app.use('/api/cycles', authenticateToken, apiLimiter, cyclesRouter);
 app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const householdId = (await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id))?.household_id;
+    const user = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
     const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
 
-    const registered = await db.all<Array<{ id: number; name: string; emoji: string; color: string; context: string; owner_user_id?: number | null }>>(
-      context === 'personal'
-        ? `SELECT * FROM categories
-           WHERE household_id = ? AND context = 'personal' AND owner_user_id = ?`
-        : `SELECT * FROM categories
+    const categories = context === 'personal'
+      ? await db.all<Array<{ id: number; name: string; emoji: string; color: string; budget_amount: number; context: string }>>(
+          `SELECT id, name, emoji, color, budget_amount, context FROM categories
+           WHERE household_id = ? AND context = 'personal' AND owner_user_id = ?`,
+          user.household_id, req.user!.id
+        )
+      : await db.all<Array<{ id: number; name: string; emoji: string; color: string; budget_amount: number; context: string }>>(
+          `SELECT id, name, emoji, color, budget_amount, context FROM categories
            WHERE household_id = ? AND context = 'shared' AND owner_user_id IS NULL`,
-      ...(context === 'personal' ? [householdId, req.user!.id] : [householdId])
-    );
+          user.household_id
+        );
 
-    const budgetCats = await db.all<Array<{ category: string }>>(
-      context === 'personal'
-        ? `SELECT DISTINCT category FROM category_budgets
-           WHERE amount > 0 AND context = 'personal' AND owner_user_id = ?`
-        : `SELECT DISTINCT category FROM category_budgets
-           WHERE amount > 0 AND context = 'shared' AND owner_user_id IS NULL`,
-      ...(context === 'personal' ? [req.user!.id] : [])
-    );
-
-    const expenseCats = await db.all<Array<{ category: string }>>(
-      context === 'personal'
-        ? `SELECT DISTINCT category FROM expenses
-           WHERE category IS NOT NULL AND type = 'personal' AND (paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))`
-        : `SELECT DISTINCT category FROM expenses
-           WHERE category IS NOT NULL AND type = 'shared'`,
-      ...(context === 'personal' ? [req.user!.id, req.user!.username] : [])
-    );
-
-    const candidateNames = Array.from(new Set([
-      ...registered.map(c => c.name),
-      ...budgetCats.map(b => b.category),
-      ...expenseCats.map(e => e.category),
-    ]));
-
-    const all = candidateNames.map((name) => {
-      const personalMatch = registered.find(c => c.name === name && c.context === 'personal' && c.owner_user_id === req.user!.id);
-      const sharedMatch = registered.find(c => c.name === name && c.context === 'shared' && (c.owner_user_id == null));
-      const match = personalMatch || sharedMatch;
-      return match ?? { id: 0, name, emoji: '📂', color: '#6B7280' };
-    });
-
-    res.json(all);
+    res.json(categories);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
 
 app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
-  const { name, emoji, color, id, context } = req.body;
+  const { name, emoji, color, id, budget_amount, context } = req.body;
   if (!name || !emoji || !color) return res.status(400).json({ error: 'Name, emoji and color are required' });
 
   try {
     const db = getDatabase();
-    const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    const user = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
     if (!user) return res.status(404).json({ error: 'User not found' });
+
     const nextContext = context === 'personal' ? 'personal' : 'shared';
     const ownerUserId = nextContext === 'personal' ? req.user!.id : null;
-    
+    const budgetAmt = typeof budget_amount === 'number' ? budget_amount : 0;
+
+    // Validate budget overflow for shared categories
+    if (nextContext === 'shared' && budgetAmt > 0) {
+      const householdBudget = await db.get<{ total_amount: number }>(
+        'SELECT total_amount FROM household_budget WHERE household_id = ?',
+        user.household_id
+      );
+      if (householdBudget) {
+        const excludeId = (id && id !== 0) ? id : -1;
+        const otherAllocated = await db.get<{ total: number }>(
+          `SELECT COALESCE(SUM(budget_amount), 0) AS total
+           FROM categories
+           WHERE context = 'shared' AND owner_user_id IS NULL AND household_id = ? AND id != ?`,
+          user.household_id, excludeId
+        );
+        const totalAllocated = (otherAllocated?.total ?? 0) + budgetAmt;
+        if (totalAllocated > householdBudget.total_amount) {
+          return res.status(400).json({
+            error: `El total asignado a categorías (${totalAllocated}) excede el presupuesto (${householdBudget.total_amount})`,
+          });
+        }
+      }
+    }
+
     if (id && id !== 0) {
       await db.run(
-        `UPDATE categories SET name = ?, emoji = ?, color = ?
-         WHERE id = ? AND household_id = ? AND ((context = 'personal' AND owner_user_id = ?) OR (context = 'shared' AND owner_user_id IS NULL))`,
-        name, emoji, color, id, user.household_id, req.user!.id
+        `UPDATE categories SET name = ?, emoji = ?, color = ?, budget_amount = ?
+         WHERE id = ? AND household_id = ?
+         AND ((context = 'personal' AND owner_user_id = ?) OR (context = 'shared' AND owner_user_id IS NULL))`,
+        name, emoji, color, budgetAmt, id, user.household_id, req.user!.id
       );
     } else {
       await db.run(
-        `INSERT INTO categories (household_id, name, emoji, color, context, owner_user_id)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(household_id, name) DO UPDATE SET emoji = excluded.emoji, color = excluded.color`,
-        user.household_id, name, emoji, color, nextContext, ownerUserId
+        `INSERT INTO categories (household_id, name, emoji, color, budget_amount, context, owner_user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(household_id, name, context, COALESCE(owner_user_id, -1))
+         DO UPDATE SET emoji = excluded.emoji, color = excluded.color, budget_amount = excluded.budget_amount`,
+        user.household_id, name, emoji, color, budgetAmt, nextContext, ownerUserId
       );
     }
 
     await notifyPartner(req.user!.id, req.user!.username,
       id ? 'category_updated' : 'category_created',
-      id ? 'Categoría editada' : 'Nueva categoría',
-      `{name} ${id ? 'editó' : 'creó'} la categoría "${name}" ${emoji}`,
+      id ? 'Categor\u00EDa editada' : 'Nueva categor\u00EDa',
+      `{name} ${id ? 'edit\u00F3' : 'cre\u00F3'} la categor\u00EDa "${name}" ${emoji}`,
       { category_name: name });
 
     res.json({ success: true });
@@ -343,38 +350,28 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
   }
 });
 
-app.delete('/api/categories/by-name/:name', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
-  try {
-    const db = getDatabase();
-    const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    const name = decodeURIComponent(req.params.name);
-
-    await db.run('DELETE FROM categories WHERE household_id = ? AND name = ?', user.household_id, name);
-    await db.run('DELETE FROM category_budgets WHERE month IN (SELECT month FROM category_budgets) AND category = ? AND context = ? AND owner_user_id IS NULL',
-      name, 'shared');
-
-    await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categoría eliminada',
-      `{name} eliminó la categoría "${name}"`, { category_name: name });
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete category' });
-  }
-});
-
 app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const user = await db.get('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-    const existing = await db.get<{ name: string; emoji: string }>('SELECT name, emoji FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
-    await db.run('DELETE FROM categories WHERE id = ? AND household_id = ?', req.params.id, user.household_id);
+    const user = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const existing = await db.get<{ name: string; emoji: string }>(
+      'SELECT name, emoji FROM categories WHERE id = ? AND household_id = ?',
+      req.params.id, user.household_id
+    );
+
+    await db.run(
+      'DELETE FROM categories WHERE id = ? AND household_id = ?',
+      req.params.id, user.household_id
+    );
 
     if (existing) {
-      await db.run('DELETE FROM category_budgets WHERE category = ? AND context = ? AND owner_user_id IS NULL',
-        existing.name, 'shared');
-      await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categoría eliminada',
-        `{name} eliminó la categoría "${existing.name}" ${existing.emoji}`, { category_name: existing.name });
+      await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categor\u00EDa eliminada',
+        `{name} elimin\u00F3 la categor\u00EDa "${existing.name}" ${existing.emoji}`, { category_name: existing.name });
     }
 
     res.json({ success: true });

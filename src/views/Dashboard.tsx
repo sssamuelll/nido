@@ -108,8 +108,7 @@ export const Dashboard: React.FC = () => {
   const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
 
-  // Fallback month: latest budget month, or current month if none exists
-  const [fallbackMonth, setFallbackMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const currentMonth = format(new Date(), 'yyyy-MM');
 
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
@@ -134,12 +133,8 @@ export const Dashboard: React.FC = () => {
 
   // Load cycle first, then data
   useEffect(() => {
-    Promise.all([
-      Api.getCurrentCycle().catch(() => null),
-      Api.getLatestBudgetMonth().catch(() => ({ month: null })),
-    ]).then(([cycle, latest]) => {
+    Api.getCurrentCycle().catch(() => null).then((cycle) => {
       setActiveCycle(cycle);
-      if (latest?.month) setFallbackMonth(latest.month);
       setCycleLoaded(true);
     });
   }, []);
@@ -169,10 +164,10 @@ export const Dashboard: React.FC = () => {
           Api.getExpenses(range),
         ]);
       } else {
-        // No active cycle: fall back to latest budget month
+        // No active cycle: fall back to current month
         [summary, nextExpenses] = await Promise.all([
-          Api.getSummary(fallbackMonth),
-          Api.getExpenses(fallbackMonth),
+          Api.getSummary(currentMonth),
+          Api.getExpenses(currentMonth),
         ]);
       }
 
@@ -183,7 +178,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeCycle, fallbackMonth]);
+  }, [activeCycle, currentMonth]);
 
   const handleCycleChanged = useCallback(async () => {
     // Reload cycle state after approval
@@ -279,11 +274,6 @@ export const Dashboard: React.FC = () => {
   };
 
   const cycleLabel = formatCycleLabel(activeCycle);
-
-  // For budget save: use cycle_id if available, otherwise month
-  const budgetSaveContext = activeCycle?.id
-    ? { cycle_id: activeCycle.id }
-    : { month: fallbackMonth };
 
   return (
     <>
@@ -408,7 +398,7 @@ export const Dashboard: React.FC = () => {
                     <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                       €{spent.toLocaleString('es-ES')} <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/ €{budget.toLocaleString('es-ES')}</small>
                     </div>
-                    <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); catModal.openEdit(cat.category, budget, getCategoryDef(cat.category)); }}>
+                    <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); const def = getCategoryDef(cat.category); if (def) catModal.openEdit(def); }}>
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                         <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                       </svg>
@@ -495,9 +485,7 @@ export const Dashboard: React.FC = () => {
           onBudgetChange={catModal.setBudget}
           onClose={catModal.close}
           onSave={() => catModal.save({
-            ...budgetSaveContext,
             context: activeContext,
-            categoryBreakdown: categoryBreakdown.map(c => ({ category: c.category, budget: toNum(c.budget) })),
             categories,
             onSuccess: () => { reloadCategories(); loadDashboardData(); },
           })}

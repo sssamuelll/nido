@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Api } from '../api';
 
 export interface CategoryDef {
-  id?: number;
+  id: number;
   name: string;
   emoji: string;
   color: string;
+  budget_amount: number;
   iconBg?: string;
 }
 
