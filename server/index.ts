@@ -7,21 +7,16 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
-import { z } from 'zod';
 import './config.js'; // Validate environment first
 import { getDatabase, initDatabase, notifyPartner } from './db.js';
 import {
   authenticateToken,
   AuthRequest,
   verifyPin,
-  sendMagicLink,
-  confirmMagicLink,
-  findOrCreateAppUserFromSupabase,
-  createAppSession,
-  setAppSessionCookie,
   clearAuthCookies,
   revokeAppSession,
 } from './auth.js';
+import passkeyAuthRouter from './routes/passkey-auth.js';
 import expensesRouter from './routes/expenses.js';
 import householdBudgetRouter from './routes/household-budget.js';
 import goalsRouter from './routes/goals.js';
@@ -37,31 +32,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.set('trust proxy', 1);
-const magicLinkSchema = z.object({
-  email: z.string().email(),
-});
-const sessionExchangeSchema = z.object({
-  accessToken: z.string().min(1),
-});
-const magicLinkConfirmSchema = z.object({
-  tokenHash: z.string().min(1),
-  type: z.string().min(1),
-});
 
 // Security Middleware
 app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
 }));
 app.use(cookieParser());
-
-// Rate limiting for the login endpoint
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Too many login attempts, please try again after 15 minutes' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 const csrfCheck = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
@@ -82,95 +58,8 @@ app.use(cors({
 app.use(express.json());
 app.use(csrfCheck);
 
-app.post('/api/auth/magic-link/start', loginLimiter, async (req, res) => {
-  const validation = magicLinkSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({ error: 'Email inválido' });
-  }
-
-  const result = await sendMagicLink(validation.data.email.trim().toLowerCase());
-
-  if (!result.success) {
-    if (result.reason === 'forbidden') {
-      return res.status(403).json({ error: 'Magic link no permitido para este email' });
-    }
-
-    if (result.reason === 'rate_limited') {
-      return res.status(429).json({ error: result.error });
-    }
-
-    if (result.reason === 'auth') {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    if ('status' in result) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    return res.status(502).json({ error: 'No se pudo enviar el magic link' });
-  }
-
-  res.json({ success: true, message: 'Si el email existe, recibirás un magic link enseguida.' });
-});
-
-app.post('/api/auth/session/exchange', loginLimiter, async (req, res) => {
-  const validation = sessionExchangeSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({ error: 'Access token inválido' });
-  }
-
-  const result = await findOrCreateAppUserFromSupabase(validation.data.accessToken);
-  if (!result.success) {
-    if (result.reason === 'forbidden') {
-      return res.status(403).json({ error: 'Supabase session is not allowed' });
-    }
-
-    if (result.reason === 'auth') {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    if ('status' in result) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    return res.status(502).json({ error: 'Supabase session exchange failed' });
-  }
-
-  const { sessionToken } = await createAppSession(result.user.id, req);
-  setAppSessionCookie(res, sessionToken);
-
-  res.json({ user: result.user });
-});
-
-app.post('/api/auth/magic-link/confirm', loginLimiter, async (req, res) => {
-  const validation = magicLinkConfirmSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({ error: 'Parámetros de confirmación inválidos' });
-  }
-
-  const confirmResult = await confirmMagicLink(validation.data.tokenHash, validation.data.type);
-  if (!confirmResult.success) {
-    return res.status(confirmResult.status).json({ error: confirmResult.error });
-  }
-
-  const result = await findOrCreateAppUserFromSupabase(confirmResult.accessToken);
-  if (!result.success) {
-    if (result.reason === 'forbidden') {
-      return res.status(403).json({ error: 'Supabase session is not allowed' });
-    }
-
-    if ('status' in result) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    return res.status(502).json({ error: 'Supabase session exchange failed' });
-  }
-
-  const { sessionToken } = await createAppSession(result.user.id, req);
-  setAppSessionCookie(res, sessionToken);
-
-  res.json({ user: result.user });
-});
+// Passkey auth routes (setup, login, register, invite)
+app.use('/api/auth', passkeyAuthRouter);
 
 const respondWithAuthenticatedUser = (req: AuthRequest, res: express.Response) => {
   res.json({ user: req.user });
