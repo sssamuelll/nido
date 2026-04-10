@@ -4,7 +4,6 @@ import { Api } from '../api';
 import { format } from 'date-fns';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
-import { useMonthNavigation } from '../hooks/useMonthNavigation';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
@@ -28,7 +27,7 @@ const PlusIcon = () => (
   </svg>
 );
 
-const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
+const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 type Expense = {
   id: number;
@@ -39,6 +38,15 @@ type Expense = {
   paid_by: string;
   type: 'shared' | 'personal';
   status?: 'paid' | 'pending';
+};
+
+type CycleInfo = {
+  id: number;
+  month: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  started_at: string | null;
 };
 
 /* Category color map matching design reference icon-c backgrounds */
@@ -68,9 +76,12 @@ const payerDisplayName = (p: string) => {
 export const History: React.FC = () => {
   const location = useLocation();
   const incomingState = (location.state ?? {}) as { initialContext?: 'shared' | 'personal'; initialCategory?: string };
-  const { currentMonth, navigateMonth, formatMonthName } = useMonthNavigation();
   const { activeContext, setActiveContext } = useContextSelector(incomingState.initialContext ?? 'shared');
   const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
+
+  // Cycle-based navigation state
+  const [cycles, setCycles] = useState<CycleInfo[]>([]);
+  const [cycleIndex, setCycleIndex] = useState(0); // 0 = most recent
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -89,9 +100,27 @@ export const History: React.FC = () => {
   const [cmdOpen, setCmdOpen] = useState(false);
   const cmdRef = useRef<HTMLDivElement>(null);
 
+  // Current cycle being viewed (null = all expenses)
+  const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
+
+  // Load cycles on mount
+  useEffect(() => {
+    const loadCycles = async () => {
+      try {
+        const data = await Api.listCycles();
+        setCycles(Array.isArray(data) ? data : []);
+      } catch {
+        // If listing fails, we still show all expenses
+        setCycles([]);
+      }
+    };
+    loadCycles();
+  }, []);
+
+  // Load expenses when cycle changes
   useEffect(() => {
     loadExpenses();
-  }, [currentMonth]);
+  }, [currentCycle?.id, cycles.length]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -107,13 +136,34 @@ export const History: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const data = await Api.getExpenses(currentMonth);
+      let data;
+      if (currentCycle?.start_date) {
+        data = await Api.getExpenses({
+          start_date: currentCycle.start_date,
+          end_date: currentCycle.end_date ?? undefined,
+        });
+      } else {
+        data = await Api.getExpenses();
+      }
       setExpenses(Array.isArray(data) ? data : []);
-    } catch (_err) {
+    } catch {
+      console.error('Failed to load expenses');
       setError('Error al cargar movimientos');
     } finally {
       setLoading(false);
     }
+  };
+
+  const navigateCycle = (dir: -1 | 1) => {
+    setCycleIndex(prev => Math.max(0, Math.min(cycles.length - 1, prev + dir)));
+  };
+
+  const getCycleLabel = () => {
+    if (!currentCycle) return 'Todos los gastos';
+    if (cycleIndex === 0 && currentCycle.status === 'active') return 'Ciclo actual';
+    if (!currentCycle.start_date) return 'Ciclo';
+    const d = new Date(currentCycle.start_date + 'T12:00:00');
+    return `Ciclo del ${d.getDate()} ${MONTHS[d.getMonth()]}`;
   };
 
   const filteredExpenses = expenses.filter(e => {
@@ -228,8 +278,7 @@ export const History: React.FC = () => {
     const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
     const d = new Date(dateStr + 'T12:00:00');
     const dayNum = d.getDate();
-    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    const monthName = monthNames[d.getMonth()];
+    const monthName = MONTHS[d.getMonth()];
     if (dateStr === today) return `Hoy — ${dayNum} ${monthName}`;
     if (dateStr === yesterday) return `Ayer — ${dayNum} ${monthName}`;
     return `${dayNum} ${monthName}`;
@@ -251,7 +300,11 @@ export const History: React.FC = () => {
 
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }} className="an d2 month-controls">
         <ContextTabs active={activeContext} onChange={setActiveContext} />
-        <MonthNavigator label={formatMonthName(currentMonth)} onPrev={() => navigateMonth(-1)} onNext={() => navigateMonth(1)} />
+        <MonthNavigator
+          label={getCycleLabel()}
+          onPrev={() => navigateCycle(1)}
+          onNext={() => navigateCycle(-1)}
+        />
       </div>
 
       <input
@@ -305,7 +358,7 @@ export const History: React.FC = () => {
         <div className="empty-view">
           <div className="empty-view__emoji">{searchTerm ? '🔍' : '📭'}</div>
           <div className="empty-view__text">
-            {searchTerm || selectedCategory ? 'No se encontraron resultados con los filtros actuales' : 'No hay gastos registrados en este mes'}
+            {searchTerm || selectedCategory ? 'No se encontraron resultados con los filtros actuales' : 'No hay gastos registrados'}
           </div>
         </div>
       ) : (
@@ -453,7 +506,7 @@ export const History: React.FC = () => {
                         setEditCategory(nextCategory);
                         setCategorySearch('');
                         setCmdOpen(false);
-                        showToast(`Usaremos “${nextCategory}” en este gasto.`);
+                        showToast(`Usaremos "${nextCategory}" en este gasto.`);
                       }}
                     >
                       <PlusIcon /> Usar &ldquo;{categorySearch.trim()}&rdquo;
