@@ -713,11 +713,6 @@ router.post('/pin-login', loginLimiter, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Username and PIN required' });
     }
 
-    const isValid = await verifyPin(username, pin);
-    if (!isValid) {
-      return res.status(401).json({ error: 'PIN incorrecto' });
-    }
-
     const db = getDatabase();
     const user = await db.get<{ id: number; username: string }>(
       'SELECT id, username FROM app_users WHERE username = ?',
@@ -725,6 +720,11 @@ router.post('/pin-login', loginLimiter, async (req: Request, res: Response) => {
     );
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isValid = await verifyPin(user.id, pin);
+    if (!isValid) {
+      return res.status(401).json({ error: 'PIN incorrecto' });
     }
 
     const { sessionToken } = await createAppSession(user.id, req);

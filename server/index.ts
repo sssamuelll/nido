@@ -75,10 +75,9 @@ app.post('/api/auth/verify-pin', authenticateToken, async (req: AuthRequest, res
   }
 
   const { pin } = validation.data;
-  const username = req.user!.username;
 
   try {
-    const isValid = await verifyPin(username, pin);
+    const isValid = await verifyPin(req.user!.id, pin);
     if (isValid) {
       res.json({ success: true });
     } else {
@@ -100,12 +99,14 @@ app.post('/api/auth/update-pin', authenticateToken, async (req: AuthRequest, res
   }
 
   const { pin } = validation.data;
-  const username = req.user!.username;
 
   try {
     const db = getDatabase();
     const hashedPin = bcrypt.hashSync(pin, 10);
-    await db.run('UPDATE users SET pin = ? WHERE username = ?', hashedPin, username);
+    await db.run(
+      `UPDATE users SET pin = ? WHERE id = (SELECT legacy_user_id FROM app_users WHERE id = ?)`,
+      hashedPin, req.user!.id
+    );
     res.json({ success: true, message: 'PIN actualizado correctamente' });
   } catch (error) {
     console.error('PIN update error:', error);
