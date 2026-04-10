@@ -16,12 +16,14 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().optional(),
 
-  // Auth – Supabase magic link (required)
+  // App URLs
   APP_BASE_URL: z.string().url().default('http://localhost:3100'),
-  SUPABASE_URL: z.string().url('SUPABASE_URL is required for magic link auth'),
-  SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY is required for magic link auth'),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  MAGIC_LINK_ALLOWED_EMAILS: z.string().optional(),
+  APP_ORIGIN: z.string().url().optional(),
+
+  // Auth – allowed email allowlist
+  ALLOWED_EMAILS: z.string().optional(),
+
+  // Session
   APP_SESSION_DAYS: z.string().regex(/^\d+$/).transform(Number).default('30'),
   APP_SESSION_COOKIE_NAME: z.string().min(1).default('nido_session'),
 
@@ -46,10 +48,8 @@ class Config {
         PORT: process.env.PORT,
         DATABASE_URL: process.env.DATABASE_URL,
         APP_BASE_URL: process.env.APP_BASE_URL,
-        SUPABASE_URL: process.env.SUPABASE_URL,
-        SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
-        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        MAGIC_LINK_ALLOWED_EMAILS: process.env.MAGIC_LINK_ALLOWED_EMAILS,
+        APP_ORIGIN: process.env.APP_ORIGIN,
+        ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
         APP_SESSION_DAYS: process.env.APP_SESSION_DAYS,
         APP_SESSION_COOKIE_NAME: process.env.APP_SESSION_COOKIE_NAME,
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
@@ -102,23 +102,13 @@ class Config {
     return this.config.APP_BASE_URL;
   }
 
-  get supabaseUrl(): string {
-    return this.config.SUPABASE_URL;
+  get appOrigin(): string {
+    return this.config.APP_ORIGIN ?? this.config.APP_BASE_URL;
   }
 
-  get supabaseAnonKey(): string {
-    return this.config.SUPABASE_ANON_KEY;
-  }
-
-  get supabaseServiceRoleKey(): string | undefined {
-    return this.config.SUPABASE_SERVICE_ROLE_KEY;
-  }
-
-  get magicLinkAllowedEmails(): string[] {
-    return (this.config.MAGIC_LINK_ALLOWED_EMAILS ?? '')
-      .split(',')
-      .map(email => email.trim().toLowerCase())
-      .filter(Boolean);
+  get allowedEmails(): string[] {
+    return (this.config.ALLOWED_EMAILS ?? '')
+      .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
   }
 
   get appSessionDays(): number {
@@ -160,10 +150,8 @@ export const {
   port,
   databaseUrl,
   appBaseUrl,
-  supabaseUrl,
-  supabaseAnonKey,
-  supabaseServiceRoleKey,
-  magicLinkAllowedEmails,
+  appOrigin,
+  allowedEmails,
   appSessionDays,
   appSessionCookieName,
   allowedOrigins,

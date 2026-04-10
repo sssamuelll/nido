@@ -47,7 +47,7 @@ export class Api {
         endpoint !== '/auth/verify-pin' &&
         endpoint !== '/auth/me' &&
         endpoint !== '/auth/session' &&
-        endpoint !== '/auth/session/exchange'
+        endpoint !== '/auth/pin-login'
       ) {
         this.unauthorizedHandler?.();
       }
@@ -62,25 +62,57 @@ export class Api {
     return await response.json();
   }
 
-  static async startMagicLink(email: string) {
-    return this.request('/auth/magic-link/start', {
-      method: 'POST',
-      body: { email },
-    });
+  // Passkey auth methods
+  static async getSetupStatus(): Promise<{ hasUsers: boolean; needsPasskeyMigration: boolean }> {
+    return this.request('/auth/setup-status');
   }
 
-  static async exchangeSession(accessToken: string) {
-    return this.request('/auth/session/exchange', {
-      method: 'POST',
-      body: { accessToken },
-    });
+  static async setupStart(username: string) {
+    return this.request('/auth/setup/start', { method: 'POST', body: { username } });
   }
 
-  static async confirmMagicLink(tokenHash: string, type: string) {
-    return this.request('/auth/magic-link/confirm', {
-      method: 'POST',
-      body: { tokenHash, type },
-    });
+  static async setupFinish(userId: number, credential: unknown) {
+    return this.request('/auth/setup/finish', { method: 'POST', body: { userId, credential } });
+  }
+
+  static async registerStart() {
+    return this.request('/auth/register/start', { method: 'POST' });
+  }
+
+  static async registerFinish(credential: unknown) {
+    return this.request('/auth/register/finish', { method: 'POST', body: { credential } });
+  }
+
+  static async loginStart() {
+    return this.request('/auth/login/start', { method: 'POST' });
+  }
+
+  static async loginFinish(credential: unknown) {
+    return this.request('/auth/login/finish', { method: 'POST', body: { credential } });
+  }
+
+  static async pinLogin(username: string, pin: string) {
+    return this.request('/auth/pin-login', { method: 'POST', body: { username, pin } });
+  }
+
+  static async createInvite(relinkUserId?: number) {
+    return this.request('/auth/invite', { method: 'POST', body: { relink_user_id: relinkUserId } });
+  }
+
+  static async getInvite(token: string) {
+    return this.request(`/auth/invite/${token}`);
+  }
+
+  static async getInviteRegisterOptions(token: string) {
+    return this.request(`/auth/invite/${token}/register-options`);
+  }
+
+  static async claimInvite(token: string, data: { username?: string; credential: unknown }) {
+    return this.request(`/auth/invite/${token}/claim`, { method: 'POST', body: data });
+  }
+
+  static async getPasskeys(): Promise<Array<{ id: number; device_name: string; created_at: string }>> {
+    return this.request('/auth/passkeys');
   }
 
   static async logout() {

@@ -11,9 +11,8 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isLocked: boolean;
-  startMagicLink: (email: string) => Promise<void>;
-  confirmMagicLink: (tokenHash: string, type: string) => Promise<void>;
-  finishMagicLinkLogin: (accessToken: string) => Promise<void>;
+  loginWithPasskey: () => Promise<void>;
+  registerPasskey: () => Promise<void>;
   logout: () => Promise<void>;
   verifyPin: (pin: string) => Promise<boolean>;
   isAuthenticated: boolean;
@@ -67,44 +66,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const startMagicLink = async (email: string) => {
+  const loginWithPasskey = async () => {
+    const { startAuthentication } = await import('@simplewebauthn/browser');
+    setIsLoading(true);
     try {
-      await Api.startMagicLink(email);
-    } catch (error) {
-      throw new Error('No se pudo enviar el magic link');
-    }
-  };
-
-  const finishMagicLinkLogin = async (accessToken: string) => {
-    try {
-      setIsLoading(true);
-      const response = await Api.exchangeSession(accessToken);
+      const options = await Api.loginStart();
+      const credential = await startAuthentication(options);
+      const response = await Api.loginFinish(credential);
       setUser(response.user);
       setIsLocked(false);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        throw new Error('El enlace ha expirado o no es válido.');
-      }
-      throw new Error('No se pudo completar el acceso con magic link');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const confirmMagicLink = async (tokenHash: string, type: string) => {
-    try {
-      setIsLoading(true);
-      const response = await Api.confirmMagicLink(tokenHash, type);
-      setUser(response.user);
-      setIsLocked(false);
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 422)) {
-        throw new Error('El enlace ha expirado, no es válido o no está permitido.');
-      }
-      throw new Error('No se pudo confirmar el magic link');
-    } finally {
-      setIsLoading(false);
-    }
+  const registerPasskey = async () => {
+    const { startRegistration } = await import('@simplewebauthn/browser');
+    const options = await Api.registerStart();
+    const credential = await startRegistration(options);
+    await Api.registerFinish(credential);
   };
 
   const logout = async () => {
@@ -132,9 +112,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isLoading,
     isLocked,
-    startMagicLink,
-    confirmMagicLink,
-    finishMagicLinkLogin,
+    loginWithPasskey,
+    registerPasskey,
     logout,
     verifyPin,
     isAuthenticated: !!user,
