@@ -91,8 +91,8 @@ export class Api {
     return this.request('/auth/login/finish', { method: 'POST', body: { credential } });
   }
 
-  static async pinLogin(username: string, pin: string) {
-    return this.request('/auth/pin-login', { method: 'POST', body: { username, pin } });
+  static async pinLogin(pin: string) {
+    return this.request('/auth/pin-login', { method: 'POST', body: { pin } });
   }
 
   static async createInvite(relinkUserId?: number) {
