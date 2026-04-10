@@ -5,7 +5,6 @@ import {
   expenseCreateSchema,
   expenseUpdateSchema,
   validate,
-  validateMonthParam,
   ExpenseInput,
 } from '../validation.js';
 
@@ -14,6 +13,7 @@ interface ExpenseRow {
   description: string;
   amount: number;
   category: string;
+  category_id: number | null;
   date: string;
   paid_by: string;
   paid_by_user_id: number | null;
@@ -22,27 +22,17 @@ interface ExpenseRow {
   created_at: string;
 }
 
-interface BudgetRow {
+interface HouseholdBudgetRow {
   id: number;
-  month: string;
-  total_budget?: number;
-  rent?: number;
-  savings?: number;
-  shared_available?: number;
+  total_amount: number;
   personal_samuel: number;
   personal_maria: number;
 }
 
-interface CategoryBudgetRow {
-  month: string;
-  category: string;
-  amount: number;
-  context: string;
-  owner_user_id?: number | null;
-}
-
-interface CategoryRow {
+interface CategoryBudgetInfo {
+  id: number;
   name: string;
+  budget_amount: number;
 }
 
 const router = Router();
@@ -64,17 +54,6 @@ const visibleExpensesWhereRange = `
   )
 `;
 
-const getPersonalBudgetForUser = (budget: Pick<BudgetRow, 'personal_samuel' | 'personal_maria'>, user: { username?: string; email?: string | null }): number =>
-  getLegacyPaidBy(user as AuthRequest['user']) === 'maria' ? budget.personal_maria : budget.personal_samuel;
-
-const emptyBudgetForMonth = (month: string): BudgetRow => ({
-  id: 0,
-  month,
-  shared_available: 0,
-  personal_samuel: 0,
-  personal_maria: 0,
-});
-
 const getLegacyPaidBy = (user: AuthRequest['user']) => {
   const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
   if (identity.includes('maria') || identity.includes('mara')) {
@@ -83,8 +62,34 @@ const getLegacyPaidBy = (user: AuthRequest['user']) => {
   return 'samuel';
 };
 
+const getPersonalBudgetForUser = (budget: Pick<HouseholdBudgetRow, 'personal_samuel' | 'personal_maria'>, user: { username?: string; email?: string | null }): number =>
+  getLegacyPaidBy(user as AuthRequest['user']) === 'maria' ? budget.personal_maria : budget.personal_samuel;
+
 const isExpenseOwner = (expense: ExpenseRow, user: NonNullable<AuthRequest['user']>) =>
   expense.paid_by_user_id === user.id || expense.paid_by === user.username;
+
+/** Resolve category_id from category name + type for a given user */
+const resolveCategoryId = async (
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  categoryName: string,
+  type: string,
+  householdId: number,
+  userId: number
+): Promise<number | null> => {
+  if (type === 'shared') {
+    const row = await db.get<{ id: number }>(
+      `SELECT id FROM categories WHERE name = ? AND context = 'shared' AND owner_user_id IS NULL AND household_id = ?`,
+      categoryName, householdId
+    );
+    return row?.id ?? null;
+  } else {
+    const row = await db.get<{ id: number }>(
+      `SELECT id FROM categories WHERE name = ? AND context = 'personal' AND owner_user_id = ? AND household_id = ?`,
+      categoryName, userId, householdId
+    );
+    return row?.id ?? null;
+  }
+};
 
 // Get expenses — supports both month (legacy) and date range (cycle-based)
 router.get('/', async (req: AuthRequest, res) => {
@@ -97,17 +102,19 @@ router.get('/', async (req: AuthRequest, res) => {
     let expenses;
 
     if (startDate) {
-      expenses = await db.all(`
-        SELECT * FROM expenses
-        WHERE ${visibleExpensesWhereRange}
-        ORDER BY date DESC, created_at DESC
-      `, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username);
+      expenses = await db.all(
+        `SELECT * FROM expenses
+         WHERE ${visibleExpensesWhereRange}
+         ORDER BY date DESC, created_at DESC`,
+        startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
+      );
     } else if (month) {
-      expenses = await db.all(`
-        SELECT * FROM expenses
-        WHERE ${visibleExpensesWhereMonth}
-        ORDER BY date DESC, created_at DESC
-      `, `${month}%`, req.user!.id, req.user!.username);
+      expenses = await db.all(
+        `SELECT * FROM expenses
+         WHERE ${visibleExpensesWhereMonth}
+         ORDER BY date DESC, created_at DESC`,
+        `${month}%`, req.user!.id, req.user!.username
+      );
     } else {
       return res.status(400).json({ error: 'Either month or start_date is required' });
     }
@@ -121,23 +128,44 @@ router.get('/', async (req: AuthRequest, res) => {
 
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
-  const { description, amount, category, date, type, status = 'paid' } = req.validatedData as ExpenseInput;
-  // Keep legacy-compatible labels in paid_by while using paid_by_user_id as the true owner.
+  const data = req.validatedData as ExpenseInput;
+  const { description, amount, date, type, status = 'paid' } = data;
   const paid_by = getLegacyPaidBy(req.user);
 
   try {
     const db = getDatabase();
     const paidByUserId = req.user!.id;
-    const result = await db.run(`
-      INSERT INTO expenses (description, amount, category, date, paid_by, paid_by_user_id, type, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, description, amount, category, date, paid_by, paidByUserId, type, status);
+
+    // Resolve category_id
+    let categoryId: number | null = data.category_id ?? null;
+    let categoryName: string = data.category ?? '';
+
+    if (categoryId && !categoryName) {
+      // Look up name from id
+      const catRow = await db.get<{ name: string }>('SELECT name FROM categories WHERE id = ?', categoryId);
+      categoryName = catRow?.name ?? '';
+    } else if (categoryName && !categoryId) {
+      // Resolve id from name
+      const user = await db.get<{ household_id: number }>(
+        'SELECT household_id FROM app_users WHERE id = ?',
+        req.user!.id
+      );
+      if (user) {
+        categoryId = await resolveCategoryId(db, categoryName, type, user.household_id, req.user!.id);
+      }
+    }
+
+    const result = await db.run(
+      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status
+    );
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
 
     if (type === 'shared') {
       await notifyPartner(req.user!.id, req.user!.username, 'expense_added', 'Nuevo gasto',
-        `{name} añadió €${amount} en ${category}`, { expense_id: result.lastID });
+        `{name} a\u00F1adi\u00F3 \u20AC${amount} en ${categoryName}`, { expense_id: result.lastID });
     }
 
     res.status(201).json(newExpense);
@@ -159,7 +187,6 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
       return res.status(404).json({ error: 'Expense not found' });
     }
 
-    // Security check: Only allow editing if it's a shared expense OR if the user is the owner
     const isOwner = isExpenseOwner(existing, req.user!);
     const isShared = existing.type === 'shared';
 
@@ -167,20 +194,37 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Forbidden: You can only edit your own personal expenses' });
     }
 
-    // Security: 'paid_by' is server-owned; merge only validated editable fields
-    const updated = { ...existing, ...validatedData };
+    // Resolve category_id if category name changed
+    let categoryId = validatedData.category_id ?? existing.category_id;
+    const categoryName = validatedData.category ?? existing.category;
 
-    await db.run(`
-      UPDATE expenses 
-      SET description = ?, amount = ?, category = ?, date = ?, paid_by = ?, type = ?, status = ?
-      WHERE id = ?
-    `, updated.description, updated.amount, updated.category, updated.date, updated.paid_by, updated.type, updated.status, id);
+    if (validatedData.category && !validatedData.category_id) {
+      const user = await db.get<{ household_id: number }>(
+        'SELECT household_id FROM app_users WHERE id = ?',
+        req.user!.id
+      );
+      if (user) {
+        categoryId = await resolveCategoryId(
+          db, categoryName, validatedData.type ?? existing.type, user.household_id, req.user!.id
+        );
+      }
+    }
+
+    const updated = { ...existing, ...validatedData, category_id: categoryId };
+
+    await db.run(
+      `UPDATE expenses
+       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?
+       WHERE id = ?`,
+      updated.description, updated.amount, updated.category, updated.category_id,
+      updated.date, updated.paid_by, updated.type, updated.status, id
+    );
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);
 
     if (updated.type === 'shared') {
       await notifyPartner(req.user!.id, req.user!.username, 'expense_updated', 'Gasto editado',
-        `{name} editó "${updated.description}" (€${updated.amount})`, { expense_id: Number(id) });
+        `{name} edit\u00F3 "${updated.description}" (\u20AC${updated.amount})`, { expense_id: Number(id) });
     }
 
     res.json(updatedExpense);
@@ -196,13 +240,12 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
   try {
     const db = getDatabase();
-    const existing = await db.get('SELECT * FROM expenses WHERE id = ?', id);
-    
+    const existing = await db.get<ExpenseRow>('SELECT * FROM expenses WHERE id = ?', id);
+
     if (!existing) {
       return res.status(404).json({ error: 'Expense not found' });
     }
 
-    // Security check: Only allow deleting if it's a shared expense OR if the user is the owner
     const isOwner = existing.paid_by === req.user!.username;
     const isShared = existing.type === 'shared';
 
@@ -212,7 +255,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     if (isShared) {
       await notifyPartner(req.user!.id, req.user!.username, 'expense_deleted', 'Gasto eliminado',
-        `{name} eliminó "${existing.description}" (€${existing.amount})`, { category: existing.category });
+        `{name} elimin\u00F3 "${existing.description}" (\u20AC${existing.amount})`, { category: existing.category });
     }
 
     await db.run('DELETE FROM expenses WHERE id = ?', id);
@@ -228,26 +271,25 @@ router.get('/summary', async (req: AuthRequest, res) => {
   const startDate = req.query.start_date as string | undefined;
   const endDate = req.query.end_date as string | undefined;
   const month = req.query.month as string | undefined;
-  const cycleId = req.query.cycle_id ? Number(req.query.cycle_id) : undefined;
 
   try {
     const db = getDatabase();
+    const user = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    const householdId = user?.household_id;
 
-    // Resolve budget: prefer cycle_id, fall back to month
-    let storedBudget: BudgetRow | undefined;
-    let budgetMonth = month ?? '';
-    if (cycleId) {
-      storedBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE cycle_id = ?', cycleId);
-    }
-    if (!storedBudget && month) {
-      storedBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', month);
-    }
-    const budget = storedBudget ?? emptyBudgetForMonth(budgetMonth);
+    // Read household budget
+    const householdBudget = await db.get<HouseholdBudgetRow>(
+      'SELECT * FROM household_budget WHERE household_id = ?',
+      householdId
+    );
 
-    // Support both legacy and current budget schemas.
-    const availableShared = typeof budget.shared_available === 'number'
-      ? budget.shared_available
-      : (budget.total_budget ?? 0) - (budget.rent ?? 0) - (budget.savings ?? 0) - budget.personal_samuel - budget.personal_maria;
+    const availableShared = householdBudget?.total_amount ?? 0;
+    const personalBudget = householdBudget
+      ? getPersonalBudgetForUser(householdBudget, req.user!)
+      : 0;
 
     // Get expenses: date range (cycle) or month (legacy)
     let expenses: ExpenseRow[];
@@ -266,115 +308,154 @@ router.get('/summary', async (req: AuthRequest, res) => {
     }
 
     // Calculate totals
-    const totalSpent = expenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
-    const sharedExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'shared');
-    const totalSharedSpent = sharedExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+    const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const sharedExpenses = expenses.filter(exp => exp.type === 'shared');
+    const totalSharedSpent = sharedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     // Calculate who owes whom
     const samuelPaid = sharedExpenses
-      .filter((exp: ExpenseRow) => exp.paid_by === 'samuel')
-      .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+      .filter(exp => exp.paid_by === 'samuel')
+      .reduce((sum, exp) => sum + exp.amount, 0);
 
     const mariaPaid = sharedExpenses
-      .filter((exp: ExpenseRow) => exp.paid_by === 'maria')
-      .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
+      .filter(exp => exp.paid_by === 'maria')
+      .reduce((sum, exp) => sum + exp.amount, 0);
 
     const halfShared = totalSharedSpent / 2;
     const samuelBalance = samuelPaid - halfShared;
     const mariaBalance = mariaPaid - halfShared;
 
-    // Category breakdown: prefer cycle_id for budgets, fall back to month
-    let allCategoryBudgets: CategoryBudgetRow[];
-    if (cycleId) {
-      allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE cycle_id = ?', cycleId);
-      // Fall back to month-based if no cycle budgets found yet
-      if (allCategoryBudgets.length === 0 && month) {
-        allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
+    // Category breakdown from categories table (budget_amount on each category)
+    const sharedCategories = await db.all<CategoryBudgetInfo[]>(
+      `SELECT id, name, budget_amount FROM categories
+       WHERE household_id = ? AND context = 'shared' AND owner_user_id IS NULL`,
+      householdId
+    );
+    const personalCategories = await db.all<CategoryBudgetInfo[]>(
+      `SELECT id, name, budget_amount FROM categories
+       WHERE household_id = ? AND context = 'personal' AND owner_user_id = ?`,
+      householdId, req.user!.id
+    );
+
+    // Collect all category names including those from expenses (for uncategorized spending)
+    const sharedCategoryMap = new Map(sharedCategories.map(c => [c.id, c]));
+    const personalCategoryMap = new Map(personalCategories.map(c => [c.id, c]));
+
+    // Build shared category breakdown by category_id
+    const sharedExpensesByCatId = new Map<number | string, { total: number; count: number; name: string }>();
+    for (const exp of sharedExpenses) {
+      const key = exp.category_id ?? exp.category;
+      const existing = sharedExpensesByCatId.get(key);
+      if (existing) {
+        existing.total += exp.amount;
+        existing.count += 1;
+      } else {
+        const catInfo = typeof key === 'number' ? sharedCategoryMap.get(key) : null;
+        sharedExpensesByCatId.set(key, {
+          total: exp.amount,
+          count: 1,
+          name: catInfo?.name ?? exp.category,
+        });
       }
-    } else if (month) {
-      allCategoryBudgets = await db.all<CategoryBudgetRow[]>('SELECT * FROM category_budgets WHERE month = ?', month);
-    } else {
-      allCategoryBudgets = [];
     }
-    const sharedBudgets = allCategoryBudgets.filter(b => b.context === 'shared' && b.owner_user_id == null);
-    const personalBudgets = allCategoryBudgets.filter(b => b.context === 'personal' && b.owner_user_id === req.user!.id);
-    const sharedCategories = await db.all<CategoryRow[]>(
-      'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) AND context = ? AND owner_user_id IS NULL ORDER BY name',
-      req.user!.id,
-      'shared',
-    );
-    const personalCategories = await db.all<CategoryRow[]>(
-      'SELECT name FROM categories WHERE household_id = (SELECT household_id FROM app_users WHERE id = ?) AND context = ? AND owner_user_id = ? ORDER BY name',
-      req.user!.id,
-      'personal',
-      req.user!.id,
-    );
 
-    const sharedCategoryNames = Array.from(new Set(
-      [
-        ...sharedCategories.map((category) => category.name),
-        ...sharedBudgets.map((budget) => budget.category),
-        ...sharedExpenses.map((expense) => expense.category),
-      ].filter((category): category is string => Boolean(category))
-    ));
+    // Merge: ensure every shared category appears (even with 0 spent)
+    const categoryBreakdown: Array<{ category: string; total: number; budget: number; count: number }> = [];
+    const seenCatIds = new Set<number | string>();
 
-    const userPersonalExpenses = expenses.filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!));
-    const personalCategoryNames = Array.from(new Set(
-      [
-        ...personalCategories.map((category) => category.name),
-        ...personalBudgets.map((budget) => budget.category),
-        ...userPersonalExpenses.map((expense) => expense.category),
-      ].filter((category): category is string => Boolean(category))
-    ));
-
-    const buildBreakdown = (categoryNames: string[], budgets: CategoryBudgetRow[], filteredExpenses: ExpenseRow[]) =>
-      categoryNames.map(category => {
-        const catExpenses = filteredExpenses.filter((exp: ExpenseRow) => exp.category === category);
-        const catTotal = catExpenses.reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
-        const budgetEntry = budgets.find((b: CategoryBudgetRow) => b.category === category);
-        return {
-          category,
-          total: catTotal,
-          budget: budgetEntry ? budgetEntry.amount : 0,
-          count: catExpenses.length
-        };
+    for (const cat of sharedCategories) {
+      const expData = sharedExpensesByCatId.get(cat.id);
+      categoryBreakdown.push({
+        category: cat.name,
+        total: expData?.total ?? 0,
+        budget: cat.budget_amount,
+        count: expData?.count ?? 0,
       });
+      seenCatIds.add(cat.id);
+    }
+    // Add expenses whose category_id didn't match any known category
+    for (const [key, data] of sharedExpensesByCatId) {
+      if (!seenCatIds.has(key)) {
+        categoryBreakdown.push({
+          category: data.name,
+          total: data.total,
+          budget: 0,
+          count: data.count,
+        });
+      }
+    }
 
-    const categoryBreakdown = buildBreakdown(sharedCategoryNames, sharedBudgets, sharedExpenses);
-    const personalCategoryBreakdown = buildBreakdown(personalCategoryNames, personalBudgets, userPersonalExpenses);
+    // Personal category breakdown
+    const userPersonalExpenses = expenses.filter(exp => exp.type === 'personal' && isExpenseOwner(exp, req.user!));
+    const personalExpensesByCatId = new Map<number | string, { total: number; count: number; name: string }>();
+    for (const exp of userPersonalExpenses) {
+      const key = exp.category_id ?? exp.category;
+      const existing = personalExpensesByCatId.get(key);
+      if (existing) {
+        existing.total += exp.amount;
+        existing.count += 1;
+      } else {
+        const catInfo = typeof key === 'number' ? personalCategoryMap.get(key) : null;
+        personalExpensesByCatId.set(key, {
+          total: exp.amount,
+          count: 1,
+          name: catInfo?.name ?? exp.category,
+        });
+      }
+    }
+
+    const personalCategoryBreakdown: Array<{ category: string; total: number; budget: number; count: number }> = [];
+    const seenPersonalCatIds = new Set<number | string>();
+    for (const cat of personalCategories) {
+      const expData = personalExpensesByCatId.get(cat.id);
+      personalCategoryBreakdown.push({
+        category: cat.name,
+        total: expData?.total ?? 0,
+        budget: cat.budget_amount,
+        count: expData?.count ?? 0,
+      });
+      seenPersonalCatIds.add(cat.id);
+    }
+    for (const [key, data] of personalExpensesByCatId) {
+      if (!seenPersonalCatIds.has(key)) {
+        personalCategoryBreakdown.push({
+          category: data.name,
+          total: data.total,
+          budget: 0,
+          count: data.count,
+        });
+      }
+    }
 
     // Recent transactions (last 5)
     const recentTransactions = expenses
-      .sort((a: ExpenseRow, b: ExpenseRow) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5);
 
     // Personal spending visible to the current user
-    const personalSpent = expenses
-      .filter((exp: ExpenseRow) => exp.type === 'personal' && isExpenseOwner(exp, req.user!))
-      .reduce((sum: number, exp: ExpenseRow) => sum + exp.amount, 0);
-    const personalBudget = getPersonalBudgetForUser(budget, req.user!);
+    const personalSpent = userPersonalExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     res.json({
       budget: {
-        total: budget.total_budget ?? 0,
-        rent: budget.rent ?? 0,
-        savings: budget.savings ?? 0,
+        total: 0,
+        rent: 0,
+        savings: 0,
         personal: personalBudget,
-        availableShared
+        availableShared,
       },
       spending: {
         totalSpent,
         totalSharedSpent,
-        remainingShared: availableShared - totalSharedSpent
+        remainingShared: availableShared - totalSharedSpent,
       },
       personal: {
         owner: req.user!.username,
         spent: personalSpent,
-        budget: personalBudget
+        budget: personalBudget,
       },
       categoryBreakdown,
       personalCategoryBreakdown,
-      recentTransactions
+      recentTransactions,
     });
   } catch (error) {
     console.error('Error fetching summary:', error);

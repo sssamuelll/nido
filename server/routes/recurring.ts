@@ -42,7 +42,8 @@ router.get('/', async (req: AuthRequest, res) => {
 
 // Create recurring expense
 router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest, res) => {
-  const { name, emoji, amount, category, type, notes } = req.validatedData as RecurringExpenseInput;
+  const data = req.validatedData as RecurringExpenseInput;
+  const { name, emoji, amount, type, notes } = data;
 
   try {
     const db = getDatabase();
@@ -55,14 +56,38 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Resolve category_id
+    let categoryId: number | null = data.category_id ?? null;
+    let categoryName: string = data.category ?? '';
+
+    if (categoryId && !categoryName) {
+      const catRow = await db.get<{ name: string }>('SELECT name FROM categories WHERE id = ?', categoryId);
+      categoryName = catRow?.name ?? '';
+    } else if (categoryName && !categoryId) {
+      if (type === 'shared') {
+        const row = await db.get<{ id: number }>(
+          `SELECT id FROM categories WHERE name = ? AND context = 'shared' AND owner_user_id IS NULL AND household_id = ?`,
+          categoryName, user.household_id
+        );
+        categoryId = row?.id ?? null;
+      } else {
+        const row = await db.get<{ id: number }>(
+          `SELECT id FROM categories WHERE name = ? AND context = 'personal' AND owner_user_id = ? AND household_id = ?`,
+          categoryName, req.user!.id, user.household_id
+        );
+        categoryId = row?.id ?? null;
+      }
+    }
+
     const result = await db.run(
-      `INSERT INTO recurring_expenses (household_id, name, emoji, amount, category, type, notes, created_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO recurring_expenses (household_id, name, emoji, amount, category, category_id, type, notes, created_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       user.household_id,
       name,
       emoji,
       amount,
-      category,
+      categoryName,
+      categoryId,
       type,
       notes || null,
       req.user!.id
@@ -72,7 +97,7 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
 
     if (type === 'shared') {
       await notifyPartner(req.user!.id, req.user!.username, 'recurring_created', 'Nuevo gasto recurrente',
-        `{name} creó "${name}" (€${amount}/mes)`, { recurring_id: result.lastID });
+        `{name} cre\u00F3 "${name}" (\u20AC${amount}/mes)`, { recurring_id: result.lastID });
     }
 
     res.status(201).json(newItem);
@@ -108,12 +133,32 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
       return res.status(404).json({ error: 'Recurring expense not found' });
     }
 
+    // Resolve category_id if category name provided without id
+    let categoryId: number | null | undefined = data.category_id;
+    if (data.category && !data.category_id) {
+      const effectiveType = data.type ?? (existing as Record<string, unknown>).type as string;
+      if (effectiveType === 'shared') {
+        const row = await db.get<{ id: number }>(
+          `SELECT id FROM categories WHERE name = ? AND context = 'shared' AND owner_user_id IS NULL AND household_id = ?`,
+          data.category, user.household_id
+        );
+        categoryId = row?.id ?? null;
+      } else {
+        const row = await db.get<{ id: number }>(
+          `SELECT id FROM categories WHERE name = ? AND context = 'personal' AND owner_user_id = ? AND household_id = ?`,
+          data.category, req.user!.id, user.household_id
+        );
+        categoryId = row?.id ?? null;
+      }
+    }
+
     await db.run(
       `UPDATE recurring_expenses SET
         name = COALESCE(?, name),
         emoji = COALESCE(?, emoji),
         amount = COALESCE(?, amount),
         category = COALESCE(?, category),
+        category_id = COALESCE(?, category_id),
         type = COALESCE(?, type),
         notes = CASE WHEN ?1 = 1 THEN ?2 ELSE notes END
       WHERE id = ?`,
@@ -121,6 +166,7 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
       data.emoji,
       data.amount,
       data.category,
+      categoryId ?? null,
       data.type,
       data.notes !== undefined ? 1 : 0,
       data.notes !== undefined ? (data.notes ?? null) : null,
