@@ -120,12 +120,16 @@ const getAppUserFromSession = async (sessionToken: string): Promise<AuthUser | n
 };
 
 // Verify PIN function
-export const verifyPin = async (username: string, pin: string): Promise<boolean> => {
+export const verifyPin = async (appUserId: number, pin: string): Promise<boolean> => {
   try {
     const db = getDatabase();
-    const user = await db.get<{ pin: string }>('SELECT pin FROM users WHERE username = ?', username);
+    const user = await db.get<{ pin: string }>(
+      `SELECT u.pin FROM users u
+       JOIN app_users au ON au.legacy_user_id = u.id
+       WHERE au.id = ?`,
+      appUserId
+    );
     if (!user) return false;
-    // Support both hashed and legacy plaintext PINs
     if (user.pin.startsWith('$2a$') || user.pin.startsWith('$2b$')) {
       return bcrypt.compare(pin, user.pin);
     }
