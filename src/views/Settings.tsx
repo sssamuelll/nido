@@ -1,9 +1,176 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link } from 'lucide-react';
+import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
 import { Button } from '../components/Button';
+
+/* ── PIN Change Component ── */
+
+type PinStep = 'idle' | 'verify' | 'new' | 'confirm';
+
+const PIN_LABELS: Record<PinStep, { title: string; sub: string }> = {
+  idle: { title: 'PIN de acceso', sub: 'Código de 4 dígitos para desbloquear la app' },
+  verify: { title: 'PIN actual', sub: 'Ingresa tu PIN actual para continuar' },
+  new: { title: 'Nuevo PIN', sub: 'Elige un nuevo código de 4 dígitos' },
+  confirm: { title: 'Confirmar PIN', sub: 'Repite el nuevo código' },
+};
+
+const PinChangeSection: React.FC<{ onToast: (t: { type: 'success' | 'error'; msg: string }) => void }> = ({ onToast }) => {
+  const [step, setStep] = useState<PinStep>('idle');
+  const [pin, setPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [shake, setShake] = useState(false);
+
+  const triggerShake = useCallback(() => {
+    setShake(true);
+    setTimeout(() => setShake(false), 500);
+  }, []);
+
+  const reset = () => { setStep('idle'); setPin(''); setNewPin(''); };
+
+  const handleDigit = useCallback((d: string) => {
+    setPin(prev => {
+      if (prev.length >= 4) return prev;
+      const next = prev + d;
+      if (next.length === 4) {
+        // Defer the action to after render
+        setTimeout(() => handlePinComplete(next), 80);
+      }
+      return next;
+    });
+  }, [step, newPin]);
+
+  const handlePinComplete = async (fullPin: string) => {
+    if (step === 'verify') {
+      const ok = await Api.verifyPin(fullPin).then(() => true).catch(() => false);
+      if (ok) {
+        setPin('');
+        setStep('new');
+      } else {
+        triggerShake();
+        setTimeout(() => setPin(''), 400);
+      }
+    } else if (step === 'new') {
+      setNewPin(fullPin);
+      setPin('');
+      setStep('confirm');
+    } else if (step === 'confirm') {
+      if (fullPin === newPin) {
+        try {
+          await Api.updatePin(fullPin);
+          onToast({ type: 'success', msg: 'PIN actualizado' });
+          reset();
+        } catch {
+          onToast({ type: 'error', msg: 'Error al actualizar el PIN' });
+          reset();
+        }
+      } else {
+        triggerShake();
+        setTimeout(() => { setPin(''); setStep('new'); setNewPin(''); }, 400);
+        onToast({ type: 'error', msg: 'Los PINs no coinciden. Inténtalo de nuevo.' });
+      }
+    }
+  };
+
+  const handleDelete = () => setPin(prev => prev.slice(0, -1));
+
+  const { title, sub } = PIN_LABELS[step];
+
+  return (
+    <div className="card settings-section an d4">
+      <h3>
+        <Lock size={18} />
+        {' '}Seguridad
+      </h3>
+
+      <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>{title}</div>
+      <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '16px' }}>{sub}</div>
+
+      {step === 'idle' ? (
+        /* Resting state — masked dots + change button */
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="pin-dot" style={{ fontSize: '24px', lineHeight: 1 }}>&bull;</div>
+          ))}
+          <button
+            className="btn btn-outline btn-sm"
+            style={{ marginLeft: '8px' }}
+            onClick={() => setStep('verify')}
+          >
+            Cambiar
+          </button>
+        </div>
+      ) : (
+        /* Active state — dot indicators + inline numpad */
+        <div>
+          {/* Dots */}
+          <div className={`pin-change__dots${shake ? ' pin-change__dots--shake' : ''}`}>
+            {[0, 1, 2, 3].map(i => (
+              <div
+                key={i}
+                className="pin-change__dot"
+                style={{
+                  background: pin.length > i
+                    ? (step === 'verify' ? 'var(--blue)' : 'var(--green)')
+                    : 'var(--surface2)',
+                  borderColor: pin.length > i
+                    ? (step === 'verify' ? 'var(--blue)' : 'var(--green)')
+                    : 'var(--glass-border)',
+                  transform: pin.length === i ? 'scale(1.15)' : 'scale(1)',
+                  transition: 'all 0.15s ease',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Numpad */}
+          <div className="pin-change__numpad">
+            {[[1,2,3],[4,5,6],[7,8,9]].map((row, ri) => (
+              <div key={ri} className="pin-change__numpad-row">
+                {row.map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="pin-change__key"
+                    onClick={() => handleDigit(String(n))}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <div className="pin-change__numpad-row">
+              <button
+                type="button"
+                className="pin-change__key pin-change__key--muted"
+                onClick={reset}
+              >
+                Esc
+              </button>
+              <button
+                type="button"
+                className="pin-change__key"
+                onClick={() => handleDigit('0')}
+              >
+                0
+              </button>
+              <button
+                type="button"
+                className="pin-change__key pin-change__key--muted"
+                onClick={handleDelete}
+              >
+                <Delete size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Settings Types ── */
 
 interface HouseholdBudgetData {
   id?: number;
@@ -370,24 +537,8 @@ export const Settings: React.FC = () => {
 
         {/* RIGHT COLUMN: Security + Tools + Danger */}
         <div>
-          {/* Security — PIN dots matching design reference */}
-          <div className="card settings-section an d4">
-            <h3>
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              {' '}Seguridad
-            </h3>
-            <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>PIN de acceso</div>
-            <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>Código de 4 dígitos</div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <div className="pin-dot">&bull;</div>
-              <div className="pin-dot">&bull;</div>
-              <div className="pin-dot">&bull;</div>
-              <div className="pin-dot">&bull;</div>
-              <button className="btn btn-outline btn-sm" style={{ marginLeft: '8px' }}>Cambiar</button>
-            </div>
-          </div>
+          {/* Security — PIN change */}
+          <PinChangeSection onToast={setToast} />
 
           {/* Devices & Access — passkey management */}
           <div className="card settings-section an d4">
