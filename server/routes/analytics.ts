@@ -298,7 +298,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
+    res.status(500).json({ error: 'Error al obtener analíticas' });
   }
 });
 

@@ -85,7 +85,7 @@ app.post('/api/auth/verify-pin', authenticateToken, async (req: AuthRequest, res
     }
   } catch (error) {
     console.error('PIN verify error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
@@ -110,7 +110,7 @@ app.post('/api/auth/update-pin', authenticateToken, async (req: AuthRequest, res
     res.json({ success: true, message: 'PIN actualizado correctamente' });
   } catch (error) {
     console.error('PIN update error:', error);
-    res.status(500).json({ error: 'Failed to update PIN' });
+    res.status(500).json({ error: 'Error al actualizar el PIN' });
   }
 });
 
@@ -129,7 +129,7 @@ app.post('/api/auth/logout', async (req, res) => {
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,
-  message: { error: 'Too many requests, please try again in a moment' },
+  message: { error: 'Demasiadas peticiones, intenta de nuevo en un momento' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -150,7 +150,7 @@ app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthReques
       'SELECT household_id FROM app_users WHERE id = ?',
       req.user!.id
     );
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
 
@@ -168,13 +168,13 @@ app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthReques
 
     res.json(categories);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch categories' });
+    res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });
 
 app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   const { name, emoji, color, id, budget_amount, context } = req.body;
-  if (!name || !emoji || !color) return res.status(400).json({ error: 'Name, emoji and color are required' });
+  if (!name || !emoji || !color) return res.status(400).json({ error: 'Nombre, emoji y color son requeridos' });
 
   try {
     const db = getDatabase();
@@ -182,7 +182,7 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
       'SELECT household_id FROM app_users WHERE id = ?',
       req.user!.id
     );
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     const nextContext = context === 'personal' ? 'personal' : 'shared';
     const ownerUserId = nextContext === 'personal' ? req.user!.id : null;
@@ -236,7 +236,7 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to save category' });
+    res.status(500).json({ error: 'Error al guardar categoría' });
   }
 });
 
@@ -247,7 +247,7 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
       'SELECT household_id FROM app_users WHERE id = ?',
       req.user!.id
     );
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     const existing = await db.get<{ name: string; emoji: string }>(
       'SELECT name, emoji FROM categories WHERE id = ? AND household_id = ?',
@@ -266,7 +266,7 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
 
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete category' });
+    res.status(500).json({ error: 'Error al eliminar categoría' });
   }
 });
 
@@ -275,14 +275,14 @@ app.get('/api/household/members', authenticateToken, apiLimiter, async (req: Aut
   try {
     const db = getDatabase();
     const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     const members = await db.all(
       'SELECT id, username FROM app_users WHERE household_id = ?',
       user.household_id
     );
     res.json(members);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch members' });
+    res.status(500).json({ error: 'Error al obtener miembros' });
   }
 });
 
@@ -295,7 +295,7 @@ app.use(express.static(clientBuildPath));
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
+    return res.status(404).json({ error: 'Endpoint de API no encontrado' });
   }
   res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
