@@ -1,7 +1,6 @@
 import sqlite3 from 'sqlite3';
 import { Database, open } from 'sqlite';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { databaseUrl } from './config.js';
@@ -99,7 +98,6 @@ export const initDatabase = async () => {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
       pin TEXT DEFAULT '1234',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -332,11 +330,10 @@ export const initDatabase = async () => {
   // Cycle-based architecture: cycles track start_date
   await ensureColumn(database, 'billing_cycles', 'start_date', 'TEXT');
 
-  // Seed users (password column kept for schema compatibility; auth is via magic link)
+  // Seed users (auth is via passkeys; users table only stores username + PIN)
   const hashedPin = bcrypt.hashSync('1234', 10);
-  const placeholder = bcrypt.hashSync(randomBytes(16).toString('hex'), 10);
-  await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['samuel', placeholder, hashedPin]);
-  await database.run('INSERT OR IGNORE INTO users (username, password, pin) VALUES (?, ?, ?)', ['maria', placeholder, hashedPin]);
+  await database.run('INSERT OR IGNORE INTO users (username, pin) VALUES (?, ?)', ['samuel', hashedPin]);
+  await database.run('INSERT OR IGNORE INTO users (username, pin) VALUES (?, ?)', ['maria', hashedPin]);
 
   // Migration: Hash any plaintext PINs still in the database
   const usersWithPlaintextPin = await database.all<{ id: number; pin: string }[]>(
@@ -578,6 +575,19 @@ export const initDatabase = async () => {
 
     await database.run(`INSERT INTO migrations (name) VALUES ('unified_category_budget_model')`);
     console.log('Migration unified_category_budget_model complete');
+  }
+
+  // === Migration: Drop unused password column from users table ===
+  const dropPasswordRan = await database.get(`SELECT name FROM migrations WHERE name = 'drop_users_password'`);
+  if (!dropPasswordRan) {
+    try {
+      await database.exec('ALTER TABLE users DROP COLUMN password');
+      await database.run(`INSERT INTO migrations (name) VALUES ('drop_users_password')`);
+      console.log('Migration drop_users_password complete');
+    } catch (error) {
+      // SQLite < 3.35.0 doesn't support DROP COLUMN — log and skip
+      console.warn('Could not drop users.password column (SQLite version may not support DROP COLUMN)');
+    }
   }
 
   console.log('Database initialized');

@@ -118,7 +118,7 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json(expenses);
   } catch (error) {
     console.error('Error fetching expenses:', error);
-    res.status(500).json({ error: 'Failed to fetch expenses' });
+    res.status(500).json({ error: 'Error al obtener gastos' });
   }
 });
 
@@ -170,7 +170,7 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
     res.status(201).json(newExpense);
   } catch (error) {
     console.error('Error creating expense:', error);
-    res.status(500).json({ error: 'Failed to create expense' });
+    res.status(500).json({ error: 'Error al crear gasto' });
   }
 });
 
@@ -183,14 +183,14 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
     const db = getDatabase();
     const existing = await db.get<ExpenseRow>('SELECT * FROM expenses WHERE id = ?', id);
     if (!existing) {
-      return res.status(404).json({ error: 'Expense not found' });
+      return res.status(404).json({ error: 'Gasto no encontrado' });
     }
 
     const isOwner = isExpenseOwner(existing, req.user!);
     const isShared = existing.type === 'shared';
 
     if (!isShared && !isOwner) {
-      return res.status(403).json({ error: 'Forbidden: You can only edit your own personal expenses' });
+      return res.status(403).json({ error: 'Solo puedes editar tus propios gastos personales' });
     }
 
     // Resolve category_id if category name changed
@@ -229,7 +229,7 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
     res.json(updatedExpense);
   } catch (error) {
     console.error('Error updating expense:', error);
-    res.status(500).json({ error: 'Failed to update expense' });
+    res.status(500).json({ error: 'Error al actualizar gasto' });
   }
 });
 
@@ -242,14 +242,14 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     const existing = await db.get<ExpenseRow>('SELECT * FROM expenses WHERE id = ?', id);
 
     if (!existing) {
-      return res.status(404).json({ error: 'Expense not found' });
+      return res.status(404).json({ error: 'Gasto no encontrado' });
     }
 
     const isOwner = existing.paid_by === req.user!.username;
     const isShared = existing.type === 'shared';
 
     if (!isShared && !isOwner) {
-      return res.status(403).json({ error: 'Forbidden: You can only delete your own personal expenses' });
+      return res.status(403).json({ error: 'Solo puedes eliminar tus propios gastos personales' });
     }
 
     if (isShared) {
@@ -261,7 +261,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting expense:', error);
-    res.status(500).json({ error: 'Failed to delete expense' });
+    res.status(500).json({ error: 'Error al eliminar gasto' });
   }
 });
 
@@ -465,7 +465,7 @@ router.get('/summary', async (req: AuthRequest, res) => {
     });
   } catch (error) {
     console.error('Error fetching summary:', error);
-    res.status(500).json({ error: 'Failed to fetch summary' });
+    res.status(500).json({ error: 'Error al obtener resumen' });
   }
 });
 
@@ -479,7 +479,7 @@ router.get('/categories', async (_req: AuthRequest, res) => {
     res.json(rows.map(r => r.category));
   } catch (error) {
     console.error('Error fetching categories:', error);
-    res.status(500).json({ error: 'Failed to fetch categories' });
+    res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });
 

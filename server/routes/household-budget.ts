@@ -28,7 +28,7 @@ router.get('/', async (req: AuthRequest, res) => {
       'SELECT household_id FROM app_users WHERE id = ?',
       req.user!.id
     );
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     const budget = await db.get<HouseholdBudgetRow>(
       'SELECT * FROM household_budget WHERE household_id = ?',
@@ -81,7 +81,7 @@ router.get('/', async (req: AuthRequest, res) => {
     });
   } catch (error) {
     console.error('Error fetching household budget:', error);
-    res.status(500).json({ error: 'Failed to fetch household budget' });
+    res.status(500).json({ error: 'Error al obtener presupuesto del hogar' });
   }
 });
 
@@ -95,7 +95,7 @@ router.put('/', async (req: AuthRequest, res) => {
       'SELECT household_id FROM app_users WHERE id = ?',
       req.user!.id
     );
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     // Ensure a household_budget row exists
     await db.run(
@@ -107,7 +107,7 @@ router.put('/', async (req: AuthRequest, res) => {
       'SELECT * FROM household_budget WHERE household_id = ?',
       user.household_id
     );
-    if (!budget) return res.status(500).json({ error: 'Failed to load household budget' });
+    if (!budget) return res.status(500).json({ error: 'Error al cargar presupuesto del hogar' });
 
     const personalField = getPersonalBudgetField(req.user as { username?: string; email?: string | null });
 
@@ -185,14 +185,14 @@ router.put('/', async (req: AuthRequest, res) => {
     res.json({ success: true, pending_approval: pendingApproval });
   } catch (error) {
     console.error('Error updating household budget:', error);
-    res.status(500).json({ error: 'Failed to update household budget' });
+    res.status(500).json({ error: 'Error al actualizar presupuesto del hogar' });
   }
 });
 
 // POST /approve — approve a pending total_amount change
 router.post('/approve', async (req: AuthRequest, res) => {
   const { approval_id } = req.body;
-  if (!approval_id) return res.status(400).json({ error: 'approval_id is required' });
+  if (!approval_id) return res.status(400).json({ error: 'Se requiere approval_id' });
 
   try {
     const db = getDatabase();
@@ -208,10 +208,10 @@ router.post('/approve', async (req: AuthRequest, res) => {
       approval_id
     );
 
-    if (!approval) return res.status(404).json({ error: 'Pending approval not found' });
+    if (!approval) return res.status(404).json({ error: 'Aprobación pendiente no encontrada' });
 
     if (approval.requested_by_user_id === req.user!.id) {
-      return res.status(403).json({ error: 'You cannot approve your own request' });
+      return res.status(403).json({ error: 'No puedes aprobar tu propia solicitud' });
     }
 
     // Update household_budget.total_amount
@@ -245,7 +245,7 @@ router.post('/approve', async (req: AuthRequest, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error approving budget:', error);
-    res.status(500).json({ error: 'Failed to approve budget' });
+    res.status(500).json({ error: 'Error al aprobar presupuesto' });
   }
 });
 
