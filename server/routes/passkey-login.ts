@@ -12,7 +12,7 @@ import {
   setChallenge,
   getAndDeleteChallenge,
   loginLimiter,
-} from './passkey-auth.js';
+} from './passkey-shared.js';
 
 const router = Router();
 
