@@ -16,6 +16,7 @@ import {
   AuthRequest,
   createAppSession,
   setAppSessionCookie,
+  verifyPin,
 } from '../auth.js';
 
 // ---------------------------------------------------------------------------
@@ -701,6 +702,38 @@ router.get('/passkeys', authenticateToken, async (req: AuthRequest, res: Respons
   } catch (error) {
     console.error('Passkeys list error:', error);
     res.status(500).json({ error: 'Failed to fetch passkeys' });
+  }
+});
+
+// ===== POST /pin-login — PIN-based login (migration / fallback) =====
+router.post('/pin-login', loginLimiter, async (req: Request, res: Response) => {
+  try {
+    const { username, pin } = req.body;
+    if (!username || !pin) {
+      return res.status(400).json({ error: 'Username and PIN required' });
+    }
+
+    const isValid = await verifyPin(username, pin);
+    if (!isValid) {
+      return res.status(401).json({ error: 'PIN incorrecto' });
+    }
+
+    const db = getDatabase();
+    const user = await db.get<{ id: number; username: string }>(
+      'SELECT id, username FROM app_users WHERE username = ?',
+      username
+    );
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { sessionToken } = await createAppSession(user.id, req);
+    setAppSessionCookie(res, sessionToken);
+
+    res.json({ user: { id: user.id, username: user.username } });
+  } catch (error) {
+    console.error('PIN login error:', error);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
