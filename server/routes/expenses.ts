@@ -7,6 +7,7 @@ import {
   validate,
   ExpenseInput,
 } from '../validation.js';
+import { getLegacyPaidBy, getPersonalBudget } from '../user-utils.js';
 
 interface ExpenseRow {
   id: number;
@@ -53,17 +54,6 @@ const visibleExpensesWhereRange = `
     OR (paid_by_user_id IS NULL AND paid_by = ?)
   )
 `;
-
-const getLegacyPaidBy = (user: AuthRequest['user']) => {
-  const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
-  if (identity.includes('maria') || identity.includes('mara')) {
-    return 'maria';
-  }
-  return 'samuel';
-};
-
-const getPersonalBudgetForUser = (budget: Pick<HouseholdBudgetRow, 'personal_samuel' | 'personal_maria'>, user: { username?: string; email?: string | null }): number =>
-  getLegacyPaidBy(user as AuthRequest['user']) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 const isExpenseOwner = (expense: ExpenseRow, user: NonNullable<AuthRequest['user']>) =>
   expense.paid_by_user_id === user.id || expense.paid_by === user.username;
@@ -136,6 +126,8 @@ router.get('/', async (req: AuthRequest, res) => {
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
   const data = req.validatedData as ExpenseInput;
   const { description, amount, date, type, status = 'paid' } = data;
+  // DEPRECATED: paid_by TEXT column — use paid_by_user_id instead.
+  // Still written because of CHECK (paid_by IN ('samuel','maria')) constraint.
   const paid_by = getLegacyPaidBy(req.user);
 
   try {
@@ -161,6 +153,7 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
       }
     }
 
+    // DEPRECATED: paid_by is legacy; paid_by_user_id is the real FK.
     const result = await db.run(
       `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -294,7 +287,7 @@ router.get('/summary', async (req: AuthRequest, res) => {
 
     const availableShared = householdBudget?.total_amount ?? 0;
     const personalBudget = householdBudget
-      ? getPersonalBudgetForUser(householdBudget, req.user!)
+      ? getPersonalBudget(householdBudget, req.user!)
       : 0;
 
     // Get expenses: date range (cycle) or month (legacy)
@@ -324,6 +317,8 @@ router.get('/summary', async (req: AuthRequest, res) => {
     const totalSharedSpent = sharedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     // Calculate who owes whom
+    // DEPRECATED: filtering by paid_by TEXT — ideally use paid_by_user_id once
+    // the CHECK constraint is removed and column can be dropped.
     const samuelPaid = sharedExpenses
       .filter(exp => exp.paid_by === 'samuel')
       .reduce((sum, exp) => sum + exp.amount, 0);

@@ -49,7 +49,8 @@ export const Goals: React.FC = () => {
       const data = await Api.getGoals();
       setGoals(data);
       setError(null);
-    } catch {
+    } catch (err) {
+      console.error('Failed to load goals:', err);
       setError('Error al cargar objetivos');
     } finally {
       setLoading(false);
@@ -64,7 +65,8 @@ export const Goals: React.FC = () => {
       await fetchGoals();
       launchConfetti();
       showToast('¡Contribución registrada! Siguen avanzando juntos 🚀');
-    } catch {
+    } catch (err) {
+      console.error('Failed to contribute to goal:', err);
       showToast('Error al contribuir');
     }
   };
@@ -89,7 +91,8 @@ export const Goals: React.FC = () => {
       setShowCreateModal(false);
       setEditingGoal(null);
       showToast('Objetivo eliminado');
-    } catch {
+    } catch (err) {
+      console.error('Failed to delete goal:', err);
       showToast('Error al eliminar');
     }
   };
@@ -120,7 +123,8 @@ export const Goals: React.FC = () => {
       setShowCreateModal(false);
       setEditingGoal(null);
       setFormData(EMPTY_FORM);
-    } catch {
+    } catch (err) {
+      console.error('Failed to save goal:', err);
       showToast('Error al guardar objetivo');
     } finally {
       setSubmitting(false);

@@ -13,7 +13,7 @@ interface DashboardSummary {
     personal?: number;
   };
   personal?: {
-    owner?: 'samuel' | 'maria';
+    owner?: string;
     budget?: number;
   };
 }
@@ -80,7 +80,8 @@ export const PersonalDashboard: React.FC = () => {
 
         setSummary(nextSummary);
         setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
-      } catch (_error) {
+      } catch (err) {
+        console.error('Failed to load personal dashboard:', err);
         setError('Error al cargar tu detalle personal');
       } finally {
         setLoading(false);
@@ -138,8 +139,7 @@ export const PersonalDashboard: React.FC = () => {
   const chartSeries = detail.chart.map((point) => point.total);
   const chartPaths = buildLinePath(chartSeries, 520, 220, 24);
 
-  const normalizedUsername = user?.username?.toLowerCase().trim() || '';
-  const displayName = normalizedUsername === 'maria' ? 'María' : normalizedUsername === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
+  const displayName = user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario';
 
   return (
     <div className="personal-dashboard">

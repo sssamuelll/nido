@@ -112,7 +112,8 @@ export const AddExpense: React.FC = () => {
         showToast('Gasto añadido correctamente ✔');
         setTimeout(() => navigate('/'), 1500);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to save expense:', err);
       setError('Error al guardar el gasto');
     } finally {
       setLoading(false);
@@ -363,7 +364,8 @@ export const AddExpense: React.FC = () => {
                     await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor, context: type });
                     showToast('Categoría registrada ✔');
                     navigate('/');
-                  } catch {
+                  } catch (err) {
+                    console.error('Failed to save category:', err);
                     showToast('Error al guardar la categoría');
                   } finally {
                     setSavingCat(false);

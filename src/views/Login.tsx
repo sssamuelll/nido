@@ -11,6 +11,7 @@ export const Login: React.FC = () => {
   const [isWorking, setIsWorking] = useState(false);
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
+  const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
   const { loginWithPasskey } = useAuth();
   const navigate = useNavigate();
 
@@ -23,11 +24,18 @@ export const Login: React.FC = () => {
           return;
         }
         if (status.needsPasskeyMigration) {
+          try {
+            const memberList = await Api.getMembers();
+            setMembers(memberList);
+          } catch {
+            console.error('Failed to load members for migration');
+          }
           setView('migration');
         } else {
           setView('passkey');
         }
-      } catch {
+      } catch (err) {
+        console.error('Failed to check setup status:', err);
         setError('No se pudo conectar con el servidor');
         setView('passkey');
       }
@@ -148,7 +156,10 @@ export const Login: React.FC = () => {
             &iquest;Qui&eacute;n eres?
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-            {['Samuel', 'María'].map(name => (
+            {(members.length > 0
+              ? members.map(m => m.username.charAt(0).toUpperCase() + m.username.slice(1))
+              : ['Samuel', 'María']
+            ).map(name => (
               <button
                 key={name}
                 className="login-btn"

@@ -61,9 +61,8 @@ const PAYER_BADGE: Record<string, string> = {
 };
 
 const payerDisplayName = (p: string) => {
-  if (p === 'samuel') return 'Samuel';
-  if (p === 'maria') return 'María';
-  return 'Compartido';
+  if (!p || p === 'shared') return 'Compartido';
+  return p.charAt(0).toUpperCase() + p.slice(1);
 };
 
 export const History: React.FC = () => {
@@ -196,7 +195,8 @@ export const History: React.FC = () => {
       showToast('Gasto actualizado ✔');
       closeEditModal();
       await Promise.all([loadExpenses(), reloadCategories()]);
-    } catch {
+    } catch (err) {
+      console.error('Failed to update expense:', err);
       setEditError('Error al actualizar el gasto');
     } finally {
       setSavingEdit(false);
