@@ -113,32 +113,35 @@ router.post('/login/finish', loginLimiter, async (req: Request, res: Response) =
   }
 });
 
-// ===== POST /pin-login -- PIN-based login (migration / fallback) =====
+// ===== POST /pin-login -- PIN identifies the user (no username needed) =====
 router.post('/pin-login', loginLimiter, async (req: Request, res: Response) => {
   try {
-    const { username, pin } = req.body;
-    if (!username || !pin) {
-      return res.status(400).json({ error: 'Usuario y PIN requeridos' });
+    const { pin } = req.body;
+    if (!pin) {
+      return res.status(400).json({ error: 'PIN requerido' });
     }
 
     const db = getDatabase();
-    const user = await db.get<{ id: number; username: string }>(
-      'SELECT id, username FROM app_users WHERE username = ?',
-      username
+    const allUsers = await db.all<{ id: number; username: string }[]>(
+      'SELECT id, username FROM app_users'
     );
-    if (!user) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    let matchedUser: { id: number; username: string } | null = null;
+    for (const user of allUsers) {
+      if (await verifyPin(user.id, pin)) {
+        matchedUser = user;
+        break;
+      }
     }
 
-    const isValid = await verifyPin(user.id, pin);
-    if (!isValid) {
+    if (!matchedUser) {
       return res.status(401).json({ error: 'PIN incorrecto' });
     }
 
-    const { sessionToken } = await createAppSession(user.id, req);
+    const { sessionToken } = await createAppSession(matchedUser.id, req);
     setAppSessionCookie(res, sessionToken);
 
-    res.json({ user: { id: user.id, username: user.username } });
+    res.json({ user: { id: matchedUser.id, username: matchedUser.username } });
   } catch (error) {
     console.error('PIN login error:', error);
     res.status(500).json({ error: 'Error al iniciar sesión' });
