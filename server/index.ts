@@ -274,8 +274,12 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
 app.get('/api/household/members', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    // In this app, we assume all users in the 'users' table belong to the same household for now
-    const members = await db.all('SELECT id, username FROM users');
+    const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const members = await db.all(
+      'SELECT id, username FROM app_users WHERE household_id = ?',
+      user.household_id
+    );
     res.json(members);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch members' });
