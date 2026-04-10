@@ -154,7 +154,7 @@ router.post('/setup/start', loginLimiter, async (req: Request, res: Response) =>
 });
 
 // ===== POST /setup/finish =====
-router.post('/setup/finish', async (req: Request, res: Response) => {
+router.post('/setup/finish', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { userId, credential } = req.body;
     if (!userId || !credential) {
@@ -326,7 +326,7 @@ router.post('/login/start', loginLimiter, async (_req: Request, res: Response) =
 });
 
 // ===== POST /login/finish =====
-router.post('/login/finish', async (req: Request, res: Response) => {
+router.post('/login/finish', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { credential } = req.body;
     if (!credential) {
@@ -575,7 +575,7 @@ router.get('/invite/:token/register-options', async (req: Request, res: Response
 });
 
 // ===== POST /invite/:token/claim =====
-router.post('/invite/:token/claim', async (req: Request, res: Response) => {
+router.post('/invite/:token/claim', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { username, credential } = req.body;
     if (!credential) {

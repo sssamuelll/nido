@@ -69,19 +69,16 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const recurringItems = await db.all<RecurringExpenseRow[]>(
-    `SELECT * FROM recurring_expenses
-     WHERE household_id = ? AND paused = 0`,
+    `SELECT re.*, au.username as creator_username FROM recurring_expenses re
+     LEFT JOIN app_users au ON au.id = re.created_by_user_id
+     WHERE re.household_id = ? AND re.paused = 0`,
     householdId
   );
 
   let total = 0;
 
   for (const item of recurringItems) {
-    const creator = await db.get<{ username: string }>(
-      'SELECT username FROM app_users WHERE id = ?',
-      item.created_by_user_id
-    );
-    const paidBy = creator?.username || 'samuel';
+    const paidBy = (item as any).creator_username || 'unknown';
 
     await db.run(
       `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
