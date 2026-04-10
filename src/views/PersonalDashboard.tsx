@@ -1,6 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
 import { Bell, Search } from 'lucide-react';
-import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { TransactionRow } from '../components/TransactionRow';
@@ -64,7 +63,6 @@ export const PersonalDashboard: React.FC = () => {
         setError('');
 
         const cycle = await Api.getCurrentCycle().catch(() => null);
-        const month = format(new Date(), 'yyyy-MM');
 
         let nextSummary, nextExpenses;
         if (cycle?.start_date) {
@@ -75,8 +73,8 @@ export const PersonalDashboard: React.FC = () => {
           ]);
         } else {
           [nextSummary, nextExpenses] = await Promise.all([
-            Api.getSummary(month),
-            Api.getExpenses(month),
+            Api.getSummary(),
+            Api.getExpenses(),
           ]);
         }
 

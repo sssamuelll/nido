@@ -169,12 +169,12 @@ export class Api {
     }
   }
 
+  static async getExpenses(): Promise<any[]>;
   static async getExpenses(month: string): Promise<any[]>;
   static async getExpenses(opts: { start_date: string; end_date?: string | null }): Promise<any[]>;
-  static async getExpenses(arg: string | { start_date: string; end_date?: string | null }) {
-    if (typeof arg === 'string') {
-      return this.request(`/expenses?month=${arg}`);
-    }
+  static async getExpenses(arg?: string | { start_date: string; end_date?: string | null }) {
+    if (!arg) return this.request('/expenses');
+    if (typeof arg === 'string') return this.request(`/expenses?month=${arg}`);
     const params = new URLSearchParams({ start_date: arg.start_date });
     if (arg.end_date) params.set('end_date', arg.end_date);
     return this.request(`/expenses?${params}`);
@@ -216,12 +216,12 @@ export class Api {
     });
   }
 
+  static async getSummary(): Promise<any>;
   static async getSummary(month: string): Promise<any>;
   static async getSummary(opts: { start_date: string; end_date?: string | null; cycle_id?: number }): Promise<any>;
-  static async getSummary(arg: string | { start_date: string; end_date?: string | null; cycle_id?: number }) {
-    if (typeof arg === 'string') {
-      return this.request(`/expenses/summary?month=${arg}`);
-    }
+  static async getSummary(arg?: string | { start_date: string; end_date?: string | null; cycle_id?: number }) {
+    if (!arg) return this.request('/expenses/summary');
+    if (typeof arg === 'string') return this.request(`/expenses/summary?month=${arg}`);
     const params = new URLSearchParams({ start_date: arg.start_date });
     if (arg.end_date) params.set('end_date', arg.end_date);
     if (arg.cycle_id) params.set('cycle_id', String(arg.cycle_id));

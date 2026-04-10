@@ -164,10 +164,10 @@ export const Dashboard: React.FC = () => {
           Api.getExpenses(range),
         ]);
       } else {
-        // No active cycle: fall back to current month
+        // No active cycle: show all expenses (budget lives in categories, not months)
         [summary, nextExpenses] = await Promise.all([
-          Api.getSummary(currentMonth),
-          Api.getExpenses(currentMonth),
+          Api.getSummary(),
+          Api.getExpenses(),
         ]);
       }
 
