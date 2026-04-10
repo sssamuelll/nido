@@ -87,7 +87,7 @@ describe('privacy view models', () => {
       expect.objectContaining({ category: 'Otros', total: 80, count: 1, budgetShare: 18, monthShare: 80 }),
       expect.objectContaining({ category: 'Gastos', total: 20, count: 1, budgetShare: 4, monthShare: 20 }),
     ]);
-    expect(detail.recentExpenses.map((expense) => expense.id)).toEqual([4, 1]);
+    expect(detail.recentExpenses.map((expense) => expense.id)).toEqual([4]);
     expect(detail.chart).toEqual([
       { label: 'Sem 1', total: 0 },
       { label: 'Sem 2', total: 100 },

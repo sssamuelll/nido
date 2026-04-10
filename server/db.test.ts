@@ -5,8 +5,6 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const currentMonth = new Date().toISOString().slice(0, 7);
-
 describe('Database bootstrap', () => {
   let tempDir: string;
   let databasePath: string;
@@ -32,7 +30,7 @@ describe('Database bootstrap', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('creates additive auth-v2 groundwork on a fresh database', async () => {
+  it('creates the unified schema tables on a fresh database', async () => {
     dbModule = await import('./db.js');
     await dbModule.initDatabase();
 
@@ -45,7 +43,11 @@ describe('Database bootstrap', () => {
     expect(tableNames).toContain('households');
     expect(tableNames).toContain('app_users');
     expect(tableNames).toContain('sessions');
-    expect(tableNames).toContain('budget_allocations');
+    expect(tableNames).toContain('categories');
+    expect(tableNames).toContain('household_budget');
+    expect(tableNames).toContain('household_budget_approvals');
+    expect(tableNames).toContain('household_budget_snapshots');
+    expect(tableNames).toContain('category_budget_snapshots');
 
     const appUsers = await database.all<{
       username: string;
@@ -80,51 +82,31 @@ describe('Database bootstrap', () => {
       },
     ]);
 
-    // On a fresh database with no legacy budget rows, syncBudgetAllocations
-    // has nothing to sync so no default budget or allocations are created.
-    const defaultBudget = await database.get<{ id: number }>(
-      `SELECT id FROM budgets WHERE month = ?`,
-      currentMonth
+    // No categories seeded on a fresh db (users create their own)
+    const categories = await database.all<{ name: string }[]>(
+      `SELECT name FROM categories`
     );
-    expect(defaultBudget).toBeUndefined();
-
-    const allocations = await database.all<{ username: string; amount: number }[]>(
-      `
-        SELECT app_users.username, budget_allocations.amount
-        FROM budget_allocations
-        JOIN app_users ON app_users.id = budget_allocations.app_user_id
-        ORDER BY app_users.username
-      `
-    );
-
-    expect(allocations).toEqual([]);
+    expect(categories).toEqual([]);
   });
 
-  it('backfills expense user ids and normalized budget allocations from legacy rows', async () => {
+  it('backfills expense user ids and creates category entries from legacy data', async () => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+
     const legacyDatabase = await open({
       filename: databasePath,
       driver: sqlite3.Database,
     });
 
-    await legacyDatabase.exec(`
+    await legacyDatabase.run(`
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+      )
+    `);
 
-      CREATE TABLE budgets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        month TEXT UNIQUE NOT NULL,
-        total_budget REAL NOT NULL,
-        rent REAL NOT NULL,
-        savings REAL NOT NULL,
-        personal_samuel REAL NOT NULL,
-        personal_maria REAL NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
+    await legacyDatabase.run(`
       CREATE TABLE expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         description TEXT NOT NULL,
@@ -135,26 +117,21 @@ describe('Database bootstrap', () => {
         type TEXT NOT NULL CHECK (type IN ('shared', 'personal')),
         status TEXT DEFAULT 'paid' CHECK (status IN ('paid', 'pending')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+      )
+    `);
 
+    await legacyDatabase.run(`
       CREATE TABLE category_budgets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         month TEXT NOT NULL,
         category TEXT NOT NULL,
         amount REAL NOT NULL,
         UNIQUE(month, category)
-      );
+      )
     `);
 
     await legacyDatabase.run(
       `INSERT INTO users (username, password) VALUES ('samuel', 'legacy-hash'), ('maria', 'legacy-hash')`
-    );
-    await legacyDatabase.run(
-      `
-        INSERT INTO budgets (month, total_budget, rent, savings, personal_samuel, personal_maria)
-        VALUES (?, 3000, 900, 400, 650, 350)
-      `,
-      currentMonth
     );
     await legacyDatabase.run(
       `
@@ -208,21 +185,16 @@ describe('Database bootstrap', () => {
       },
     ]);
 
-    const allocations = await database.all<{ username: string; amount: number }[]>(
-      `
-        SELECT app_users.username, budget_allocations.amount
-        FROM budget_allocations
-        JOIN budgets ON budgets.id = budget_allocations.budget_id
-        JOIN app_users ON app_users.id = budget_allocations.app_user_id
-        WHERE budgets.month = ?
-        ORDER BY app_users.username
-      `,
-      currentMonth
+    // The unified migration should have created category entries from expenses
+    const categories = await database.all<{ name: string; context: string }[]>(
+      `SELECT name, context FROM categories ORDER BY name, context`
     );
-
-    expect(allocations).toEqual([
-      { username: 'maria', amount: 350 },
-      { username: 'samuel', amount: 650 },
-    ]);
+    // 'Gastos' from shared expense, 'Ocio' from personal expense
+    expect(categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Gastos', context: 'shared' }),
+        expect.objectContaining({ name: 'Ocio', context: 'personal' }),
+      ])
+    );
   });
 });
