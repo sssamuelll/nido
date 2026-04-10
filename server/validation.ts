@@ -2,13 +2,6 @@ import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 
 // Common schemas
-export const monthSchema = z.string()
-  .regex(/^\d{4}-\d{2}$/, 'Month must be in YYYY-MM format')
-  .refine(val => {
-    const [year, month] = val.split('-').map(Number);
-    return month >= 1 && month <= 12;
-  }, 'Month must be between 01 and 12');
-
 export const dateSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
   .refine(val => {
@@ -67,34 +60,21 @@ export type GoalContributeInput = z.infer<typeof goalContributeSchema>;
 export function validate(schema: z.ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (schema === monthSchema) {
-        const result = schema.safeParse(req.query.month);
-        if (!result.success) {
-          return res.status(400).json({
-            error: 'Validation error',
-            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
-          });
-        }
-        (req as Request & { validatedMonth?: string }).validatedMonth = result.data as string;
-      } else {
-        const result = schema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            error: 'Validation error',
-            details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
-          });
-        }
-        (req as Request & { validatedData?: unknown }).validatedData = result.data;
+      const result = schema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          error: 'Error de validación',
+          details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
       }
+      (req as Request & { validatedData?: unknown }).validatedData = result.data;
       next();
     } catch (error) {
       console.error('Validation middleware error:', error);
-      res.status(500).json({ error: 'Internal validation error' });
+      res.status(500).json({ error: 'Error interno de validación' });
     }
   };
 }
-
-export const validateMonthParam = validate(monthSchema);
 
 export type ExpenseInput = z.infer<typeof expenseCreateSchema>;
 export type PinInput = z.infer<typeof pinSchema>;

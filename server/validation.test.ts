@@ -1,27 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  monthSchema,
   dateSchema,
   expenseCreateSchema,
   expenseUpdateSchema,
 } from './validation.js';
 
 describe('Validation Schemas', () => {
-  describe('monthSchema', () => {
-    it('should validate correct month format', () => {
-      expect(monthSchema.safeParse('2024-12').success).toBe(true);
-      expect(monthSchema.safeParse('2024-01').success).toBe(true);
-    });
-
-    it('should reject invalid month format', () => {
-      expect(monthSchema.safeParse('2024-13').success).toBe(false);
-      expect(monthSchema.safeParse('2024-1').success).toBe(false);
-      expect(monthSchema.safeParse('24-12').success).toBe(false);
-      expect(monthSchema.safeParse('2024/12').success).toBe(false);
-      expect(monthSchema.safeParse('').success).toBe(false);
-    });
-  });
-
   describe('dateSchema', () => {
     it('should validate correct date format', () => {
       expect(dateSchema.safeParse('2024-12-31').success).toBe(true);

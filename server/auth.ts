@@ -152,9 +152,9 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       }
     }
 
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'No autorizado' });
   } catch (error) {
     console.error('Auth middleware error:', error);
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'No autorizado' });
   }
 };

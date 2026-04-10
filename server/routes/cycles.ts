@@ -136,7 +136,7 @@ router.get('/list', async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     const cycles = await db.all<Array<{ id: number; month: string; status: string; start_date: string | null; started_at: string | null; created_at: string }>>(
       `SELECT id, month, status, start_date, started_at, created_at FROM billing_cycles
@@ -153,7 +153,7 @@ router.get('/list', async (req: AuthRequest, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error listing cycles:', error);
-    res.status(500).json({ error: 'Failed to list cycles' });
+    res.status(500).json({ error: 'Error al listar ciclos' });
   }
 });
 
@@ -167,7 +167,7 @@ router.get('/current', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     // First try: most recent active cycle
@@ -196,7 +196,7 @@ router.get('/current', async (req: AuthRequest, res) => {
     res.json(detailedCycle);
   } catch (error) {
     console.error('Error fetching current billing cycle:', error);
-    res.status(500).json({ error: 'Failed to fetch current billing cycle' });
+    res.status(500).json({ error: 'Error al obtener ciclo de facturación actual' });
   }
 });
 
@@ -210,7 +210,7 @@ router.post('/request', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     // Check if there's already a pending cycle
@@ -257,7 +257,7 @@ router.post('/request', async (req: AuthRequest, res) => {
     res.status(201).json(cycle);
   } catch (error) {
     console.error('Error requesting billing cycle:', error);
-    res.status(500).json({ error: 'Failed to request billing cycle' });
+    res.status(500).json({ error: 'Error al solicitar ciclo de facturación' });
   }
 });
 
@@ -266,7 +266,7 @@ router.post('/approve', async (req: AuthRequest, res) => {
   const { cycle_id } = req.body;
 
   if (!cycle_id) {
-    return res.status(400).json({ error: 'cycle_id is required' });
+    return res.status(400).json({ error: 'Se requiere cycle_id' });
   }
 
   try {
@@ -277,7 +277,7 @@ router.post('/approve', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const cycle = await db.get<{ id: number; household_id: number; requested_by_user_id: number; status: string }>(
@@ -287,11 +287,11 @@ router.post('/approve', async (req: AuthRequest, res) => {
     );
 
     if (!cycle) {
-      return res.status(404).json({ error: 'Billing cycle not found' });
+      return res.status(404).json({ error: 'Ciclo de facturación no encontrado' });
     }
 
     if (cycle.status !== 'pending') {
-      return res.status(400).json({ error: 'Billing cycle is not pending' });
+      return res.status(400).json({ error: 'El ciclo de facturación no está pendiente' });
     }
 
     await db.run(
@@ -304,7 +304,7 @@ router.post('/approve', async (req: AuthRequest, res) => {
     const detailedCycle = await getCycleWithApprovalState(db, cycle_id, req.user!.id);
 
     if (!detailedCycle) {
-      return res.status(404).json({ error: 'Billing cycle not found' });
+      return res.status(404).json({ error: 'Ciclo de facturación no encontrado' });
     }
 
     if (detailedCycle.approvals.all_approved) {
@@ -316,7 +316,7 @@ router.post('/approve', async (req: AuthRequest, res) => {
     res.json(detailedCycle);
   } catch (error) {
     console.error('Error approving billing cycle:', error);
-    res.status(500).json({ error: 'Failed to approve billing cycle' });
+    res.status(500).json({ error: 'Error al aprobar ciclo de facturación' });
   }
 });
 

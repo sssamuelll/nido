@@ -21,7 +21,7 @@ router.get('/', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const items = await db.all(
@@ -36,7 +36,7 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json(items);
   } catch (error) {
     console.error('Error fetching recurring expenses:', error);
-    res.status(500).json({ error: 'Failed to fetch recurring expenses' });
+    res.status(500).json({ error: 'Error al obtener gastos recurrentes' });
   }
 });
 
@@ -53,7 +53,7 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     // Resolve category_id
@@ -103,7 +103,7 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
     res.status(201).json(newItem);
   } catch (error) {
     console.error('Error creating recurring expense:', error);
-    res.status(500).json({ error: 'Failed to create recurring expense' });
+    res.status(500).json({ error: 'Error al crear gasto recurrente' });
   }
 });
 
@@ -120,7 +120,7 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const existing = await db.get(
@@ -130,7 +130,7 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
     );
 
     if (!existing) {
-      return res.status(404).json({ error: 'Recurring expense not found' });
+      return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
 
     // Resolve category_id if category name provided without id
@@ -177,7 +177,7 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
     res.json(updated);
   } catch (error) {
     console.error('Error updating recurring expense:', error);
-    res.status(500).json({ error: 'Failed to update recurring expense' });
+    res.status(500).json({ error: 'Error al actualizar gasto recurrente' });
   }
 });
 
@@ -193,7 +193,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const existing = await db.get(
@@ -203,7 +203,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     );
 
     if (!existing) {
-      return res.status(404).json({ error: 'Recurring expense not found' });
+      return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
 
     if (existing.type === 'shared') {
@@ -215,7 +215,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting recurring expense:', error);
-    res.status(500).json({ error: 'Failed to delete recurring expense' });
+    res.status(500).json({ error: 'Error al eliminar gasto recurrente' });
   }
 });
 
@@ -231,7 +231,7 @@ router.put('/:id/pause', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const existing = await db.get<{ id: number; household_id: number; name: string; amount: number; type: string; paused: number }>(
@@ -241,7 +241,7 @@ router.put('/:id/pause', async (req: AuthRequest, res) => {
     );
 
     if (!existing) {
-      return res.status(404).json({ error: 'Recurring expense not found' });
+      return res.status(404).json({ error: 'Gasto recurrente no encontrado' });
     }
 
     const newPaused = existing.paused ? 0 : 1;
@@ -259,7 +259,7 @@ router.put('/:id/pause', async (req: AuthRequest, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error toggling recurring expense pause:', error);
-    res.status(500).json({ error: 'Failed to toggle pause status' });
+    res.status(500).json({ error: 'Error al cambiar estado de pausa' });
   }
 });
 

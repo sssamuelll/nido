@@ -25,7 +25,7 @@ router.get('/', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const goals = await db.all(
@@ -40,7 +40,7 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json(goals);
   } catch (error) {
     console.error('Error fetching goals:', error);
-    res.status(500).json({ error: 'Failed to fetch goals' });
+    res.status(500).json({ error: 'Error al obtener objetivos' });
   }
 });
 
@@ -56,7 +56,7 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const ownerUserId = owner_type === 'personal' ? req.user!.id : null;
@@ -83,7 +83,7 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
     res.status(201).json(newGoal);
   } catch (error) {
     console.error('Error creating goal:', error);
-    res.status(500).json({ error: 'Failed to create goal' });
+    res.status(500).json({ error: 'Error al crear objetivo' });
   }
 });
 
@@ -100,7 +100,7 @@ router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => 
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const existing = await db.get(
@@ -110,12 +110,12 @@ router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => 
     );
 
     if (!existing) {
-      return res.status(404).json({ error: 'Goal not found' });
+      return res.status(404).json({ error: 'Objetivo no encontrado' });
     }
 
     // 403 if personal goal of another user
     if (existing.owner_type === 'personal' && existing.owner_user_id !== req.user!.id) {
-      return res.status(403).json({ error: 'Forbidden: You can only edit your own personal goals' });
+      return res.status(403).json({ error: 'Solo puedes editar tus propios objetivos personales' });
     }
 
     await db.run(
@@ -143,7 +143,7 @@ router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => 
     res.json(updatedGoal);
   } catch (error) {
     console.error('Error updating goal:', error);
-    res.status(500).json({ error: 'Failed to update goal' });
+    res.status(500).json({ error: 'Error al actualizar objetivo' });
   }
 });
 
@@ -159,7 +159,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const existing = await db.get(
@@ -169,11 +169,11 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     );
 
     if (!existing) {
-      return res.status(404).json({ error: 'Goal not found' });
+      return res.status(404).json({ error: 'Objetivo no encontrado' });
     }
 
     if (existing.owner_type === 'personal' && existing.owner_user_id !== req.user!.id) {
-      return res.status(403).json({ error: 'Forbidden: You can only delete your own personal goals' });
+      return res.status(403).json({ error: 'Solo puedes eliminar tus propios objetivos personales' });
     }
 
     if (existing.owner_type === 'shared') {
@@ -188,7 +188,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting goal:', error);
-    res.status(500).json({ error: 'Failed to delete goal' });
+    res.status(500).json({ error: 'Error al eliminar objetivo' });
   }
 });
 
@@ -205,7 +205,7 @@ router.post('/:id/contribute', validate(goalContributeSchema), async (req: AuthR
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     const existing = await db.get(
@@ -215,7 +215,7 @@ router.post('/:id/contribute', validate(goalContributeSchema), async (req: AuthR
     );
 
     if (!existing) {
-      return res.status(404).json({ error: 'Goal not found' });
+      return res.status(404).json({ error: 'Objetivo no encontrado' });
     }
 
     // Insert contribution
@@ -259,7 +259,7 @@ router.post('/:id/contribute', validate(goalContributeSchema), async (req: AuthR
     res.json(updatedGoal);
   } catch (error) {
     console.error('Error contributing to goal:', error);
-    res.status(500).json({ error: 'Failed to contribute to goal' });
+    res.status(500).json({ error: 'Error al contribuir al objetivo' });
   }
 });
 
