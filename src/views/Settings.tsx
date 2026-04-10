@@ -5,24 +5,26 @@ import { format } from 'date-fns';
 import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 
-interface BudgetData {
+interface HouseholdBudgetData {
   id?: number;
-  month: string;
-  shared_available: number;
+  total_amount: number;
+  personal_samuel: number;
+  personal_maria: number;
   personal_budget: number;
+  allocated: number;
+  unallocated: number;
   pending_approval?: {
     id: number;
-    shared_available: number;
+    total_amount: number;
     requested_by_user_id: number;
     requested_by_username?: string;
   };
-  categories: Record<string, number>;
 }
 
 export const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const currentMonth = format(new Date(), 'yyyy-MM');
-  const [budget, setBudget] = useState<BudgetData | null>(null);
+  const [budget, setBudget] = useState<HouseholdBudgetData | null>(null);
   const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
   const [currentCycle, setCurrentCycle] = useState<{
     id: number;
@@ -68,16 +70,15 @@ export const Settings: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Load cycle first to determine budget source
       const cycle = await Api.getCurrentCycle().catch(() => null);
       setCurrentCycle(cycle);
       const [budgetData, membersData] = await Promise.all([
-        cycle?.id ? Api.getBudget({ cycle_id: cycle.id, month: currentMonth }) : Api.getBudget(currentMonth),
+        Api.getHouseholdBudget(),
         Api.getMembers()
       ]);
 
       if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
-        budgetData.shared_available = budgetData.pending_approval.shared_available;
+        budgetData.total_amount = budgetData.pending_approval.total_amount;
       }
 
       setBudget(budgetData);
@@ -93,12 +94,9 @@ export const Settings: React.FC = () => {
     if (!budget) return;
     try {
       setSaving(true);
-      const res = await Api.updateBudget({
-        month: currentMonth,
-        cycle_id: currentCycle?.id,
-        shared_available: budget.shared_available,
+      const res = await Api.updateHouseholdBudget({
+        total_amount: budget.total_amount,
         personal_budget: budget.personal_budget,
-        categories: budget.categories
       });
 
       if (res.pending_approval) {
@@ -118,7 +116,7 @@ export const Settings: React.FC = () => {
     if (!budget?.pending_approval) return;
     try {
       setSaving(true);
-      await Api.approveBudget(budget.pending_approval.id);
+      await Api.approveHouseholdBudget(budget.pending_approval.id);
       setToast({ type: 'success', msg: 'Presupuesto aprobado' });
       loadData();
     } catch {
@@ -240,10 +238,10 @@ export const Settings: React.FC = () => {
               <input
                 className="form-input-s"
                 type="number"
-                value={budget.shared_available === 0 ? '' : budget.shared_available}
+                value={budget.total_amount === 0 ? '' : budget.total_amount}
                 onChange={e => {
                   const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                  setBudget({ ...budget, shared_available: val });
+                  setBudget({ ...budget, total_amount: val });
                 }}
                 placeholder="0"
               />
@@ -263,7 +261,7 @@ export const Settings: React.FC = () => {
                 <Clock size={14} />
                 {isPendingByMe
                   ? `Pendiente — Esperando aprobación de ${partnerName}`
-                  : `${requesterName} solicita cambiar el presupuesto a €${budget.pending_approval.shared_available}`}
+                  : `${requesterName} solicita cambiar el presupuesto a €${budget.pending_approval.total_amount}`}
               </div>
             )}
 
@@ -293,7 +291,7 @@ export const Settings: React.FC = () => {
               style={{ marginTop: '16px' }}
               disabled={saving}
               onClick={() => {
-                if (budget.shared_available < 100 || budget.personal_budget < 100) {
+                if (budget.total_amount < 100 || budget.personal_budget < 100) {
                   setToast({ type: 'error', msg: 'Los montos deben ser de al menos 3 dígitos' });
                   return;
                 }

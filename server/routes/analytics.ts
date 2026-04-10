@@ -9,7 +9,7 @@ const CATEGORY_FALLBACK_COLORS: Record<string, string> = {
   Gastos: '#7cb5e8',
   Servicios: '#c4a0e8',
   Ocio: '#e87ca0',
-  'Inversión': '#a6c79c',
+  'Inversi\u00F3n': '#a6c79c',
   Otros: '#a89e94',
 };
 
@@ -37,12 +37,12 @@ interface CategoryColorRow {
 }
 
 interface CategoryBudgetRow {
-  category: string;
-  amount: number;
+  name: string;
+  budget_amount: number;
 }
 
-interface BudgetRow {
-  shared_available: number;
+interface HouseholdBudgetRow {
+  total_amount: number;
   personal_samuel: number;
   personal_maria: number;
 }
@@ -52,7 +52,7 @@ const getLegacyPersonKey = (user: { username?: string; email?: string | null } |
   return identity.includes('maria') || identity.includes('mara') ? 'maria' : 'samuel';
 };
 
-const getPersonalBudgetForUser = (budget: BudgetRow, user: { username?: string; email?: string | null }): number =>
+const getPersonalBudgetForUser = (budget: HouseholdBudgetRow, user: { username?: string; email?: string | null }): number =>
   getLegacyPersonKey(user) === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
 router.get('/', async (req: AuthRequest, res) => {
@@ -60,7 +60,6 @@ router.get('/', async (req: AuthRequest, res) => {
     const db = getDatabase();
     const months = parseInt(req.query.months as string) || 6;
     const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
-    const username = req.user!.username;
     const currentUser = req.user!;
     const userId = req.user!.id;
 
@@ -126,12 +125,21 @@ router.get('/', async (req: AuthRequest, res) => {
     const vsPrevPeriod = prevTotal > 0 ? ((totalSpent - prevTotal) / prevTotal) * 100 : 0;
     const avgTicket = totalExpenses > 0 ? totalSpent / totalExpenses : 0;
 
-    // 3. Net savings from budget
-    const budget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', currentMonth);
+    // 3. Net savings from household budget
+    const householdUser = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      userId
+    );
+    const householdId = householdUser?.household_id;
+
+    const budget = await db.get<HouseholdBudgetRow>(
+      'SELECT total_amount, personal_samuel, personal_maria FROM household_budget WHERE household_id = ?',
+      householdId
+    );
     let netSavings = 0;
     if (budget) {
       if (context === 'shared') {
-        netSavings = budget.shared_available - totalSpent;
+        netSavings = budget.total_amount - totalSpent;
       } else {
         netSavings = getPersonalBudgetForUser(budget, currentUser) - totalSpent;
       }
@@ -155,14 +163,10 @@ router.get('/', async (req: AuthRequest, res) => {
     `, ...contextParams, currentMonth);
 
     // Get category colors from categories table
-    const householdUser = await db.get<{ household_id: number }>(
-      'SELECT household_id FROM app_users WHERE id = ?',
-      userId
-    );
-    const categoryColors = householdUser
+    const categoryColors = householdId
       ? await db.all<CategoryColorRow[]>(
           'SELECT name, color FROM categories WHERE household_id = ?',
-          householdUser.household_id
+          householdId
         )
       : [];
     const colorMap: Record<string, string> = {};
@@ -192,19 +196,22 @@ router.get('/', async (req: AuthRequest, res) => {
       });
     }
 
-    // Insight: Budget alert (category > 80% of its budget)
-    const categoryBudgets = await db.all<CategoryBudgetRow[]>(
-      'SELECT category, amount FROM category_budgets WHERE month = ?',
-      currentMonth
-    );
+    // Insight: Budget alert (category > 80% of its budget) — from categories.budget_amount
+    const categoryBudgets = householdId
+      ? await db.all<CategoryBudgetRow[]>(
+          `SELECT name, budget_amount FROM categories
+           WHERE household_id = ? AND context = 'shared' AND owner_user_id IS NULL AND budget_amount > 0`,
+          householdId
+        )
+      : [];
     for (const cb of categoryBudgets) {
-      const catSpent = categoryRows.find(r => r.name === cb.category);
-      if (catSpent && cb.amount > 0) {
-        const pctUsed = (catSpent.amount / cb.amount) * 100;
+      const catSpent = categoryRows.find(r => r.name === cb.name);
+      if (catSpent && cb.budget_amount > 0) {
+        const pctUsed = (catSpent.amount / cb.budget_amount) * 100;
         if (pctUsed >= 80) {
           insights.push({
             type: 'warning',
-            message: `${cb.category} está al ${Math.round(pctUsed)}% del presupuesto.`,
+            message: `${cb.name} est\u00E1 al ${Math.round(pctUsed)}% del presupuesto.`,
           });
         }
       }
@@ -216,13 +223,13 @@ router.get('/', async (req: AuthRequest, res) => {
     if (dayOfMonth > 0 && budget) {
       const projectedSpend = (totalSpent / dayOfMonth) * daysInMonth;
       const budgetAmount = context === 'shared'
-        ? budget.shared_available
+        ? budget.total_amount
         : getPersonalBudgetForUser(budget, currentUser);
       const projectedSavings = budgetAmount - projectedSpend;
       if (projectedSavings > 0) {
         insights.push({
           type: 'tip',
-          message: `Si mantienen este ritmo, cerrarán con €${Math.round(projectedSavings)} de ahorro.`,
+          message: `Si mantienen este ritmo, cerrar\u00E1n con \u20AC${Math.round(projectedSavings)} de ahorro.`,
         });
       }
     }
@@ -246,7 +253,7 @@ router.get('/', async (req: AuthRequest, res) => {
           if (pctAbove > 30) {
             insights.push({
               type: 'warning',
-              message: `${cat.name} subió un ${Math.round(pctAbove)}% respecto a vuestra media.`,
+              message: `${cat.name} subi\u00F3 un ${Math.round(pctAbove)}% respecto a vuestra media.`,
             });
           }
         }
@@ -255,7 +262,6 @@ router.get('/', async (req: AuthRequest, res) => {
 
     // Insight: Savings streak (3+ consecutive months with savings)
     if (budget) {
-      // Look back 6 months for consecutive savings
       const streakMonths: string[] = [];
       for (let i = 0; i < 6; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -264,18 +270,16 @@ router.get('/', async (req: AuthRequest, res) => {
 
       let streak = 0;
       for (const m of streakMonths) {
-        const mBudget = await db.get<BudgetRow>('SELECT * FROM budgets WHERE month = ?', m);
-        if (!mBudget) break;
-
         const mSpent = await db.get<TotalRow>(`
           SELECT COALESCE(SUM(amount), 0) as total
           FROM expenses
           WHERE ${contextFilter} AND strftime('%Y-%m', date) = ?
         `, ...contextParams, m);
 
+        // Use current household budget for comparison (no per-month budgets anymore)
         const budgetAmount = context === 'shared'
-          ? mBudget.shared_available
-          : getPersonalBudgetForUser(mBudget, currentUser);
+          ? budget.total_amount
+          : getPersonalBudgetForUser(budget, currentUser);
 
         if ((mSpent?.total ?? 0) < budgetAmount) {
           streak++;
@@ -287,7 +291,7 @@ router.get('/', async (req: AuthRequest, res) => {
       if (streak >= 3) {
         insights.push({
           type: 'positive',
-          message: `Llevan ${streak} meses ahorrando. ¿Quieren crear un objetivo?`,
+          message: `Llevan ${streak} meses ahorrando. \u00BFQuieren crear un objetivo?`,
         });
       }
     }

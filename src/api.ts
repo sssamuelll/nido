@@ -152,6 +152,7 @@ export class Api {
     description: string;
     amount: number;
     category: string;
+    category_id?: number;
     date: string;
     paid_by?: string;
     type: string;
@@ -195,11 +196,11 @@ export class Api {
     return this.request(`/expenses/summary?${params}`);
   }
 
-  static async getCategories(context: 'shared' | 'personal' = 'shared'): Promise<Array<{ id: number; name: string; emoji: string; color: string }>> {
+  static async getCategories(context: 'shared' | 'personal' = 'shared'): Promise<Array<{ id: number; name: string; emoji: string; color: string; budget_amount: number }>> {
     return this.request(`/categories?context=${context}`);
   }
 
-  static async saveCategory(category: { id?: number; name: string; emoji: string; color: string; context?: 'shared' | 'personal' }) {
+  static async saveCategory(category: { id?: number; name: string; emoji: string; color: string; budget_amount?: number; context?: 'shared' | 'personal' }) {
     return this.request('/categories', {
       method: 'POST',
       body: category,
@@ -212,47 +213,16 @@ export class Api {
     });
   }
 
-  static async deleteCategoryByName(name: string) {
-    return this.request(`/categories/by-name/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    });
+  static async getHouseholdBudget() {
+    return this.request('/household/budget');
   }
 
-  static async getLatestBudgetMonth(): Promise<{ month: string | null }> {
-    return this.request('/budgets/latest-month');
+  static async updateHouseholdBudget(data: { total_amount?: number; personal_budget?: number }) {
+    return this.request('/household/budget', { method: 'PUT', body: data });
   }
 
-  static async getBudget(month: string): Promise<any>;
-  static async getBudget(opts: { cycle_id: number; month?: string }): Promise<any>;
-  static async getBudget(arg: string | { cycle_id: number; month?: string }) {
-    if (typeof arg === 'string') {
-      return this.request(`/budgets?month=${arg}`);
-    }
-    const params = new URLSearchParams();
-    params.set('cycle_id', String(arg.cycle_id));
-    if (arg.month) params.set('month', arg.month);
-    return this.request(`/budgets?${params}`);
-  }
-
-  static async updateBudget(budget: {
-    month?: string;
-    cycle_id?: number;
-    shared_available?: number;
-    personal_budget?: number;
-    categories?: Record<string, number>;
-    context?: 'shared' | 'personal';
-  }) {
-    return this.request('/budgets', {
-      method: 'PUT',
-      body: budget,
-    });
-  }
-
-  static async approveBudget(approvalId: number) {
-    return this.request('/budgets/approve', {
-      method: 'POST',
-      body: { approval_id: approvalId },
-    });
+  static async approveHouseholdBudget(approvalId: number) {
+    return this.request('/household/budget/approve', { method: 'POST', body: { approval_id: approvalId } });
   }
 
   static async getMembers(): Promise<Array<{ id: number; username: string }>> {

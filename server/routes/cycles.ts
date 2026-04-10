@@ -10,6 +10,7 @@ interface RecurringExpenseRow {
   emoji: string;
   amount: number;
   category: string;
+  category_id: number | null;
   type: string;
   notes: string | null;
   paused: number;
@@ -83,11 +84,12 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
     const paidBy = creator?.username || 'samuel';
 
     await db.run(
-      `INSERT INTO expenses (description, amount, category, date, paid_by, paid_by_user_id, type, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'paid')`,
+      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid')`,
       item.name,
       item.amount,
       item.category,
+      item.category_id,
       today,
       paidBy,
       item.created_by_user_id,
@@ -104,6 +106,22 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
     actingUserId,
     today,
     cycleId
+  );
+
+  // Snapshot category budgets for this cycle
+  await db.run(
+    `INSERT OR IGNORE INTO category_budget_snapshots (cycle_id, category_id, budget_amount)
+     SELECT ?, id, budget_amount FROM categories WHERE household_id = ?`,
+    cycleId,
+    householdId
+  );
+
+  // Snapshot household budget for this cycle
+  await db.run(
+    `INSERT OR IGNORE INTO household_budget_snapshots (cycle_id, total_amount, personal_samuel, personal_maria)
+     SELECT ?, total_amount, personal_samuel, personal_maria FROM household_budget WHERE household_id = ?`,
+    cycleId,
+    householdId
   );
 
   await createNotification({

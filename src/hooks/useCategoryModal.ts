@@ -13,6 +13,7 @@ export const useCategoryModal = () => {
   const [budget, setBudget] = useState('');
   const [emoji, setEmoji] = useState('🍽️');
   const [color, setColor] = useState(COLOR_OPTIONS[0]);
+  const [editingId, setEditingId] = useState<number | undefined>(undefined);
 
   const openAdd = () => {
     setMode('add');
@@ -21,26 +22,25 @@ export const useCategoryModal = () => {
     setBudget('');
     setEmoji('🍽️');
     setColor(COLOR_OPTIONS[0]);
+    setEditingId(undefined);
     setShowModal(true);
   };
 
-  const openEdit = (categoryName: string, budgetAmount: number, catDef?: CategoryDef) => {
+  const openEdit = (catDef: CategoryDef) => {
     setMode('edit');
-    setName(categoryName);
-    setOriginalName(categoryName);
-    setBudget(String(budgetAmount));
-    setEmoji(catDef?.emoji || '📂');
-    setColor(catDef?.color || '#6B7280');
+    setName(catDef.name);
+    setOriginalName(catDef.name);
+    setBudget(String(catDef.budget_amount));
+    setEmoji(catDef.emoji || '📂');
+    setColor(catDef.color || '#6B7280');
+    setEditingId(catDef.id);
     setShowModal(true);
   };
 
   const close = () => setShowModal(false);
 
   const save = async (opts: {
-    month?: string;
-    cycle_id?: number;
     context: 'shared' | 'personal';
-    categoryBreakdown: Array<{ category: string; budget: number }>;
     categories: CategoryDef[];
     onSuccess: () => void;
   }) => {
@@ -50,26 +50,22 @@ export const useCategoryModal = () => {
     const emojiVal = emoji.trim() || '📂';
     if (!Number.isFinite(amount) || amount <= 0) { showToast('Pon un límite válido para la categoría'); return; }
 
-    const cats: Record<string, number> = {};
-    opts.categoryBreakdown.forEach(cat => { cats[cat.category] = cat.budget; });
-    if (mode === 'edit' && originalName !== trimmedName) delete cats[originalName];
-    cats[trimmedName] = amount;
-
     try {
       const existingCat = opts.categories.find(c => c.name === originalName);
       await Api.saveCategory({
-        id: mode === 'edit' && existingCat?.id ? existingCat.id : undefined,
+        id: mode === 'edit' && existingCat ? existingCat.id : (mode === 'edit' && editingId ? editingId : undefined),
         name: trimmedName,
         emoji: emojiVal,
         color,
+        budget_amount: amount,
         context: opts.context,
       });
-      await Api.updateBudget({ month: opts.month, cycle_id: opts.cycle_id, categories: cats, context: opts.context });
       setShowModal(false);
       opts.onSuccess();
       showToast(mode === 'add' ? 'Categoría creada' : 'Categoría actualizada');
-    } catch (error: any) {
-      showToast(error?.message || 'Error al guardar la categoría');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al guardar la categoría';
+      showToast(message);
     }
   };
 
@@ -78,17 +74,18 @@ export const useCategoryModal = () => {
     onSuccess: () => void;
   }) => {
     const existingCat = opts.categories.find(c => c.name === originalName);
+    if (!existingCat) {
+      showToast('Categoría no encontrada');
+      return;
+    }
     try {
-      if (existingCat?.id) {
-        await Api.deleteCategory(existingCat.id);
-      } else {
-        await Api.deleteCategoryByName(originalName);
-      }
+      await Api.deleteCategory(existingCat.id);
       setShowModal(false);
       opts.onSuccess();
       showToast('Categoría eliminada');
-    } catch (error: any) {
-      showToast(error?.message || 'Error al eliminar la categoría');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar la categoría';
+      showToast(message);
     }
   };
 
