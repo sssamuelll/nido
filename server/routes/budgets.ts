@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDatabase, syncBudgetAllocationsForMonth, notifyPartner } from '../db.js';
+import { getDatabase, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { budgetUpdateSchema, validate, validateMonthParam, BudgetInput } from '../validation.js';
 
@@ -193,7 +193,6 @@ router.put('/', async (req: AuthRequest, res) => {
       }
     }
 
-    if (month) await syncBudgetAllocationsForMonth(month);
     res.json({ success: true, pending_approval: shared_available !== undefined && shared_available !== budget.shared_available });
   } catch (error) {
     console.error('Error updating budget:', error);

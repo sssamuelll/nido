@@ -4,13 +4,7 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { databaseUrl, isProduction } from './config.js';
-
-const format = (d: Date, fmt: string) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-};
+import { databaseUrl } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -89,44 +83,6 @@ const backfillExpenseUserIds = async (database: Database) => {
   `);
 };
 
-const syncBudgetAllocations = async (database: Database) => {
-  const appUsers = await database.all<{ id: number; username: string }[]>(
-    `SELECT id, username FROM app_users WHERE username IN ('samuel', 'maria')`
-  );
-  const userIds = new Map(appUsers.map((user) => [user.username, user.id]));
-  const budgets = await database.all<{
-    id: number;
-    personal_samuel: number;
-    personal_maria: number;
-  }[]>(`SELECT id, personal_samuel, personal_maria FROM budgets`);
-
-  for (const budget of budgets) {
-    const allocationEntries = [
-      { username: 'samuel', amount: budget.personal_samuel },
-      { username: 'maria', amount: budget.personal_maria },
-    ];
-
-    for (const entry of allocationEntries) {
-      const appUserId = userIds.get(entry.username);
-      if (!appUserId) {
-        continue;
-      }
-
-      await database.run(
-        `
-          INSERT INTO budget_allocations (budget_id, app_user_id, allocation_type, amount)
-          VALUES (?, ?, 'personal', ?)
-          ON CONFLICT(budget_id, app_user_id, allocation_type) DO UPDATE SET
-            amount = excluded.amount
-        `,
-        budget.id,
-        appUserId,
-        entry.amount
-      );
-    }
-  }
-};
-
 // Initialize database
 export const initDatabase = async () => {
   const database = await open({
@@ -148,36 +104,17 @@ export const initDatabase = async () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS budgets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      month TEXT UNIQUE NOT NULL,
-      total_budget REAL NOT NULL,
-      rent REAL NOT NULL,
-      savings REAL NOT NULL,
-      personal_samuel REAL NOT NULL,
-      personal_maria REAL NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       description TEXT NOT NULL,
       amount REAL NOT NULL,
       category TEXT NOT NULL,
+      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       date TEXT NOT NULL,
       paid_by TEXT NOT NULL CHECK (paid_by IN ('samuel', 'maria')),
       type TEXT NOT NULL CHECK (type IN ('shared', 'personal')),
       status TEXT DEFAULT 'paid' CHECK (status IN ('paid', 'pending')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS category_budgets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      month TEXT NOT NULL,
-      category TEXT NOT NULL,
-      amount REAL NOT NULL,
-      context TEXT NOT NULL DEFAULT 'shared',
-      UNIQUE(month, category, context)
     );
 
     CREATE TABLE IF NOT EXISTS households (
@@ -208,58 +145,68 @@ export const initDatabase = async () => {
       FOREIGN KEY (app_user_id) REFERENCES app_users(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS budget_allocations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      budget_id INTEGER NOT NULL,
-      app_user_id INTEGER NOT NULL,
-      allocation_type TEXT NOT NULL DEFAULT 'personal' CHECK (allocation_type IN ('personal')),
-      amount REAL NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(budget_id, app_user_id, allocation_type),
-      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
-      FOREIGN KEY (app_user_id) REFERENCES app_users(id) ON DELETE CASCADE
-    );
-
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
     CREATE INDEX IF NOT EXISTS idx_expenses_paid_by ON expenses(paid_by);
     CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses(type);
     CREATE INDEX IF NOT EXISTS idx_app_users_household_id ON app_users(household_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_app_user_id ON sessions(app_user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       household_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       emoji TEXT NOT NULL,
       color TEXT NOT NULL,
+      budget_amount REAL NOT NULL DEFAULT 0,
       context TEXT NOT NULL DEFAULT 'shared',
       owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
-      UNIQUE(household_id, name, context, owner_user_id)
+      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE
     );
+    -- Expression-based unique index: COALESCE avoids SQLite NULL != NULL in UNIQUE constraints
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_identity
+      ON categories(household_id, name, context, COALESCE(owner_user_id, -1));
 
-    CREATE TABLE IF NOT EXISTS budget_approvals (
+    CREATE TABLE IF NOT EXISTS household_budget (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      budget_id INTEGER NOT NULL,
-      requested_by_user_id INTEGER NOT NULL,
-      shared_available REAL NOT NULL,
-      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-      approved_by_user_id INTEGER,
+      household_id INTEGER NOT NULL UNIQUE REFERENCES households(id) ON DELETE CASCADE,
+      total_amount REAL NOT NULL DEFAULT 2000,
+      personal_samuel REAL NOT NULL DEFAULT 500,
+      personal_maria REAL NOT NULL DEFAULT 500,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
-      FOREIGN KEY (requested_by_user_id) REFERENCES app_users(id) ON DELETE CASCADE,
-      FOREIGN KEY (approved_by_user_id) REFERENCES app_users(id) ON DELETE SET NULL
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- New budgets table structure (simplified)
-    CREATE TABLE IF NOT EXISTS budgets_new (
+    CREATE TABLE IF NOT EXISTS household_budget_approvals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      month TEXT UNIQUE NOT NULL,
-      shared_available REAL NOT NULL DEFAULT 0,
-      personal_samuel REAL NOT NULL DEFAULT 0,
-      personal_maria REAL NOT NULL DEFAULT 0,
+      household_id INTEGER NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+      requested_by_user_id INTEGER NOT NULL REFERENCES app_users(id),
+      approved_by_user_id INTEGER REFERENCES app_users(id),
+      total_amount REAL,
+      personal_samuel REAL,
+      personal_maria REAL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS category_budget_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cycle_id INTEGER NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
+      category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+      budget_amount REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(cycle_id, category_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS household_budget_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cycle_id INTEGER NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
+      total_amount REAL NOT NULL,
+      personal_samuel REAL NOT NULL,
+      personal_maria REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(cycle_id)
     );
 
     CREATE TABLE IF NOT EXISTS goals (
@@ -302,8 +249,6 @@ export const initDatabase = async () => {
     );
 
     CREATE INDEX IF NOT EXISTS idx_categories_household_id ON categories(household_id);
-    CREATE INDEX IF NOT EXISTS idx_budget_approvals_budget_id ON budget_approvals(budget_id);
-    CREATE INDEX IF NOT EXISTS idx_budget_approvals_status ON budget_approvals(status);
     CREATE INDEX IF NOT EXISTS idx_goals_household_id ON goals(household_id);
     CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal_id ON goal_contributions(goal_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_household_id ON notifications(household_id);
@@ -316,6 +261,7 @@ export const initDatabase = async () => {
       emoji TEXT NOT NULL DEFAULT '📂',
       amount REAL NOT NULL,
       category TEXT NOT NULL,
+      category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       type TEXT NOT NULL CHECK (type IN ('shared', 'personal')),
       notes TEXT,
       paused INTEGER NOT NULL DEFAULT 0,
@@ -361,10 +307,8 @@ export const initDatabase = async () => {
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_cycle_id ON billing_cycle_approvals(cycle_id)');
   await database.exec('CREATE INDEX IF NOT EXISTS idx_billing_cycle_approvals_user_id ON billing_cycle_approvals(user_id)');
 
-  // Cycle-based architecture: cycles track start_date, budgets link to cycles
+  // Cycle-based architecture: cycles track start_date
   await ensureColumn(database, 'billing_cycles', 'start_date', 'TEXT');
-  await ensureColumn(database, 'budgets', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
-  await ensureColumn(database, 'category_budgets', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
 
   // Seed users (password column kept for schema compatibility; auth is via magic link)
   const hashedPin = bcrypt.hashSync('1234', 10);
@@ -384,38 +328,6 @@ export const initDatabase = async () => {
     console.log(`Migrated ${usersWithPlaintextPin.length} plaintext PIN(s) to bcrypt`);
   }
 
-  // Migration: Transfer data from budgets to budgets_new
-  const budgetTableExists = await database.get<{ name: string }>(
-    `SELECT name FROM sqlite_master WHERE type='table' AND name='budgets'`
-  );
-  if (budgetTableExists && !(await hasColumn(database, 'budgets', 'shared_available'))) {
-    await database.exec(`
-      INSERT OR IGNORE INTO budgets_new (month, shared_available, personal_samuel, personal_maria, created_at)
-      SELECT month, (rent + savings), personal_samuel, personal_maria, created_at FROM budgets
-    `);
-    await database.exec('DROP TABLE budgets');
-    await database.exec('ALTER TABLE budgets_new RENAME TO budgets');
-  }
-
-  // Migration: category_budgets needs context + owner_user_id for per-user personal budgets
-  if (!(await hasColumn(database, 'category_budgets', 'context')) || !(await hasColumn(database, 'category_budgets', 'owner_user_id'))) {
-    await database.exec(`
-      CREATE TABLE category_budgets_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        month TEXT NOT NULL,
-        category TEXT NOT NULL,
-        amount REAL NOT NULL,
-        context TEXT NOT NULL DEFAULT 'shared',
-        owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
-        UNIQUE(month, category, context, owner_user_id)
-      );
-      INSERT INTO category_budgets_new (month, category, amount, context, owner_user_id)
-        SELECT month, category, amount, COALESCE(context, 'shared'), NULL FROM category_budgets;
-      DROP TABLE category_budgets;
-      ALTER TABLE category_budgets_new RENAME TO category_budgets;
-    `);
-  }
-
   // Ensure primary household exists (no default categories seeded — users create their own)
   const householdId = await ensurePrimaryHousehold(database);
 
@@ -432,7 +344,219 @@ export const initDatabase = async () => {
   }
   await syncAppUsersFromLegacyUsers(database, householdId);
   await backfillExpenseUserIds(database);
-  await syncBudgetAllocations(database);
+
+  // === Migration: Unified category & budget model ===
+  const unifiedModelRan = await database.get<{ name: string }>(
+    `SELECT name FROM migrations WHERE name = 'unified_category_budget_model'`
+  );
+
+  if (!unifiedModelRan) {
+    console.log('Running migration: unified_category_budget_model');
+
+    // 1. Create new tables
+    await database.exec(`
+      CREATE TABLE IF NOT EXISTS household_budget (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        household_id INTEGER NOT NULL UNIQUE REFERENCES households(id) ON DELETE CASCADE,
+        total_amount REAL NOT NULL DEFAULT 2000,
+        personal_samuel REAL NOT NULL DEFAULT 500,
+        personal_maria REAL NOT NULL DEFAULT 500,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS household_budget_approvals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        household_id INTEGER NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+        requested_by_user_id INTEGER NOT NULL REFERENCES app_users(id),
+        approved_by_user_id INTEGER REFERENCES app_users(id),
+        total_amount REAL,
+        personal_samuel REAL,
+        personal_maria REAL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS category_budget_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cycle_id INTEGER NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
+        category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        budget_amount REAL NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(cycle_id, category_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS household_budget_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cycle_id INTEGER NOT NULL REFERENCES billing_cycles(id) ON DELETE CASCADE,
+        total_amount REAL NOT NULL,
+        personal_samuel REAL NOT NULL,
+        personal_maria REAL NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(cycle_id)
+      );
+    `);
+
+    // 2. Add budget_amount to categories
+    const hasBudgetAmount = await hasColumn(database, 'categories', 'budget_amount');
+    if (!hasBudgetAmount) {
+      await database.exec(`ALTER TABLE categories ADD COLUMN budget_amount REAL NOT NULL DEFAULT 0`);
+    }
+
+    // Copy latest budget amounts from category_budgets to categories
+    const categoryBudgetsExists = await database.get<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='category_budgets'`
+    );
+    if (categoryBudgetsExists) {
+      const latestMonth = await database.get<{ month: string }>(
+        `SELECT month FROM category_budgets ORDER BY month DESC LIMIT 1`
+      );
+      if (latestMonth) {
+        const budgetRows = await database.all<{ category: string; amount: number; context: string; owner_user_id: number | null }[]>(
+          `SELECT category, amount, context, owner_user_id
+           FROM category_budgets
+           WHERE id IN (
+             SELECT MAX(id) FROM category_budgets
+             WHERE month = ?
+             GROUP BY category, context, COALESCE(owner_user_id, -1)
+           )`,
+          latestMonth.month
+        );
+        for (const row of budgetRows) {
+          await database.run(
+            `UPDATE categories SET budget_amount = ?
+             WHERE name = ? AND context = ? AND COALESCE(owner_user_id, -1) = ?
+             AND household_id = (SELECT id FROM households LIMIT 1)`,
+            row.amount, row.category, row.context, row.owner_user_id ?? -1
+          );
+        }
+      }
+    }
+
+    // 3. Create missing categories from expenses and recurring_expenses
+    const householdRow = await database.get<{ id: number }>(`SELECT id FROM households LIMIT 1`);
+    const hhId = householdRow?.id ?? 1;
+
+    const missingShared = await database.all<{ category: string }[]>(
+      `SELECT DISTINCT e.category FROM expenses e
+       WHERE e.type = 'shared'
+       AND NOT EXISTS (
+         SELECT 1 FROM categories c
+         WHERE c.name = e.category AND c.context = 'shared' AND c.household_id = ?
+       )`, hhId
+    );
+    for (const { category } of missingShared) {
+      await database.run(
+        `INSERT OR IGNORE INTO categories (household_id, name, emoji, color, budget_amount, context, owner_user_id)
+         VALUES (?, ?, '📦', '#6B7280', 0, 'shared', NULL)`, hhId, category
+      );
+    }
+
+    const missingPersonal = await database.all<{ category: string; paid_by_user_id: number }[]>(
+      `SELECT DISTINCT e.category, e.paid_by_user_id FROM expenses e
+       WHERE e.type = 'personal' AND e.paid_by_user_id IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM categories c
+         WHERE c.name = e.category AND c.context = 'personal' AND c.owner_user_id = e.paid_by_user_id
+       )`
+    );
+    for (const { category, paid_by_user_id } of missingPersonal) {
+      await database.run(
+        `INSERT OR IGNORE INTO categories (household_id, name, emoji, color, budget_amount, context, owner_user_id)
+         VALUES (?, ?, '📦', '#6B7280', 0, 'personal', ?)`, hhId, category, paid_by_user_id
+      );
+    }
+
+    const missingRecurring = await database.all<{ category: string; type: string; created_by_user_id: number }[]>(
+      `SELECT DISTINCT r.category, r.type, r.created_by_user_id FROM recurring_expenses r
+       WHERE NOT EXISTS (
+         SELECT 1 FROM categories c
+         WHERE c.name = r.category AND c.context = r.type
+         AND COALESCE(c.owner_user_id, -1) = CASE WHEN r.type = 'personal' THEN r.created_by_user_id ELSE -1 END
+       )`
+    );
+    for (const { category, type, created_by_user_id } of missingRecurring) {
+      await database.run(
+        `INSERT OR IGNORE INTO categories (household_id, name, emoji, color, budget_amount, context, owner_user_id)
+         VALUES (?, ?, '📦', '#6B7280', 0, ?, ?)`, hhId, category, type, type === 'personal' ? created_by_user_id : null
+      );
+    }
+
+    // 4. Add category_id FK to expenses and recurring_expenses, backfill
+    const expHasCatId = await hasColumn(database, 'expenses', 'category_id');
+    if (!expHasCatId) {
+      await database.exec(`ALTER TABLE expenses ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL`);
+    }
+    const recHasCatId = await hasColumn(database, 'recurring_expenses', 'category_id');
+    if (!recHasCatId) {
+      await database.exec(`ALTER TABLE recurring_expenses ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL`);
+    }
+
+    await database.run(
+      `UPDATE expenses SET category_id = (
+        SELECT c.id FROM categories c
+        WHERE c.name = expenses.category AND c.context = 'shared' AND c.owner_user_id IS NULL AND c.household_id = ?
+      ) WHERE type = 'shared' AND category_id IS NULL`, hhId
+    );
+    await database.run(
+      `UPDATE expenses SET category_id = (
+        SELECT c.id FROM categories c
+        WHERE c.name = expenses.category AND c.context = 'personal' AND c.owner_user_id = expenses.paid_by_user_id
+      ) WHERE type = 'personal' AND paid_by_user_id IS NOT NULL AND category_id IS NULL`
+    );
+    await database.run(
+      `UPDATE recurring_expenses SET category_id = (
+        SELECT c.id FROM categories c
+        WHERE c.name = recurring_expenses.category AND c.context = 'shared' AND c.owner_user_id IS NULL AND c.household_id = ?
+      ) WHERE type = 'shared' AND category_id IS NULL`, hhId
+    );
+    await database.run(
+      `UPDATE recurring_expenses SET category_id = (
+        SELECT c.id FROM categories c
+        WHERE c.name = recurring_expenses.category AND c.context = 'personal' AND c.owner_user_id = recurring_expenses.created_by_user_id
+      ) WHERE type = 'personal' AND category_id IS NULL`
+    );
+
+    // 5. Migrate budgets -> household_budget
+    const budgetsTableExists = await database.get<{ name: string }>(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='budgets'`
+    );
+    if (budgetsTableExists) {
+      const latestBudget = await database.get<{ shared_available: number; personal_samuel: number; personal_maria: number }>(
+        `SELECT shared_available, personal_samuel, personal_maria FROM budgets ORDER BY month DESC LIMIT 1`
+      );
+      if (latestBudget) {
+        await database.run(
+          `INSERT OR IGNORE INTO household_budget (household_id, total_amount, personal_samuel, personal_maria)
+           VALUES (?, ?, ?, ?)`, hhId, latestBudget.shared_available, latestBudget.personal_samuel, latestBudget.personal_maria
+        );
+      } else {
+        await database.run(`INSERT OR IGNORE INTO household_budget (household_id) VALUES (?)`, hhId);
+      }
+    } else {
+      await database.run(`INSERT OR IGNORE INTO household_budget (household_id) VALUES (?)`, hhId);
+    }
+
+    // 6. Validate
+    const orphaned = await database.get<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM expenses WHERE category_id IS NULL`);
+    if (orphaned && orphaned.cnt > 0) {
+      console.warn(`Warning: ${orphaned.cnt} expenses have no category_id (will show as "Sin categoria")`);
+    }
+
+    // 7. Indexes
+    await database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_identity ON categories(household_id, name, context, COALESCE(owner_user_id, -1))`);
+    await database.exec(`CREATE INDEX IF NOT EXISTS idx_expenses_category_id ON expenses(category_id)`);
+    await database.exec(`CREATE INDEX IF NOT EXISTS idx_recurring_category_id ON recurring_expenses(category_id)`);
+
+    // 8. Drop old tables
+    await database.exec(`DROP TABLE IF EXISTS category_budgets`);
+    await database.exec(`DROP TABLE IF EXISTS budget_allocations`);
+    await database.exec(`DROP TABLE IF EXISTS budget_approvals`);
+    await database.exec(`DROP TABLE IF EXISTS budgets`);
+
+    await database.run(`INSERT INTO migrations (name) VALUES ('unified_category_budget_model')`);
+    console.log('Migration unified_category_budget_model complete');
+  }
 
   console.log('Database initialized');
 };
@@ -444,16 +568,6 @@ export const findAppUserIdByUsername = async (username: string) => {
     username
   );
   return user?.id ?? null;
-};
-
-export const syncBudgetAllocationsForMonth = async (month: string) => {
-  const database = getDatabase();
-  const budget = await database.get<{ id: number }>(`SELECT id FROM budgets WHERE month = ?`, month);
-  if (!budget) {
-    return;
-  }
-
-  await syncBudgetAllocations(database);
 };
 
 export async function createNotification(opts: {
