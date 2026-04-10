@@ -3,11 +3,6 @@ import { randomBytes, createHash } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { getDatabase, ensureSessionColumns } from './db.js';
 import {
-  supabaseUrl,
-  supabaseAnonKey,
-  supabaseServiceRoleKey,
-  magicLinkAllowedEmails,
-  appBaseUrl,
   appSessionDays,
   appSessionCookieName,
 } from './config.js';
@@ -32,45 +27,7 @@ interface AppUserRow {
   email: string | null;
 }
 
-export type MagicLinkResult =
-  | { success: true }
-  | { success: false; reason: 'forbidden' }
-  | {
-      success: false;
-      reason: 'rate_limited' | 'auth' | 'upstream';
-      status: number;
-      error: string;
-    };
-
-export type SupabaseUserSyncResult =
-  | { success: true; user: AuthUser }
-  | { success: false; reason: 'forbidden' }
-  | {
-      success: false;
-      reason: 'auth' | 'upstream';
-      status: number;
-      error: string;
-    };
-
-export type MagicLinkConfirmResult =
-  | { success: true; accessToken: string }
-  | {
-      success: false;
-      reason: 'auth' | 'upstream';
-      status: number;
-      error: string;
-    };
-
 const hashSessionToken = (token: string) => createHash('sha256').update(token).digest('hex');
-const normalizeEmail = (email: string) => email.trim().toLowerCase();
-
-export const isMagicLinkEmailAllowed = (email: string) => {
-  if (magicLinkAllowedEmails.length === 0) {
-    return false;
-  }
-
-  return magicLinkAllowedEmails.includes(normalizeEmail(email));
-};
 
 const sessionCookieOptions = () => ({
   httpOnly: true,
@@ -79,83 +36,6 @@ const sessionCookieOptions = () => ({
   maxAge: appSessionDays * 24 * 60 * 60 * 1000,
   path: '/',
 });
-
-const deriveUsernameFromEmail = (email: string) => {
-  const candidate = email
-    .split('@')[0]
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  return candidate || `user-${randomBytes(4).toString('hex')}`;
-};
-
-const authErrorStatuses = new Set([400, 401, 403, 422]);
-const rateLimitErrorCodes = new Set([
-  'over_email_send_rate_limit',
-  'over_request_rate_limit',
-  'over_sms_send_rate_limit',
-]);
-
-const parseSupabaseError = async (response: globalThis.Response) => {
-  let payload: Record<string, unknown> | null = null;
-
-  try {
-    payload = await response.json() as Record<string, unknown>;
-  } catch {
-    payload = null;
-  }
-
-  const code = typeof payload?.code === 'string' ? payload.code : null;
-  const message = typeof payload?.msg === 'string'
-    ? payload.msg
-    : typeof payload?.error_description === 'string'
-      ? payload.error_description
-      : typeof payload?.error === 'string'
-        ? payload.error
-        : typeof payload?.message === 'string'
-          ? payload.message
-          : response.statusText || 'Supabase request failed';
-
-  if (response.status === 429 || (code && rateLimitErrorCodes.has(code))) {
-    return {
-      reason: 'rate_limited' as const,
-      status: 429,
-      error: 'Supabase rate limit reached. Please try again shortly.',
-    };
-  }
-
-  if (authErrorStatuses.has(response.status)) {
-    return {
-      reason: 'auth' as const,
-      status: response.status,
-      error: message,
-    };
-  }
-
-  return {
-    reason: 'upstream' as const,
-    status: 502,
-    error: message,
-  };
-};
-
-const findAvailableUsername = async (baseUsername: string) => {
-  const db = getDatabase();
-  let candidate = baseUsername;
-  let suffix = 1;
-
-  while (true) {
-    const existing = await db.get<{ id: number }>('SELECT id FROM app_users WHERE username = ?', candidate);
-    if (!existing) {
-      return candidate;
-    }
-
-    candidate = `${baseUsername}-${suffix}`;
-    suffix += 1;
-  }
-};
 
 export const createAppSession = async (appUserId: number, req: Request) => {
   const db = getDatabase();
@@ -239,150 +119,6 @@ const getAppUserFromSession = async (sessionToken: string): Promise<AuthUser | n
   };
 };
 
-const fetchSupabaseUser = async (accessToken: string): Promise<
-  | { success: true; identity: { id: string; email?: string | null } }
-  | { success: false; reason: 'auth' | 'upstream'; status: number; error: string }
-> => {
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      apikey: supabaseServiceRoleKey || supabaseAnonKey,
-    },
-  });
-
-  if (!response.ok) {
-    const parsed = await parseSupabaseError(response);
-    return {
-      success: false,
-      reason: parsed.reason === 'rate_limited' ? 'upstream' : parsed.reason,
-      status: parsed.reason === 'rate_limited' ? 502 : parsed.status,
-      error: parsed.reason === 'rate_limited' ? 'Supabase user lookup was rate-limited' : parsed.error,
-    };
-  }
-
-  return { success: true, identity: await response.json() };
-};
-
-export const findOrCreateAppUserFromSupabase = async (accessToken: string): Promise<SupabaseUserSyncResult> => {
-  try {
-    const identityResult = await fetchSupabaseUser(accessToken);
-    if (!identityResult.success) {
-      return {
-        success: false,
-        reason: identityResult.reason,
-        status: identityResult.status ?? 502,
-        error: identityResult.error ?? 'Supabase user lookup failed',
-      };
-    }
-
-    const email = identityResult.identity.email ? normalizeEmail(identityResult.identity.email) : null;
-
-    if (!identityResult.identity.id || !email || !isMagicLinkEmailAllowed(email)) {
-      return { success: false, reason: 'forbidden' };
-    }
-
-    const db = getDatabase();
-    const existingByEmail = await db.get<AppUserRow>('SELECT id, username, email FROM app_users WHERE lower(email) = lower(?)', email);
-    if (existingByEmail) {
-      return { success: true, user: existingByEmail };
-    }
-
-    const legacyByUsername = await db.get<AppUserRow>('SELECT id, username, email FROM app_users WHERE username = ?', deriveUsernameFromEmail(email));
-    if (legacyByUsername && !legacyByUsername.email) {
-      await db.run('UPDATE app_users SET email = ? WHERE id = ?', email, legacyByUsername.id);
-      return { success: true, user: { ...legacyByUsername, email } };
-    }
-
-    const username = await findAvailableUsername(deriveUsernameFromEmail(email));
-    const insertResult = await db.run(
-      'INSERT INTO app_users (household_id, username, email) VALUES (?, ?, ?)',
-      1,
-      username,
-      email
-    );
-
-    return {
-      success: true,
-      user: {
-        id: insertResult.lastID!,
-        username,
-        email,
-      },
-    };
-  } catch (error) {
-    console.error('Supabase user sync error:', error);
-    return {
-      success: false,
-      reason: 'upstream',
-      status: 502,
-      error: 'Supabase user sync failed',
-    };
-  }
-};
-
-export const sendMagicLink = async (email: string): Promise<MagicLinkResult> => {
-  if (!isMagicLinkEmailAllowed(email)) {
-    return { success: false as const, reason: 'forbidden' as const };
-  }
-
-  const redirectTo = new URL('/auth/confirm', appBaseUrl).toString();
-  const response = await fetch(`${supabaseUrl}/auth/v1/otp`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
-    },
-    body: JSON.stringify({
-      email: normalizeEmail(email),
-      email_redirect_to: redirectTo,
-    }),
-  });
-
-  if (!response.ok) {
-    const parsed = await parseSupabaseError(response);
-    console.error('Magic link send failed:', parsed.error);
-    return { success: false, ...parsed };
-  }
-
-  return { success: true };
-};
-
-export const confirmMagicLink = async (tokenHash: string, type: string): Promise<MagicLinkConfirmResult> => {
-  const response = await fetch(`${supabaseUrl}/auth/v1/verify`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
-    },
-    body: JSON.stringify({
-      token_hash: tokenHash,
-      type,
-    }),
-  });
-
-  if (!response.ok) {
-    const parsed = await parseSupabaseError(response);
-    console.error('Magic link confirm failed:', parsed.error);
-    return { success: false, reason: parsed.reason === 'rate_limited' ? 'upstream' : parsed.reason, status: parsed.reason === 'rate_limited' ? 502 : parsed.status, error: parsed.reason === 'rate_limited' ? 'Supabase magic link verification was rate-limited' : parsed.error };
-  }
-
-  const payload = await response.json().catch(() => null);
-  const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : null;
-
-  if (!accessToken) {
-    return {
-      success: false,
-      reason: 'upstream',
-      status: 502,
-      error: 'Supabase verification response did not include an access token',
-    };
-  }
-
-  return { success: true, accessToken };
-};
-
 // Verify PIN function
 export const verifyPin = async (username: string, pin: string): Promise<boolean> => {
   try {
@@ -400,7 +136,7 @@ export const verifyPin = async (username: string, pin: string): Promise<boolean>
   }
 };
 
-// Auth middleware — app sessions only (magic link)
+// Auth middleware — app sessions only
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const sessionToken = req.cookies?.[appSessionCookieName];

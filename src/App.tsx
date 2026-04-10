@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import { Login } from './views/Login';
-import { AuthCallback } from './views/AuthCallback';
+import { Setup } from './views/Setup';
+import { Invite } from './views/Invite';
 import { PinPage } from './views/PinPage';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
@@ -37,8 +38,12 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  if (location.pathname === '/auth/confirm' || location.pathname === '/auth/callback') {
-    return <AuthCallback />;
+  if (location.pathname === '/setup') {
+    return <Setup />;
+  }
+
+  if (location.pathname.startsWith('/invite/')) {
+    return <Invite />;
   }
 
   if (!isAuthenticated) {
@@ -93,8 +98,8 @@ const App: React.FC = () => {
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/auth/confirm" element={<AuthCallback />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/setup" element={<Setup />} />
+          <Route path="/invite/:token" element={<Invite />} />
           <Route path="*" element={<AppRoutes />} />
         </Routes>
       </Router>

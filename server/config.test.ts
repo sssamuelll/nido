@@ -22,43 +22,9 @@ describe('Configuration module', () => {
     return mod.config;
   };
 
-  describe('Supabase config validation', () => {
-    it('should require SUPABASE_URL', async () => {
-      delete process.env.SUPABASE_URL;
-      process.env.SUPABASE_ANON_KEY = 'some-key';
-      await expect(importConfig()).rejects.toThrow(/SUPABASE_URL/);
-    });
-
-    it('should require SUPABASE_ANON_KEY', async () => {
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      delete process.env.SUPABASE_ANON_KEY;
-      await expect(importConfig()).rejects.toThrow(/SUPABASE_ANON_KEY/);
-    });
-
-    it('should accept valid Supabase config', async () => {
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
-      const config = await importConfig();
-      expect(config.supabaseUrl).toBe('https://example.supabase.co');
-      expect(config.supabaseAnonKey).toBe('some-key');
-    });
-  });
-
-  describe('magic link allowlist', () => {
-    it('should normalize MAGIC_LINK_ALLOWED_EMAILS into a lowercase list', async () => {
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
-      process.env.MAGIC_LINK_ALLOWED_EMAILS = ' Samuel@Example.com, maria@example.com ,';
-      const config = await importConfig();
-      expect(config.magicLinkAllowedEmails).toEqual(['samuel@example.com', 'maria@example.com']);
-    });
-  });
-
   describe('Environment detection', () => {
     it('should detect production environment', async () => {
       process.env.NODE_ENV = 'production';
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
       const config = await importConfig();
       expect(config.isProduction).toBe(true);
       expect(config.isDevelopment).toBe(false);
@@ -67,8 +33,6 @@ describe('Configuration module', () => {
 
     it('should detect development environment (default)', async () => {
       delete process.env.NODE_ENV;
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
       const config = await importConfig();
       expect(config.isDevelopment).toBe(true);
       expect(config.isProduction).toBe(false);
@@ -76,8 +40,6 @@ describe('Configuration module', () => {
 
     it('should detect test environment', async () => {
       process.env.NODE_ENV = 'test';
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
       const config = await importConfig();
       expect(config.isTest).toBe(true);
     });
@@ -86,8 +48,6 @@ describe('Configuration module', () => {
   describe('validateSecurity()', () => {
     it('should warn about missing ALLOWED_ORIGINS in production', async () => {
       process.env.NODE_ENV = 'production';
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
       delete process.env.ALLOWED_ORIGINS;
       const config = await importConfig();
       const result = config.validateSecurity();
@@ -99,8 +59,6 @@ describe('Configuration module', () => {
 
     it('should be valid with strong settings', async () => {
       process.env.NODE_ENV = 'production';
-      process.env.SUPABASE_URL = 'https://example.supabase.co';
-      process.env.SUPABASE_ANON_KEY = 'some-key';
       process.env.ALLOWED_ORIGINS = 'https://nido.example.com';
       const config = await importConfig();
       const result = config.validateSecurity();

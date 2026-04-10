@@ -145,6 +145,28 @@ export const initDatabase = async () => {
       FOREIGN KEY (app_user_id) REFERENCES app_users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS passkey_credentials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app_user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+      credential_id TEXT NOT NULL UNIQUE,
+      public_key TEXT NOT NULL,
+      sign_count INTEGER NOT NULL DEFAULT 0,
+      transports TEXT,
+      device_name TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS device_invitations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id INTEGER NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+      invited_by_user_id INTEGER NOT NULL REFERENCES app_users(id),
+      token TEXT NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      relink_user_id INTEGER REFERENCES app_users(id),
+      used_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
     CREATE INDEX IF NOT EXISTS idx_expenses_paid_by ON expenses(paid_by);
     CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses(type);

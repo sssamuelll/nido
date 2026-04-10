@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { format } from 'date-fns';
-import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link } from 'lucide-react';
 import { Button } from '../components/Button';
 
 interface HouseholdBudgetData {
@@ -21,11 +21,22 @@ interface HouseholdBudgetData {
   };
 }
 
+interface PasskeyInfo {
+  id: number;
+  device_name: string;
+  created_at: string;
+}
+
 export const Settings: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, registerPasskey } = useAuth();
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [budget, setBudget] = useState<HouseholdBudgetData | null>(null);
   const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
+  const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
+  const [passkeysLoading, setPasskeysLoading] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteFor, setInviteFor] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [currentCycle, setCurrentCycle] = useState<{
     id: number;
     month: string;
@@ -67,6 +78,18 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const loadPasskeys = async () => {
+    try {
+      setPasskeysLoading(true);
+      const data = await Api.getPasskeys();
+      setPasskeys(data);
+    } catch {
+      // silently fail — passkeys section just stays empty
+    } finally {
+      setPasskeysLoading(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -74,7 +97,8 @@ export const Settings: React.FC = () => {
       setCurrentCycle(cycle);
       const [budgetData, membersData] = await Promise.all([
         Api.getHouseholdBudget(),
-        Api.getMembers()
+        Api.getMembers(),
+        loadPasskeys(),
       ]);
 
       if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
@@ -88,6 +112,47 @@ export const Settings: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddDevice = async () => {
+    try {
+      await registerPasskey();
+      setToast({ type: 'success', msg: 'Dispositivo registrado' });
+      loadPasskeys();
+    } catch (error: any) {
+      if (error?.name === 'NotAllowedError') return; // user cancelled
+      setToast({ type: 'error', msg: error?.message || 'Error al registrar dispositivo' });
+    }
+  };
+
+  const handleInvitePartner = async () => {
+    try {
+      const result = await Api.createInvite();
+      setInviteUrl(result.url);
+      setInviteFor('partner');
+      setCopied(false);
+    } catch (error: any) {
+      setToast({ type: 'error', msg: error?.message || 'Error al crear invitación' });
+    }
+  };
+
+  const handleRelinkPartner = async (partnerId: number) => {
+    try {
+      const result = await Api.createInvite(partnerId);
+      setInviteUrl(result.url);
+      setInviteFor('relink');
+      setCopied(false);
+    } catch (error: any) {
+      setToast({ type: 'error', msg: error?.message || 'Error al crear enlace' });
+    }
+  };
+
+  const handleCopyUrl = () => {
+    if (!inviteUrl) return;
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handleSaveBudget = async () => {
@@ -322,6 +387,104 @@ export const Settings: React.FC = () => {
               <div className="pin-dot">&bull;</div>
               <button className="btn btn-outline btn-sm" style={{ marginLeft: '8px' }}>Cambiar</button>
             </div>
+          </div>
+
+          {/* Devices & Access — passkey management */}
+          <div className="card settings-section an d4">
+            <h3>
+              <Smartphone size={18} />
+              {' '}Dispositivos y acceso
+            </h3>
+
+            {/* Registered passkeys list */}
+            {passkeysLoading ? (
+              <div style={{ fontSize: '13px', color: 'var(--tm)', padding: '8px 0' }}>Cargando dispositivos...</div>
+            ) : passkeys.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'var(--tm)', padding: '8px 0' }}>Sin passkeys registradas</div>
+            ) : (
+              <div style={{ marginBottom: '16px' }}>
+                {passkeys.map(pk => (
+                  <div
+                    key={pk.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      padding: '10px 0', borderBottom: '1px solid var(--border2)',
+                    }}
+                  >
+                    <Smartphone size={16} style={{ color: 'var(--ts)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {pk.device_name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--tm)' }}>
+                        Registrado {format(new Date(pk.created_at), 'dd MMM yyyy')}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add device button */}
+            <button className="btn btn-outline btn-sm" style={{ marginBottom: '12px' }} onClick={handleAddDevice}>
+              <Smartphone size={14} style={{ marginRight: '6px' }} />
+              Agregar dispositivo
+            </button>
+
+            {/* Invite partner — only if < 2 members */}
+            {members.length < 2 && (
+              <div style={{ marginTop: '8px' }}>
+                <button className="btn btn-outline btn-sm" onClick={handleInvitePartner}>
+                  <UserPlus size={14} style={{ marginRight: '6px' }} />
+                  Invitar a tu pareja
+                </button>
+              </div>
+            )}
+
+            {/* Re-link buttons for other members */}
+            {members.filter(m => m.id !== user?.id).map(m => (
+              <div key={m.id} style={{ marginTop: '8px' }}>
+                <button className="btn btn-outline btn-sm" onClick={() => handleRelinkPartner(m.id)}>
+                  <Link size={14} style={{ marginRight: '6px' }} />
+                  Re-vincular dispositivo de {formatDisplayName(m.username)}
+                </button>
+              </div>
+            ))}
+
+            {/* Invite URL display */}
+            {inviteUrl && (
+              <div style={{
+                marginTop: '16px', padding: '12px', borderRadius: 'var(--rx)',
+                background: 'var(--ol)', border: '1px solid var(--border2)',
+              }}>
+                <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '8px' }}>
+                  {inviteFor === 'partner' ? 'Envía este enlace a tu pareja:' : 'Enlace para re-vincular:'}
+                </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}>
+                  <input
+                    readOnly
+                    value={inviteUrl}
+                    style={{
+                      flex: 1, fontSize: '12px', padding: '8px 10px',
+                      background: 'var(--surface)', border: '1px solid var(--border2)',
+                      borderRadius: 'var(--rs)', color: 'var(--text)',
+                      fontFamily: 'monospace', minWidth: 0,
+                    }}
+                    onClick={e => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={handleCopyUrl}
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tools — Exportar datos + Cerrar sesión */}

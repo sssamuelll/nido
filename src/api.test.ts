@@ -64,25 +64,27 @@ describe('Api auth requests', () => {
     expect(unauthorizedHandler).not.toHaveBeenCalled();
   });
 
-  it('posts token_hash confirmation through the backend bridge endpoint', async () => {
+  it('fetches passkeys list', async () => {
     const fetchMock = vi.mocked(fetch);
+    const passkeys = [
+      { id: 1, device_name: 'Chrome on Mac', created_at: '2026-03-01T00:00:00Z' },
+    ];
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ user: { id: 1, username: 'samuel' } }),
+      json: async () => passkeys,
     } as Response);
 
-    const response = await Api.confirmMagicLink('token-hash-123', 'email');
+    const response = await Api.getPasskeys();
 
-    expect(response).toEqual({ user: { id: 1, username: 'samuel' } });
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/magic-link/confirm', {
-      method: 'POST',
+    expect(response).toEqual(passkeys);
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/passkeys', {
+      method: 'GET',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         'x-nido-request': 'true',
       },
-      body: JSON.stringify({ tokenHash: 'token-hash-123', type: 'email' }),
     });
   });
 });
