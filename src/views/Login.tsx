@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 
-type ViewState = 'loading' | 'passkey' | 'pin' | 'migration' | 'migration-pin' | 'migration-register';
+type ViewState = 'loading' | 'passkey' | 'pin' | 'migration-pin' | 'migration-register';
 
 export const Login: React.FC = () => {
   const [view, setView] = useState<ViewState>('loading');
   const [error, setError] = useState('');
   const [isWorking, setIsWorking] = useState(false);
-  const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
-  const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
   const { loginWithPasskey } = useAuth();
   const navigate = useNavigate();
 
@@ -24,13 +22,7 @@ export const Login: React.FC = () => {
           return;
         }
         if (status.needsPasskeyMigration) {
-          try {
-            const memberList = await Api.getMembers();
-            setMembers(memberList);
-          } catch {
-            console.error('Failed to load members for migration');
-          }
-          setView('migration');
+          setView('migration-pin');
         } else {
           setView('passkey');
         }
@@ -58,14 +50,14 @@ export const Login: React.FC = () => {
 
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !pin) {
-      setError('Ingresa tu nombre y PIN');
+    if (!pin) {
+      setError('Ingresa tu PIN');
       return;
     }
     try {
       setIsWorking(true);
       setError('');
-      const response = await Api.pinLogin(username.trim(), pin);
+      const response = await Api.pinLogin(pin);
       if (response.user) {
         navigate('/', { replace: true });
         window.location.reload();
@@ -77,13 +69,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleMigrationSelectUser = (name: string) => {
-    setUsername(name);
-    setPin('');
-    setError('');
-    setView('migration-pin');
-  };
-
   const handleMigrationPinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pin) {
@@ -93,9 +78,7 @@ export const Login: React.FC = () => {
     try {
       setIsWorking(true);
       setError('');
-      // Login with PIN to create a session
-      await Api.pinLogin(username, pin);
-      // Now that we have a session, register a passkey
+      await Api.pinLogin(pin);
       setView('migration-register');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'PIN incorrecto');
@@ -130,7 +113,6 @@ export const Login: React.FC = () => {
   const showPinForm = () => {
     setError('');
     setPin('');
-    setUsername('');
     setView('pin');
   };
 
@@ -144,43 +126,12 @@ export const Login: React.FC = () => {
   }
 
   const renderRight = () => {
-    // Migration: select user
-    if (view === 'migration') {
-      return (
-        <>
-          <h2>Nido se actualiz&oacute;</h2>
-          <div className="login-desc">
-            Verifica tu identidad con PIN para registrar tu passkey
-          </div>
-          <div className="login-desc" style={{ fontSize: 13, opacity: 0.7, marginTop: -4 }}>
-            &iquest;Qui&eacute;n eres?
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-            {(members.length > 0
-              ? members.map(m => m.username.charAt(0).toUpperCase() + m.username.slice(1))
-              : ['Samuel', 'María']
-            ).map(name => (
-              <button
-                key={name}
-                className="login-btn"
-                style={{ opacity: 0.95 }}
-                onClick={() => handleMigrationSelectUser(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          {error && <div className="error-view__msg u-text-center" style={{ marginTop: 12 }}>{error}</div>}
-        </>
-      );
-    }
-
-    // Migration: PIN input
+    // Migration: PIN input (no username needed)
     if (view === 'migration-pin') {
       return (
         <>
-          <h2>Hola, {username}</h2>
-          <div className="login-desc">Ingresa tu PIN para continuar</div>
+          <h2>Nido se actualiz&oacute;</h2>
+          <div className="login-desc">Ingresa tu PIN para registrar tu passkey</div>
           <form onSubmit={handleMigrationPinSubmit}>
             <div className="login-field">
               <div className="label">PIN</div>
@@ -201,13 +152,6 @@ export const Login: React.FC = () => {
               {isWorking ? 'Verificando...' : 'Verificar'}
             </button>
           </form>
-          <button
-            className="login-link"
-            onClick={() => { setView('migration'); setError(''); }}
-            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13 }}
-          >
-            &larr; Cambiar usuario
-          </button>
         </>
       );
     }
@@ -240,18 +184,8 @@ export const Login: React.FC = () => {
       return (
         <>
           <h2>Iniciar con PIN</h2>
-          <div className="login-desc">Ingresa tu nombre y PIN</div>
+          <div className="login-desc">Ingresa tu PIN de 4 d&iacute;gitos</div>
           <form onSubmit={handlePinLogin}>
-            <div className="login-field">
-              <div className="label">Nombre</div>
-              <input
-                className="login-input"
-                placeholder="Ej: Samuel"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                disabled={isWorking}
-              />
-            </div>
             <div className="login-field">
               <div className="label">PIN</div>
               <input
@@ -263,6 +197,7 @@ export const Login: React.FC = () => {
                 value={pin}
                 onChange={e => setPin(e.target.value)}
                 disabled={isWorking}
+                autoFocus
               />
             </div>
             {error && <div className="error-view__msg u-text-center">{error}</div>}
