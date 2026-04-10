@@ -131,6 +131,32 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
   });
 };
 
+// List all billing cycles for the household
+router.get('/list', async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    const user = await db.get<{ household_id: number }>('SELECT household_id FROM app_users WHERE id = ?', req.user!.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const cycles = await db.all<Array<{ id: number; month: string; status: string; start_date: string | null; started_at: string | null; created_at: string }>>(
+      `SELECT id, month, status, start_date, started_at, created_at FROM billing_cycles
+       WHERE household_id = ? ORDER BY COALESCE(start_date, created_at) DESC`,
+      user.household_id
+    );
+
+    // Compute end_date for each cycle (start_date of next newer cycle)
+    const result = cycles.map((cycle, index) => ({
+      ...cycle,
+      end_date: index > 0 ? cycles[index - 1].start_date : null,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error listing cycles:', error);
+    res.status(500).json({ error: 'Failed to list cycles' });
+  }
+});
+
 // Get the active billing cycle (most recent active, regardless of calendar month)
 router.get('/current', async (req: AuthRequest, res) => {
   try {
