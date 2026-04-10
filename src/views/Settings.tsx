@@ -61,7 +61,8 @@ const PinChangeSection: React.FC<{ onToast: (t: { type: 'success' | 'error'; msg
           await Api.updatePin(fullPin);
           onToast({ type: 'success', msg: 'PIN actualizado' });
           reset();
-        } catch {
+        } catch (err) {
+          console.error('Failed to update PIN:', err);
           onToast({ type: 'error', msg: 'Error al actualizar el PIN' });
           reset();
         }
@@ -238,7 +239,7 @@ export const Settings: React.FC = () => {
       const cycle = await Api.getCurrentCycle();
       setCurrentCycle(cycle);
     } catch {
-      // No cycle is fine, just ignore
+      // No cycle is a valid state — not an error
       setCurrentCycle(null);
     } finally {
       setCycleLoading(false);
@@ -250,8 +251,8 @@ export const Settings: React.FC = () => {
       setPasskeysLoading(true);
       const data = await Api.getPasskeys();
       setPasskeys(data);
-    } catch {
-      // silently fail — passkeys section just stays empty
+    } catch (err) {
+      console.error('Failed to load passkeys:', err);
     } finally {
       setPasskeysLoading(false);
     }
@@ -274,7 +275,8 @@ export const Settings: React.FC = () => {
 
       setBudget(budgetData);
       setMembers(membersData);
-    } catch {
+    } catch (err) {
+      console.error('Failed to load settings data:', err);
       setToast({ type: 'error', msg: 'Error al cargar datos' });
     } finally {
       setLoading(false);
@@ -337,7 +339,8 @@ export const Settings: React.FC = () => {
         setToast({ type: 'success', msg: 'Presupuesto guardado' });
       }
       loadData();
-    } catch {
+    } catch (err) {
+      console.error('Failed to save budget:', err);
       setToast({ type: 'error', msg: 'Error al guardar' });
     } finally {
       setSaving(false);
@@ -351,7 +354,8 @@ export const Settings: React.FC = () => {
       await Api.approveHouseholdBudget(budget.pending_approval.id);
       setToast({ type: 'success', msg: 'Presupuesto aprobado' });
       loadData();
-    } catch {
+    } catch (err) {
+      console.error('Failed to approve budget:', err);
       setToast({ type: 'error', msg: 'Error al aprobar' });
     } finally {
       setSaving(false);
@@ -402,7 +406,8 @@ export const Settings: React.FC = () => {
       link.download = `nido-${currentMonth}.csv`;
       link.click();
       setToast({ type: 'success', msg: 'CSV descargado' });
-    } catch {
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
       setToast({ type: 'error', msg: 'Error al exportar' });
     }
   };
@@ -425,9 +430,7 @@ export const Settings: React.FC = () => {
 
   const formatDisplayName = (username?: string) => {
     if (!username) return 'Pareja';
-    if (username === 'maria') return 'María';
-    if (username === 'samuel') return 'Samuel';
-    return username;
+    return username.charAt(0).toUpperCase() + username.slice(1);
   };
 
   const partner = members.find(m => m.id !== user?.id);
@@ -711,7 +714,7 @@ export const Settings: React.FC = () => {
             ) : (
               <div>
                 <div style={{ fontSize: '14px', marginBottom: '12px' }}>
-                  Inicia un nuevo ciclo cuando le paguen a Maria. Se activa cuando apruebe todo el Nido.
+                  Inicia un nuevo ciclo. Se activa cuando apruebe todo el Nido.
                 </div>
                 <button
                   className="btn btn-primary btn-sm"

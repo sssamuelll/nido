@@ -8,14 +8,14 @@ export interface DashboardSummaryData {
     remainingShared?: number;
   };
   personal?: {
-    owner?: 'samuel' | 'maria';
+    owner?: string;
     spent?: number;
     budget?: number;
   };
 }
 
 export interface PersonalBalanceCardViewModel {
-  owner: 'samuel' | 'maria';
+  owner: string;
   name: string;
   avatar: string;
   balance: number;
@@ -57,7 +57,7 @@ export interface PersonalAnalyticsPoint {
 }
 
 export interface PersonalDetailViewModel {
-  owner: 'samuel' | 'maria';
+  owner: string;
   name: string;
   personalBudget: number;
   personalSpent: number;
@@ -74,17 +74,19 @@ const toNum = (value: unknown, fallback = 0) =>
   Number.isFinite(Number(value)) ? Number(value) : fallback;
 
 export const getPersonalBalanceCardModel = (data: DashboardSummaryData): PersonalBalanceCardViewModel => {
-  const ownerRaw = data?.personal?.owner || 'samuel';
-  const owner = ownerRaw.toLowerCase().includes('maria') ? 'maria' : 'samuel';
+  const owner = data?.personal?.owner || 'samuel';
   const spent = toNum(data?.personal?.spent);
   const budget = toNum(data?.personal?.budget ?? data?.budget?.personal);
   const balance = budget - spent;
   const progress = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+  const displayName = owner
+    ? owner.charAt(0).toUpperCase() + owner.slice(1)
+    : 'Usuario';
 
   return {
     owner,
-    name: owner === 'maria' ? 'María' : 'Samuel',
-    avatar: owner === 'maria' ? '👩‍🎨' : '👨‍💻',
+    name: displayName,
+    avatar: owner.charAt(0).toUpperCase(),
     balance,
     monthChange: -spent,
     progress,
@@ -171,8 +173,7 @@ export const buildPersonalDetailModel = ({
   username: string;
   userId?: number;
 }): PersonalDetailViewModel => {
-  const ownerRaw = summary?.personal?.owner || username || 'samuel';
-  const owner = ownerRaw.toLowerCase().includes('maria') ? 'maria' : 'samuel';
+  const owner = summary?.personal?.owner || username || 'samuel';
   const personalBudget = toNum(summary?.personal?.budget ?? budget?.personal_budget ?? summary?.budget?.personal);
   const privateExpenses = getPrivateExpensesForUser(expenses ?? [], username, userId);
   const personalSpent = privateExpenses.reduce((sum, expense) => sum + toNum(expense.amount), 0);
@@ -206,7 +207,7 @@ export const buildPersonalDetailModel = ({
 
   return {
     owner,
-    name: owner === 'maria' ? 'María' : 'Samuel',
+    name: owner ? owner.charAt(0).toUpperCase() + owner.slice(1) : 'Usuario',
     personalBudget,
     personalSpent,
     remaining,

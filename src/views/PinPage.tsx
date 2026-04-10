@@ -34,7 +34,7 @@ export const PinPage: React.FC = () => {
     <div className="pin-page">
       <div className="loading-screen__logo"><span>N</span></div>
       <p className="pin-page__title">
-        Hola, {user?.username === 'samuel' ? 'Samuel' : 'María'}
+        Hola, {user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario'}
       </p>
 
       <div className="pin-page__dots">

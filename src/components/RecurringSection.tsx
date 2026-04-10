@@ -80,8 +80,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       ]);
       setItems(Array.isArray(recurring) ? recurring : []);
       setCycle(currentCycle);
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('Failed to load recurring data:', err);
     } finally {
       setLoading(false);
     }
@@ -170,7 +170,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       }
       closeModal();
       await loadData();
-    } catch {
+    } catch (err) {
+      console.error('Failed to save recurring item:', err);
       showToast('Error al guardar');
     } finally {
       setSaving(false);
@@ -185,7 +186,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       showToast(editItem.paused ? 'Gasto activado' : 'Gasto pausado');
       closeModal();
       await loadData();
-    } catch {
+    } catch (err) {
+      console.error('Failed to toggle recurring pause:', err);
       showToast('Error al cambiar estado');
     } finally {
       setSaving(false);
@@ -200,7 +202,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       showToast('Gasto fijo eliminado');
       closeModal();
       await loadData();
-    } catch {
+    } catch (err) {
+      console.error('Failed to delete recurring item:', err);
       showToast('Error al eliminar');
     } finally {
       setSaving(false);
@@ -214,7 +217,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       showToast('Ciclo aprobado');
       await loadData();
       onCycleApproved?.();
-    } catch {
+    } catch (err) {
+      console.error('Failed to approve cycle:', err);
       showToast('Error al aprobar ciclo');
     }
   };
@@ -224,7 +228,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       await Api.requestCycle();
       showToast('Ciclo iniciado');
       await loadData();
-    } catch {
+    } catch (err) {
+      console.error('Failed to start cycle:', err);
       showToast('Error al iniciar ciclo');
     }
   };

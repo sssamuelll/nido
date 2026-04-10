@@ -1,13 +1,9 @@
 import { Router } from 'express';
 import { getDatabase, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { getPersonalBudgetKey, getPersonalBudgetField } from '../user-utils.js';
 
 const router = Router();
-
-const getLegacyPersonKey = (user: { username?: string; email?: string | null } | undefined) => {
-  const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
-  return identity.includes('maria') || identity.includes('mara') ? 'maria' : 'samuel';
-};
 
 interface HouseholdBudgetRow {
   id: number;
@@ -52,8 +48,8 @@ router.get('/', async (req: AuthRequest, res) => {
       });
     }
 
-    const isMaria = getLegacyPersonKey(req.user) === 'maria';
-    const personalBudget = isMaria ? budget.personal_maria : budget.personal_samuel;
+    const personalBudgetKey = getPersonalBudgetKey(req.user as { username?: string; email?: string | null });
+    const personalBudget = personalBudgetKey === 'maria' ? budget.personal_maria : budget.personal_samuel;
 
     const allocatedRow = await db.get<{ total: number }>(
       `SELECT COALESCE(SUM(budget_amount), 0) AS total
@@ -113,11 +109,11 @@ router.put('/', async (req: AuthRequest, res) => {
     );
     if (!budget) return res.status(500).json({ error: 'Failed to load household budget' });
 
-    const isMaria = getLegacyPersonKey(req.user) === 'maria';
+    const personalField = getPersonalBudgetField(req.user as { username?: string; email?: string | null });
 
     // Handle personal budget update (direct, no approval needed)
     if (personal_budget !== undefined) {
-      const field = isMaria ? 'personal_maria' : 'personal_samuel';
+      const field = personalField;
       await db.run(
         `UPDATE household_budget SET ${field} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         personal_budget,
