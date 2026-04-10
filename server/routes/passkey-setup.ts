@@ -14,7 +14,7 @@ import {
   getAndDeleteChallenge,
   loginLimiter,
   deriveDeviceName,
-} from './passkey-auth.js';
+} from './passkey-shared.js';
 
 const router = Router();
 
