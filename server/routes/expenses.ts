@@ -116,7 +116,13 @@ router.get('/', async (req: AuthRequest, res) => {
         `${month}%`, req.user!.id, req.user!.username
       );
     } else {
-      return res.status(400).json({ error: 'Either month or start_date is required' });
+      // No filter: return all visible expenses
+      expenses = await db.all(
+        `SELECT * FROM expenses
+         WHERE (type = 'shared' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))
+         ORDER BY date DESC, created_at DESC`,
+        req.user!.id, req.user!.username
+      );
     }
 
     res.json(expenses);
@@ -304,7 +310,12 @@ router.get('/summary', async (req: AuthRequest, res) => {
         `${month}%`, req.user!.id, req.user!.username
       );
     } else {
-      return res.status(400).json({ error: 'Either month or start_date is required' });
+      // No filter: all visible expenses
+      expenses = await db.all<ExpenseRow[]>(
+        `SELECT * FROM expenses
+         WHERE (type = 'shared' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))`,
+        req.user!.id, req.user!.username
+      );
     }
 
     // Calculate totals
