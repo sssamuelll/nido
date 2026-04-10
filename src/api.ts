@@ -313,6 +313,12 @@ export class Api {
   static async togglePauseRecurring(id: number) { return this.request(`/recurring/${id}/pause`, { method: 'PUT' }); }
 
   // Billing cycles
+  static async listCycles(): Promise<Array<{
+    id: number; month: string; status: string; start_date: string | null;
+    end_date: string | null; started_at: string | null;
+  }>> {
+    return this.request('/cycles/list');
+  }
   static async getCurrentCycle() { return this.request('/cycles/current'); }
   static async requestCycle() { return this.request('/cycles/request', { method: 'POST' }); }
   static async approveCycle(cycleId: number) { return this.request('/cycles/approve', { method: 'POST', body: { cycle_id: cycleId } }); }
