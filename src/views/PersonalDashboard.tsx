@@ -1,12 +1,12 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Bell, Search, ChevronLeft } from 'lucide-react';
+import { Bell, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { TransactionRow } from '../components/TransactionRow';
 import { useAuth } from '../auth';
 import { OWNER_THEMES } from '../types';
-import { buildPersonalDetailModel, type VisibleBudgetFormData, type VisibleExpense } from './privacy';
+import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 
 interface DashboardSummary {
@@ -52,7 +52,6 @@ export const PersonalDashboard: React.FC = () => {
   const navigate = useNavigate();
   const chartGradientId = useId();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [budget, setBudget] = useState<VisibleBudgetFormData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,30 +63,24 @@ export const PersonalDashboard: React.FC = () => {
         setLoading(true);
         setError('');
 
-        const [cycle, latestBudget] = await Promise.all([
-          Api.getCurrentCycle().catch(() => null),
-          Api.getLatestBudgetMonth().catch(() => ({ month: null })),
-        ]);
-        const month = latestBudget?.month ?? format(new Date(), 'yyyy-MM');
+        const cycle = await Api.getCurrentCycle().catch(() => null);
+        const month = format(new Date(), 'yyyy-MM');
 
-        let nextSummary, nextBudget, nextExpenses;
+        let nextSummary, nextExpenses;
         if (cycle?.start_date) {
           const range = { start_date: cycle.start_date, end_date: cycle.end_date ?? undefined };
-          [nextSummary, nextBudget, nextExpenses] = await Promise.all([
+          [nextSummary, nextExpenses] = await Promise.all([
             Api.getSummary({ ...range, cycle_id: cycle.id }),
-            Api.getBudget({ cycle_id: cycle.id, month }),
             Api.getExpenses(range),
           ]);
         } else {
-          [nextSummary, nextBudget, nextExpenses] = await Promise.all([
+          [nextSummary, nextExpenses] = await Promise.all([
             Api.getSummary(month),
-            Api.getBudget(month),
             Api.getExpenses(month),
           ]);
         }
 
         setSummary(nextSummary);
-        setBudget(nextBudget);
         setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
       } catch (_error) {
         setError('Error al cargar tu detalle personal');
@@ -117,7 +110,7 @@ export const PersonalDashboard: React.FC = () => {
     );
   }
 
-  if (error || !user || !summary || !budget) {
+  if (error || !user || !summary) {
     return (
       <div className="error-view">
         <div className="error-view__msg">
@@ -134,10 +127,10 @@ export const PersonalDashboard: React.FC = () => {
     );
   }
 
-  // Define detail AFTER we are sure budget and summary exist
+  // Define detail AFTER we are sure summary exists
+  // Budget info now comes from the summary response (via household_budget)
   const detail = buildPersonalDetailModel({
     summary,
-    budget,
     expenses,
     username: user.username,
     userId: user.id,
