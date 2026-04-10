@@ -13,7 +13,7 @@ import {
   setChallenge,
   getAndDeleteChallenge,
   deriveDeviceName,
-} from './passkey-auth.js';
+} from './passkey-shared.js';
 
 const router = Router();
 
