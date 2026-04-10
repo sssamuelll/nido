@@ -1,4 +1,4 @@
-export type Owner = 'samuel' | 'maria' | 'shared';
+export type Owner = string;
 
 export interface User {
   id: number;

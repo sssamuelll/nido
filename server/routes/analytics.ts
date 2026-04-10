@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { getLegacyPaidBy as getLegacyPersonKey, getPersonalBudget } from '../user-utils.js';
 
 const router = Router();
 
@@ -47,14 +48,6 @@ interface HouseholdBudgetRow {
   personal_maria: number;
 }
 
-const getLegacyPersonKey = (user: { username?: string; email?: string | null } | undefined) => {
-  const identity = `${user?.username ?? ''} ${user?.email ?? ''}`.toLowerCase();
-  return identity.includes('maria') || identity.includes('mara') ? 'maria' : 'samuel';
-};
-
-const getPersonalBudgetForUser = (budget: HouseholdBudgetRow, user: { username?: string; email?: string | null }): number =>
-  getLegacyPersonKey(user) === 'maria' ? budget.personal_maria : budget.personal_samuel;
-
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
@@ -77,6 +70,7 @@ router.get('/', async (req: AuthRequest, res) => {
     }
 
     // Context filter
+    // DEPRECATED: paid_by filter — ideally use paid_by_user_id once CHECK constraint is removed
     const contextFilter = context === 'shared'
       ? "type = 'shared'"
       : `type = 'personal' AND paid_by = ?`;
@@ -141,7 +135,7 @@ router.get('/', async (req: AuthRequest, res) => {
       if (context === 'shared') {
         netSavings = budget.total_amount - totalSpent;
       } else {
-        netSavings = getPersonalBudgetForUser(budget, currentUser) - totalSpent;
+        netSavings = getPersonalBudget(budget, currentUser) - totalSpent;
       }
     }
 
@@ -224,7 +218,7 @@ router.get('/', async (req: AuthRequest, res) => {
       const projectedSpend = (totalSpent / dayOfMonth) * daysInMonth;
       const budgetAmount = context === 'shared'
         ? budget.total_amount
-        : getPersonalBudgetForUser(budget, currentUser);
+        : getPersonalBudget(budget, currentUser);
       const projectedSavings = budgetAmount - projectedSpend;
       if (projectedSavings > 0) {
         insights.push({
@@ -279,7 +273,7 @@ router.get('/', async (req: AuthRequest, res) => {
         // Use current household budget for comparison (no per-month budgets anymore)
         const budgetAmount = context === 'shared'
           ? budget.total_amount
-          : getPersonalBudgetForUser(budget, currentUser);
+          : getPersonalBudget(budget, currentUser);
 
         if ((mSpent?.total ?? 0) < budgetAmount) {
           streak++;

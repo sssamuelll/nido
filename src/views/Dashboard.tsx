@@ -41,7 +41,7 @@ interface DashboardData {
     remainingShared: number;
   };
   personal: {
-    owner: 'samuel' | 'maria';
+    owner: string;
     spent: number;
     budget: number;
   };
@@ -146,7 +146,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     Api.getNotifications()
       .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
-      .catch(() => {});
+      .catch((err) => console.error('Failed to load notifications:', err));
   }, []);
 
   const loadDashboardData = useCallback(async () => {
@@ -173,7 +173,8 @@ export const Dashboard: React.FC = () => {
 
       setData(summary);
       setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
-    } catch {
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
       setError('Error al cargar los datos');
     } finally {
       setLoading(false);
@@ -185,7 +186,8 @@ export const Dashboard: React.FC = () => {
     try {
       const cycle = await Api.getCurrentCycle();
       setActiveCycle(cycle);
-    } catch {
+    } catch (err) {
+      console.error('Failed to reload cycle state:', err);
       setActiveCycle(null);
     }
     loadDashboardData();
@@ -245,8 +247,7 @@ export const Dashboard: React.FC = () => {
 
   const personalCard = getPersonalBalanceCardModel(data);
 
-  const normalizedUser = user?.username?.toLowerCase().trim() || '';
-  const userName = normalizedUser === 'maria' ? 'Maria' : normalizedUser === 'samuel' ? 'Samuel' : (user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario');
+  const userName = user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario';
 
   // Group recent transactions by date for the date pill display
   const groupedTransactions: { date: string; items: VisibleExpense[] }[] = [];
@@ -283,7 +284,7 @@ export const Dashboard: React.FC = () => {
             <div className="couple-ring">🏠</div>
             <div>
               <h1>El Nido</h1>
-              <p style={{ fontSize: '13px', color: 'var(--ts)' }}>Samuel &amp; Maria &mdash; {cycleLabel}</p>
+              <p style={{ fontSize: '13px', color: 'var(--ts)' }}>{cycleLabel}</p>
             </div>
           </div>
           <div className="dashboard__actions">
@@ -465,7 +466,7 @@ export const Dashboard: React.FC = () => {
               setShowNotifications(false);
               Api.getNotifications()
                 .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
-                .catch(() => {});
+                .catch((err) => console.error('Failed to refresh notifications:', err));
             }}
           />
         )}
