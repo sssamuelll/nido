@@ -386,13 +386,19 @@ export const Dashboard: React.FC = () => {
                 const spent = toNum(cat.total);
                 const budget = toNum(cat.budget);
                 const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+                const isOver = budget > 0 && spent > budget;
+                const isWarning = budget > 0 && pct >= 80 && !isOver;
+                const isNoBudget = budget === 0;
+                // Status color: green < 80%, orange 80-100%, red > 100%
+                const statusColor = isOver ? 'var(--red)' : isWarning ? 'var(--orange)' : 'var(--green)';
+                const barColor = isOver ? 'var(--red)' : isWarning ? 'var(--orange)' : (catDef?.color ?? '#60A5FA');
                 const color = catDef?.color ?? '#60A5FA';
-                const iconBg = color + '1A';
+                const iconBg = isOver ? 'var(--rl)' : color + '1A';
                 const emoji = catDef?.emoji;
                 return (
                   <div
                     key={cat.category}
-                    className="budget-item"
+                    className={`budget-item${isOver ? ' budget-item--over' : ''}`}
                     style={{ width: '100%', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
                     onClick={() => navigate('/history', { state: { initialContext: activeContext, initialCategory: cat.category } })}
                   >
@@ -401,14 +407,35 @@ export const Dashboard: React.FC = () => {
                         ? <span style={{ fontSize: 18 }}>{emoji}</span>
                         : <MoreHorizontal size={18} color={color} />}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500 }}>{cat.category}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: isOver ? 'var(--red)' : 'var(--text)' }}>{cat.category}</span>
+                        {budget > 0 && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                            padding: '1px 6px', borderRadius: 999,
+                            background: isOver ? 'var(--rl)' : isWarning ? 'var(--ol)' : 'var(--gl)',
+                            color: statusColor,
+                          }}>
+                            {pct}%
+                          </span>
+                        )}
+                        {isNoBudget && spent > 0 && (
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 999,
+                            background: 'var(--surface2)', color: 'var(--tm)',
+                          }}>
+                            sin límite
+                          </span>
+                        )}
+                      </div>
                       <div className="budget-bar-wrap">
-                        <div className="budget-bar" style={{ width: `${Math.min(pct, 100)}%`, background: color, color }} />
+                        <div className="budget-bar" style={{ width: `${Math.min(pct, 100)}%`, background: barColor }} />
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                      €{spent.toLocaleString('es-ES')} <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/ €{budget.toLocaleString('es-ES')}</small>
+                    <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+                      <span style={{ color: isOver ? 'var(--red)' : 'var(--text)' }}>€{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</span>
+                      {budget > 0 && <small style={{ fontWeight: 400, color: 'var(--tm)' }}> / €{budget.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</small>}
                     </div>
                     <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); const def = getCategoryDef(cat.category); if (def) catModal.openEdit(def); }}>
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
