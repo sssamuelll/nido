@@ -13,6 +13,8 @@ interface RecurringExpenseRow {
   category_id: number | null;
   type: string;
   notes: string | null;
+  every_n_cycles: number;
+  last_registered_cycle_id: number | null;
   paused: number;
   created_by_user_id: number;
 }
@@ -76,8 +78,25 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
   );
 
   let total = 0;
+  let registeredCount = 0;
 
   for (const item of recurringItems) {
+    // Check cycle frequency — skip items that shouldn't fire this cycle
+    if (item.every_n_cycles > 1) {
+      if (item.last_registered_cycle_id) {
+        const countRow = await db.get<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM billing_cycles WHERE household_id = ? AND id > ? AND status = 'active'`,
+          householdId,
+          item.last_registered_cycle_id
+        );
+        // +1 because the current cycle (being activated now) is not yet 'active'
+        if ((countRow?.cnt ?? 0) + 1 < item.every_n_cycles) {
+          continue; // Not enough cycles elapsed — skip
+        }
+      }
+      // If no last_registered_cycle_id, this is the first time — register it
+    }
+
     const paidBy = (item as any).creator_username || 'unknown';
 
     await db.run(
@@ -93,7 +112,15 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
       item.type
     );
 
+    // Track which cycle this recurring expense was last registered in
+    await db.run(
+      `UPDATE recurring_expenses SET last_registered_cycle_id = ? WHERE id = ?`,
+      cycleId,
+      item.id
+    );
+
     total += item.amount;
+    registeredCount++;
   }
 
   await db.run(
@@ -126,8 +153,8 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
     recipient_user_id: null,
     type: 'cycle_approved',
     title: 'Ciclo reiniciado',
-    body: `Se registraron ${recurringItems.length} gastos recurrentes por un total de €${total.toFixed(2)}`,
-    metadata: { cycle_id: cycleId, count: recurringItems.length, total },
+    body: `Se registraron ${registeredCount} gastos recurrentes por un total de €${total.toFixed(2)}`,
+    metadata: { cycle_id: cycleId, count: registeredCount, total },
   });
 };
 

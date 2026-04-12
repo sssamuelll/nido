@@ -284,6 +284,8 @@ export const initDatabase = async () => {
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       type TEXT NOT NULL CHECK (type IN ('shared', 'personal')),
       notes TEXT,
+      every_n_cycles INTEGER NOT NULL DEFAULT 1,
+      last_registered_cycle_id INTEGER REFERENCES billing_cycles(id),
       paused INTEGER NOT NULL DEFAULT 0,
       created_by_user_id INTEGER NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -588,6 +590,15 @@ export const initDatabase = async () => {
       // SQLite < 3.35.0 doesn't support DROP COLUMN — log and skip
       console.warn('Could not drop users.password column (SQLite version may not support DROP COLUMN)');
     }
+  }
+
+  // === Migration: Add cycle frequency to recurring expenses ===
+  const recurringFreqRan = await database.get(`SELECT name FROM migrations WHERE name = 'recurring_cycle_frequency'`);
+  if (!recurringFreqRan) {
+    await ensureColumn(database, 'recurring_expenses', 'every_n_cycles', 'INTEGER NOT NULL DEFAULT 1');
+    await ensureColumn(database, 'recurring_expenses', 'last_registered_cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
+    await database.run(`INSERT INTO migrations (name) VALUES ('recurring_cycle_frequency')`);
+    console.log('Migration recurring_cycle_frequency complete');
   }
 
   console.log('Database initialized');

@@ -303,7 +303,7 @@ export class Api {
 
   // Recurring expenses
   static async getRecurring() { return this.request('/recurring'); }
-  static async createRecurring(data: { name: string; emoji: string; amount: number; category: string; type: string; notes?: string }) {
+  static async createRecurring(data: { name: string; emoji: string; amount: number; category: string; type: string; notes?: string; every_n_cycles?: number }) {
     return this.request('/recurring', { method: 'POST', body: data });
   }
   static async updateRecurring(id: number, data: Record<string, unknown>) {
