@@ -275,6 +275,29 @@ export const History: React.FC = () => {
     }
   };
 
+  const handleDuplicateExpense = async () => {
+    if (!editingExpense) return;
+    try {
+      setSavingEdit(true);
+      await Api.createExpense({
+        description: editDescription.trim(),
+        amount: parseFloat(editAmount),
+        category: editCategory.trim(),
+        category_id: categories.find(c => c.name === editCategory.trim())?.id,
+        date: editDate,
+        type: editType,
+      });
+      showToast('Gasto duplicado');
+      closeEditModal();
+      loadExpenses();
+    } catch (err) {
+      console.error('Failed to duplicate expense:', err);
+      setEditError('Error al duplicar el gasto');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleUpdateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingExpense) return;
@@ -669,21 +692,32 @@ export const History: React.FC = () => {
               {editError && <div className="add-expense__error-msg">{editError}</div>}
 
               <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
-                <button
-                  type="button"
-                  className="btn btn-danger btn-sm"
-                  onClick={handleDeleteExpense}
-                  disabled={savingEdit}
-                  style={{ opacity: 0.8 }}
-                >
-                  Eliminar
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={handleDeleteExpense}
+                    disabled={savingEdit}
+                    style={{ opacity: 0.8 }}
+                  >
+                    Eliminar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={handleDuplicateExpense}
+                    disabled={savingEdit}
+                    title="Crear una copia de este gasto"
+                  >
+                    Duplicar
+                  </button>
+                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button type="button" className="btn btn-outline" onClick={closeEditModal} disabled={savingEdit}>
                     Cancelar
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={savingEdit}>
-                    {savingEdit ? 'Guardando...' : 'Guardar cambios'}
+                    {savingEdit ? 'Guardando...' : 'Guardar'}
                   </button>
                 </div>
               </div>
