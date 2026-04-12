@@ -381,7 +381,7 @@ export const Dashboard: React.FC = () => {
             {categoryBreakdown.length === 0 ? (
               <div className="empty-view">Sin datos de categorias</div>
             ) : (
-              categoryBreakdown.filter(cat => toNum(cat?.budget) > 0).map(cat => {
+              categoryBreakdown.filter(cat => toNum(cat?.budget) > 0 || toNum(cat?.total) > 0).map(cat => {
                 const catDef = getCategoryDef(cat.category);
                 const spent = toNum(cat.total);
                 const budget = toNum(cat.budget);
