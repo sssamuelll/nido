@@ -417,7 +417,7 @@ export const Dashboard: React.FC = () => {
                             background: isOver ? 'var(--rl)' : isWarning ? 'var(--ol)' : 'var(--gl)',
                             color: statusColor,
                           }}>
-                            {pct}%
+                            {isOver ? `-${pct - 100}%` : `${pct}%`}
                           </span>
                         )}
                         {isNoBudget && spent > 0 && (
@@ -433,9 +433,9 @@ export const Dashboard: React.FC = () => {
                         <div className="budget-bar" style={{ width: `${Math.min(pct, 100)}%`, background: barColor }} />
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
                       <span style={{ color: isOver ? 'var(--red)' : 'var(--text)' }}>€{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</span>
-                      {budget > 0 && <small style={{ fontWeight: 400, color: 'var(--tm)' }}> / €{budget.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</small>}
+                      {budget > 0 && <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/€{budget.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</small>}
                     </div>
                     <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); const def = getCategoryDef(cat.category); if (def) catModal.openEdit(def); }}>
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
