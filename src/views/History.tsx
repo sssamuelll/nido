@@ -258,6 +258,23 @@ export const History: React.FC = () => {
     setCmdOpen(false);
   };
 
+  const handleDeleteExpense = async () => {
+    if (!editingExpense) return;
+    if (!confirm('¿Eliminar este gasto? Esta acción no se puede deshacer.')) return;
+    try {
+      setSavingEdit(true);
+      await Api.deleteExpense(editingExpense.id);
+      showToast('Gasto eliminado');
+      closeEditModal();
+      loadExpenses();
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      setEditError('Error al eliminar el gasto');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleUpdateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingExpense) return;
@@ -651,13 +668,24 @@ export const History: React.FC = () => {
 
               {editError && <div className="add-expense__error-msg">{editError}</div>}
 
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={closeEditModal} disabled={savingEdit}>
-                  Cancelar
+              <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteExpense}
+                  disabled={savingEdit}
+                  style={{ opacity: 0.8 }}
+                >
+                  Eliminar
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={savingEdit}>
-                  {savingEdit ? 'Guardando...' : 'Guardar cambios'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="btn btn-outline" onClick={closeEditModal} disabled={savingEdit}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={savingEdit}>
+                    {savingEdit ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
