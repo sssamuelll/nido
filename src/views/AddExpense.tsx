@@ -55,6 +55,7 @@ export const AddExpense: React.FC = () => {
   const [newCatEmoji, setNewCatEmoji] = useState('');
   const [newCatColor, setNewCatColor] = useState(COLOR_OPTIONS[0]);
   const [savingCat, setSavingCat] = useState(false);
+  const [repeatCount, setRepeatCount] = useState(1);
   const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -187,25 +188,29 @@ export const AddExpense: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      await Api.createExpense({
+      const expenseData = {
         description,
         amount: parseFloat(finalAmount.toFixed(2)),
         category,
         category_id: categories.find(c => c.name === category)?.id,
         date: expenseDate,
         type,
-      });
+      };
+      for (let i = 0; i < repeatCount; i++) {
+        await Api.createExpense(expenseData);
+      }
 
       const isNewCategory = !categories.some(
         (c) => c.name.toLowerCase() === category.trim().toLowerCase()
       );
 
+      const msg = repeatCount > 1 ? `${repeatCount} gastos añadidos ✔` : 'Gasto añadido ✔';
       if (isNewCategory) {
-        showToast('Gasto añadido correctamente ✔');
+        showToast(msg);
         setShowNewCatModal(true);
       } else {
         setSuccess(true);
-        showToast('Gasto añadido correctamente ✔');
+        showToast(msg);
         setTimeout(() => navigate('/'), 1500);
       }
     } catch (err) {
@@ -483,6 +488,52 @@ export const AddExpense: React.FC = () => {
               </button>
             )}
 
+            {/* Repeat toggle */}
+            <div style={{ maxWidth: 340, margin: '12px auto 0', display: 'flex', justifyContent: 'center' }}>
+              {repeatCount <= 1 ? (
+                <button
+                  type="button"
+                  className="expense-date-toggle"
+                  onClick={() => setRepeatCount(2)}
+                >
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" />
+                    <path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+                  </svg>
+                  Repetir gasto
+                </button>
+              ) : (
+                <div className="expense-repeat-stepper">
+                  <button
+                    type="button"
+                    className="expense-repeat-btn"
+                    onClick={() => setRepeatCount(c => Math.max(1, c - 1))}
+                  >
+                    −
+                  </button>
+                  <span className="expense-repeat-value">
+                    ×{repeatCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="expense-repeat-btn"
+                    onClick={() => setRepeatCount(c => Math.min(20, c + 1))}
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="expense-repeat-cancel"
+                    onClick={() => setRepeatCount(1)}
+                  >
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {error && <div className="add-expense__error-msg">{error}</div>}
 
             <button
@@ -490,15 +541,15 @@ export const AddExpense: React.FC = () => {
               className="btn btn-primary"
               style={{
                 width: '100%',
-                maxWidth: 320,
-                margin: '20px auto 0',
+                maxWidth: 340,
+                margin: '16px auto 0',
                 display: 'block',
                 padding: 16,
                 fontSize: 16,
               }}
               disabled={loading}
             >
-              {loading ? 'Guardando...' : 'Anadir Gasto'}
+              {loading ? 'Guardando...' : repeatCount > 1 ? `Añadir ${repeatCount} gastos` : 'Añadir Gasto'}
             </button>
           </div>
         </form>
