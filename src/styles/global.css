@@ -1829,6 +1829,33 @@ a:hover { color: var(--text) }
 }
 .expense-date-close:hover { background: var(--surface2) }
 
+/* Repeat expense stepper */
+.expense-repeat-stepper {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--surface);
+  animation: slideDown .15s ease;
+}
+.expense-repeat-btn {
+  width: 40px; height: 40px; border: none; border-radius: 50%;
+  background: var(--surface2); color: var(--text); font-size: 20px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .12s; font-family: inherit;
+}
+.expense-repeat-btn:hover { background: var(--gl); color: var(--green) }
+.expense-repeat-btn:active { transform: scale(0.9) }
+.expense-repeat-value {
+  min-width: 40px; text-align: center; font-size: 18px; font-weight: 700;
+  color: var(--green); font-variant-numeric: tabular-nums;
+}
+.expense-repeat-cancel {
+  width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: transparent; color: var(--tm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .12s;
+}
+.expense-repeat-cancel:hover { background: var(--rl); color: var(--red) }
+
 .add-expense__success-icon {
   width: 64px; height: 64px; border-radius: 50%;
   background: var(--gl); color: var(--green);
