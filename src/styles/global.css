@@ -1456,6 +1456,57 @@ a:hover { color: var(--text) }
   background: var(--gl); color: var(--green); border-color: rgba(52,211,153,.35);
   box-shadow: 0 0 16px rgba(52,211,153,.12);
 }
+/* History: tool buttons (date filter, etc.) */
+.history-tool-btn {
+  display: flex; align-items: center; justify-content: center; position: relative;
+  width: 44px; height: 44px; border-radius: var(--rs); border: 1px solid var(--glass-border);
+  background: var(--surface); color: var(--ts); cursor: pointer;
+  transition: all .15s; flex-shrink: 0;
+}
+.history-tool-btn:hover { background: var(--surface2); border-color: rgba(255,255,255,.16) }
+.history-tool-btn--active { color: var(--green); border-color: rgba(52,211,153,.35); background: var(--gl) }
+.history-tool-dot {
+  position: absolute; top: 8px; right: 8px; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--green);
+}
+
+/* History: date range filter */
+.history-date-filter {
+  margin-bottom: 12px; padding: 14px 16px; border-radius: var(--r);
+  background: var(--surface); border: 1px solid var(--glass-border);
+  animation: slideDown .15s ease;
+}
+.history-date-row { display: flex; gap: 12px; align-items: flex-end }
+.history-date-field { flex: 1 }
+.history-date-field label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--tm);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+}
+.history-date-field input[type="date"] {
+  width: 100%; padding: 10px 12px; border-radius: var(--rs);
+  border: 1px solid var(--glass-border); background: var(--bg); color: var(--text);
+  font-size: 14px; font-family: inherit;
+}
+.history-date-field input[type="date"]:focus {
+  outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.1);
+}
+
+/* History: sort buttons */
+.history-sort-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--surface);
+  color: var(--ts); font-size: 12px; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: all .15s;
+}
+.history-sort-btn:hover { background: var(--surface2); border-color: rgba(255,255,255,.16) }
+.history-sort-btn--active {
+  color: var(--blue); border-color: rgba(96,165,250,.35);
+  background: var(--bl);
+}
+
+@keyframes slideDown { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+
 .day-label { font-size: 12px; font-weight: 600; color: var(--tm); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border2) }
 .h-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--rs); transition: all .2s; cursor: pointer }
 .h-item:hover { background: var(--surface2) }
