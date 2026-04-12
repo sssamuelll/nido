@@ -88,6 +88,7 @@ export const recurringExpenseCreateSchema = z.object({
   category_id: z.coerce.number().int().positive().optional(),
   type: z.enum(['shared', 'personal']),
   notes: z.string().max(200).optional(),
+  every_n_cycles: z.coerce.number().int().min(1).default(1),
 }).refine(data => data.category || data.category_id, {
   message: 'category or category_id is required',
   path: ['category'],
@@ -101,6 +102,7 @@ export const recurringExpenseUpdateSchema = z.object({
   category_id: z.coerce.number().int().positive().optional(),
   type: z.enum(['shared', 'personal']).optional(),
   notes: z.string().max(200).nullable().optional(),
+  every_n_cycles: z.coerce.number().int().min(1).optional(),
 });
 
 export type RecurringExpenseInput = z.infer<typeof recurringExpenseCreateSchema>;

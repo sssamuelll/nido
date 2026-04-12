@@ -12,6 +12,7 @@ interface RecurringItem {
   category: string;
   type: 'shared' | 'personal';
   notes?: string;
+  every_n_cycles?: number;
   paused: boolean;
 }
 
@@ -47,6 +48,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   const [formCategory, setFormCategory] = useState('');
   const [formType, setFormType] = useState<'shared' | 'personal'>('shared');
   const [formNotes, setFormNotes] = useState('');
+  const [everyNCycles, setEveryNCycles] = useState(1);
   const [saving, setSaving] = useState(false);
 
   // Category cmd-palette state
@@ -119,6 +121,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setFormCategory(item.category);
     setFormType(item.type);
     setFormNotes(item.notes || '');
+    setEveryNCycles(item.every_n_cycles ?? 1);
     setCategorySearch('');
     setCmdOpen(false);
     setShowAddModal(false);
@@ -132,6 +135,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setFormCategory('');
     setFormType('shared');
     setFormNotes('');
+    setEveryNCycles(1);
     setCategorySearch('');
     setCmdOpen(false);
     setShowAddModal(true);
@@ -155,6 +159,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           category: formCategory.trim(),
           type: formType,
           notes: formNotes.trim() || undefined,
+          every_n_cycles: everyNCycles,
         });
         showToast('Gasto fijo actualizado');
       } else {
@@ -165,6 +170,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           category: formCategory.trim(),
           type: formType,
           notes: formNotes.trim() || undefined,
+          every_n_cycles: everyNCycles,
         });
         showToast('Gasto fijo creado');
       }
@@ -297,6 +303,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                       {item.type === 'personal' && (
                         <span className="recurring-card__pill recurring-card__pill--personal">
                           personal
+                        </span>
+                      )}
+                      {(item.every_n_cycles ?? 1) > 1 && (
+                        <span className="recurring-card__pill" style={{ background: 'var(--gl)', color: 'var(--green)' }}>
+                          cada {item.every_n_cycles} ciclos
                         </span>
                       )}
                       {item.paused && (
@@ -449,6 +460,24 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             <div className="form-row">
               <label>Notas</label>
               <input className="form-input" value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Opcional..." style={{ flex: 1 }} />
+            </div>
+
+            {/* Cycle frequency */}
+            <div className="form-row" style={{ marginBottom: 16 }}>
+              <label>Se repite cada</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="number"
+                  className="form-input"
+                  style={{ width: 70, textAlign: 'center' }}
+                  min={1}
+                  value={everyNCycles}
+                  onChange={e => setEveryNCycles(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+                <span style={{ color: 'var(--ts)', fontSize: 14 }}>
+                  {everyNCycles === 1 ? 'ciclo (siempre)' : 'ciclos'}
+                </span>
+              </div>
             </div>
 
             {/* Footer */}
