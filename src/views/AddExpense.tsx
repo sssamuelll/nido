@@ -79,28 +79,96 @@ export const AddExpense: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Physical keyboard support for amount input (desktop only)
+  const OPS = ['+', '-', '×', '÷'] as const;
+  const isOp = (ch: string) => OPS.includes(ch as any);
+  const lastChar = amount[amount.length - 1];
+
+  // Safe expression evaluator (no eval) — supports +, -, ×, ÷
+  const evaluateExpr = (expr: string): number => {
+    const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
+    // Tokenize into numbers and operators
+    const tokens = sanitized.match(/(\d+\.?\d*|[+\-*/])/g);
+    if (!tokens) return 0;
+
+    // First pass: multiply and divide
+    const stack: (number | string)[] = [];
+    for (const t of tokens) {
+      if (t === '*' || t === '/') {
+        stack.push(t);
+      } else if (!isNaN(Number(t))) {
+        const prev = stack[stack.length - 1];
+        if (prev === '*' || prev === '/') {
+          const op = stack.pop() as string;
+          const left = stack.pop() as number;
+          stack.push(op === '*' ? left * Number(t) : left / Number(t));
+        } else {
+          stack.push(Number(t));
+        }
+      } else {
+        stack.push(t);
+      }
+    }
+
+    // Second pass: add and subtract
+    let result = stack[0] as number;
+    for (let i = 1; i < stack.length; i += 2) {
+      const op = stack[i] as string;
+      const val = stack[i + 1] as number;
+      if (op === '+') result += val;
+      else if (op === '-') result -= val;
+    }
+    return isNaN(result) || !isFinite(result) ? 0 : result;
+  };
+
+  const hasOperator = OPS.some(op => amount.includes(op));
+  const computedResult = hasOperator ? evaluateExpr(amount) : null;
+
+  // Physical keyboard support (desktop only)
   useEffect(() => {
-    if (window.innerWidth < 768) return; // mobile uses numpad only
+    if (window.innerWidth < 768) return;
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
       if (e.key >= '0' && e.key <= '9') handleKey(e.key);
       else if (e.key === '.' || e.key === ',') handleKey('.');
+      else if (e.key === '+') handleKey('+');
+      else if (e.key === '-') handleKey('-');
+      else if (e.key === '*') handleKey('×');
+      else if (e.key === '/') { e.preventDefault(); handleKey('÷'); }
       else if (e.key === 'Backspace') handleKey('del');
+      else if (e.key === '=' || e.key === 'Enter') {
+        if (hasOperator) handleKey('=');
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [amount, hasOperator]);
 
   const handleKey = (key: string) => {
     if (key === 'del') {
-      setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : '0'));
+      setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else if (key === '=') {
+      // Resolve expression to result
+      if (hasOperator) {
+        const result = evaluateExpr(amount);
+        setAmount(result > 0 ? String(parseFloat(result.toFixed(2))) : '0');
+      }
+    } else if (isOp(key)) {
+      // Don't allow operator as first char or double operators
+      if (amount === '0' && key !== '-') return;
+      if (isOp(lastChar)) {
+        setAmount(prev => prev.slice(0, -1) + key);
+      } else {
+        setAmount(prev => prev + key);
+      }
     } else if (key === '.') {
-      if (!amount.includes('.')) setAmount((prev) => prev + '.');
+      // Only one dot per number segment (split by operators)
+      const segments = amount.split(/[+\-×÷]/);
+      const currentSegment = segments[segments.length - 1];
+      if (!currentSegment.includes('.')) setAmount(prev => prev + '.');
     } else {
-      setAmount((prev) => (prev === '0' ? key : prev + key));
+      setAmount(prev => prev === '0' ? key : prev + key);
     }
   };
 
@@ -110,7 +178,9 @@ export const AddExpense: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parseFloat(amount) <= 0) return setError('Ingresa un monto valido');
+    // Evaluate expression if it contains operators
+    const finalAmount = hasOperator ? evaluateExpr(amount) : parseFloat(amount);
+    if (finalAmount <= 0 || isNaN(finalAmount)) return setError('Ingresa un monto valido');
     if (!description) return setError('Ingresa una descripcion');
     if (!category.trim()) return setError('Selecciona una categoría');
 
@@ -119,7 +189,7 @@ export const AddExpense: React.FC = () => {
       setError('');
       await Api.createExpense({
         description,
-        amount: parseFloat(amount),
+        amount: parseFloat(finalAmount.toFixed(2)),
         category,
         category_id: categories.find(c => c.name === category)?.id,
         date: expenseDate,
@@ -171,19 +241,29 @@ export const AddExpense: React.FC = () => {
 
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <form onSubmit={handleSubmit}>
-          <div className="an d2" style={{ textAlign: 'center', padding: '40px 0 24px' }}>
+          <div className="an d2" style={{ textAlign: 'center', padding: '32px 0 16px' }}>
             <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--tm)', verticalAlign: 'super' }}>
               &euro;
             </span>
             <span style={{
-              fontSize: 56,
+              fontSize: hasOperator ? 32 : 56,
               fontWeight: 700,
               fontVariantNumeric: 'tabular-nums',
               color: amount === '0' ? 'var(--tm)' : 'var(--text)',
-              transition: 'color .2s',
+              transition: 'all .2s',
+              wordBreak: 'break-all',
             }}>
               {amount}
             </span>
+            {computedResult !== null && (
+              <div style={{
+                fontSize: 14, color: 'var(--green)', marginTop: 6,
+                fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+                transition: 'opacity .15s', opacity: 0.9,
+              }}>
+                = €{computedResult.toFixed(2)}
+              </div>
+            )}
           </div>
 
           <div className="an d3" style={{ marginBottom: 24 }}>
@@ -366,20 +446,42 @@ export const AddExpense: React.FC = () => {
           <div className="an d5">
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: 'repeat(4, 1fr)',
               gap: 8,
-              maxWidth: 320,
+              maxWidth: 340,
               margin: '0 auto',
             }}>
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => (
-                <button key={k} type="button" className="num-btn" onClick={() => handleKey(k)}>
-                  {k}
-                </button>
-              ))}
+              {/* Row 1 */}
+              <button type="button" className="num-btn" onClick={() => handleKey('1')}>1</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('2')}>2</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('3')}>3</button>
+              <button type="button" className="num-btn action" onClick={() => handleKey('÷')}>÷</button>
+              {/* Row 2 */}
+              <button type="button" className="num-btn" onClick={() => handleKey('4')}>4</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('5')}>5</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('6')}>6</button>
+              <button type="button" className="num-btn action" onClick={() => handleKey('×')}>×</button>
+              {/* Row 3 */}
+              <button type="button" className="num-btn" onClick={() => handleKey('7')}>7</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('8')}>8</button>
+              <button type="button" className="num-btn" onClick={() => handleKey('9')}>9</button>
+              <button type="button" className="num-btn action" onClick={() => handleKey('-')}>−</button>
+              {/* Row 4 */}
               <button type="button" className="num-btn action" onClick={() => handleKey('.')}>.</button>
               <button type="button" className="num-btn" onClick={() => handleKey('0')}>0</button>
-              <button type="button" className="num-btn action" onClick={() => handleKey('del')}>&larr;</button>
+              <button type="button" className="num-btn action" onClick={() => handleKey('del')}>←</button>
+              <button type="button" className="num-btn action" onClick={() => handleKey('+')}>+</button>
             </div>
+            {hasOperator && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ maxWidth: 340, width: '100%', margin: '8px auto 0', display: 'block', padding: '10px 0', fontSize: 15, fontWeight: 600 }}
+                onClick={() => handleKey('=')}
+              >
+                = Calcular
+              </button>
+            )}
 
             {error && <div className="add-expense__error-msg">{error}</div>}
 
