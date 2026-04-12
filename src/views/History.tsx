@@ -7,7 +7,7 @@ import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
-import { ArrowUpDown, Calendar, X } from 'lucide-react';
+import { ArrowUpDown, Calendar, Check, CheckSquare, X } from 'lucide-react';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -88,6 +88,10 @@ export const History: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(incomingState.initialCategory ?? '');
+
+  // Bulk selection
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Date filter
   const [dateFrom, setDateFrom] = useState('');
@@ -328,6 +332,33 @@ export const History: React.FC = () => {
     }
   };
 
+  const handleSelectAll = () => {
+    if (selectedIds.size === filteredExpenses.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredExpenses.map(e => e.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`¿Eliminar ${selectedIds.size} gastos? Esta acción no se puede deshacer.`)) return;
+    try {
+      setLoading(true);
+      for (const id of selectedIds) {
+        await Api.deleteExpense(id);
+      }
+      showToast(`${selectedIds.size} gastos eliminados`);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      loadExpenses();
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showToast('Error al eliminar gastos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="u-flex-gap-16">
@@ -374,11 +405,34 @@ export const History: React.FC = () => {
     const catColor = getCatColor(expense.category);
     const payer = payerDisplayName(expense.paid_by);
     const badgeClass = PAYER_BADGE[expense.paid_by] ?? 'badge badge-b';
+    const isSelected = selectedIds.has(expense.id);
+
+    const handleRowClick = selectMode ? () => {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(expense.id)) next.delete(expense.id);
+        else next.add(expense.id);
+        return next;
+      });
+    } : undefined;
+
     return (
-      <div className="h-item" key={expense.id}>
-        <div className="icon-c" style={{ background: catColor.bg }}>
-          <span style={{ fontSize: '16px' }}>{catDef?.emoji ?? '📂'}</span>
-        </div>
+      <div className="h-item" key={expense.id} onClick={handleRowClick} style={selectMode ? { cursor: 'pointer' } : undefined}>
+        {selectMode ? (
+          <div className="bulk-check" style={{
+            width: 36, height: 36, borderRadius: '50%', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            background: isSelected ? 'var(--gl)' : 'var(--surface)',
+            border: `2px solid ${isSelected ? 'var(--green)' : 'var(--glass-border)'}`,
+            transition: 'all .15s',
+          }}>
+            {isSelected && <Check size={16} style={{ color: 'var(--green)' }} />}
+          </div>
+        ) : (
+          <div className="icon-c" style={{ background: catColor.bg }}>
+            <span style={{ fontSize: '16px' }}>{catDef?.emoji ?? '📂'}</span>
+          </div>
+        )}
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '14px', fontWeight: 500 }}>{expense.description}</div>
           <div style={{ fontSize: '12px', color: 'var(--tm)' }}>
@@ -389,16 +443,18 @@ export const History: React.FC = () => {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          style={{ minWidth: 0, padding: '8px 10px', borderRadius: '12px', marginRight: 8, color: 'var(--tm)' }}
-          onClick={() => openEditModal(expense)}
-          aria-label={`Editar ${expense.description}`}
-          title="Editar gasto"
-        >
-          <EditIcon />
-        </button>
+        {!selectMode && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ minWidth: 0, padding: '8px 10px', borderRadius: '12px', marginRight: 8, color: 'var(--tm)' }}
+            onClick={() => openEditModal(expense)}
+            aria-label={`Editar ${expense.description}`}
+            title="Editar gasto"
+          >
+            <EditIcon />
+          </button>
+        )}
         <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--red)' }}>
           {'−€'}{expense.amount.toFixed(2)}
         </div>
@@ -441,6 +497,17 @@ export const History: React.FC = () => {
         >
           <Calendar size={16} />
           {hasDateFilter && <span className="history-tool-dot" />}
+        </button>
+        <button
+          type="button"
+          className={`history-tool-btn${selectMode ? ' history-tool-btn--active' : ''}`}
+          onClick={() => {
+            setSelectMode(v => !v);
+            setSelectedIds(new Set());
+          }}
+          title="Seleccionar gastos"
+        >
+          <CheckSquare size={16} />
         </button>
       </div>
 
@@ -547,6 +614,18 @@ export const History: React.FC = () => {
             /* Flat list sorted by amount */
             filteredExpenses.map(expense => renderExpenseRow(expense))
           )}
+        </div>
+      )}
+
+      {selectMode && selectedIds.size > 0 && (
+        <div className="bulk-action-bar">
+          <button className="bulk-action-btn" onClick={handleSelectAll}>
+            {selectedIds.size === filteredExpenses.length ? 'Deseleccionar' : 'Seleccionar todo'}
+          </button>
+          <span className="bulk-action-count">{selectedIds.size} seleccionados</span>
+          <button className="bulk-action-btn bulk-action-btn--danger" onClick={handleBulkDelete}>
+            Eliminar ({selectedIds.size})
+          </button>
         </div>
       )}
 
