@@ -43,7 +43,7 @@ router.get('/', async (req: AuthRequest, res) => {
 // Create recurring expense
 router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest, res) => {
   const data = req.validatedData as RecurringExpenseInput;
-  const { name, emoji, amount, type, notes } = data;
+  const { name, emoji, amount, type, notes, every_n_cycles } = data;
 
   try {
     const db = getDatabase();
@@ -80,8 +80,8 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
     }
 
     const result = await db.run(
-      `INSERT INTO recurring_expenses (household_id, name, emoji, amount, category, category_id, type, notes, created_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO recurring_expenses (household_id, name, emoji, amount, category, category_id, type, notes, every_n_cycles, created_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       user.household_id,
       name,
       emoji,
@@ -90,6 +90,7 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
       categoryId,
       type,
       notes || null,
+      every_n_cycles,
       req.user!.id
     );
 
@@ -160,7 +161,8 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
         category = COALESCE(?, category),
         category_id = COALESCE(?, category_id),
         type = COALESCE(?, type),
-        notes = CASE WHEN ?1 = 1 THEN ?2 ELSE notes END
+        notes = CASE WHEN ?1 = 1 THEN ?2 ELSE notes END,
+        every_n_cycles = COALESCE(?, every_n_cycles)
       WHERE id = ?`,
       data.name,
       data.emoji,
@@ -170,6 +172,7 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
       data.type,
       data.notes !== undefined ? 1 : 0,
       data.notes !== undefined ? (data.notes ?? null) : null,
+      data.every_n_cycles ?? null,
       id
     );
 
