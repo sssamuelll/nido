@@ -79,10 +79,10 @@ export const AddExpense: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Physical keyboard support for amount input
+  // Physical keyboard support for amount input (desktop only)
   useEffect(() => {
+    if (window.innerWidth < 768) return; // mobile uses numpad only
     const onKeyDown = (e: KeyboardEvent) => {
-      // Skip if user is typing in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
