@@ -167,8 +167,11 @@ export const History: React.FC = () => {
   };
 
   const filteredExpenses = expenses.filter(e => {
-    const matchesSearch = e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = e.description.toLowerCase().includes(term) ||
+      e.category.toLowerCase().includes(term) ||
+      e.amount.toFixed(2).includes(searchTerm) ||
+      String(e.amount).includes(searchTerm);
     const matchesContext = activeContext === 'shared' ? e.type === 'shared' : e.type === 'personal';
     const matchesCategory = selectedCategory === '' || e.category === selectedCategory;
     return matchesSearch && matchesContext && matchesCategory;
