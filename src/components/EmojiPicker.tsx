@@ -72,6 +72,52 @@ const CATEGORIES: Record<string, string[]> = {
   ],
 };
 
+// Search keywords for emojis (Spanish + English)
+const EMOJI_KEYWORDS: Record<string, string> = {
+  '🍽️':'comida restaurante plato cena dinner food','🛒':'compra super mercado carrito shop cart','🏠':'casa hogar home house',
+  '💡':'luz idea light electricidad','🚗':'coche auto car vehiculo','💊':'salud medicina health pill farmacia',
+  '🎉':'fiesta celebracion party','📱':'telefono movil celular phone','💰':'dinero money plata ahorro',
+  '✈️':'avion viaje travel flight','☕':'cafe coffee','🎬':'cine pelicula movie film',
+  '😀':'feliz happy sonrisa smile','😂':'risa laugh llorar','😍':'amor love corazon',
+  '😎':'cool gafas lentes','🤔':'pensar think','😴':'dormir sleep sueño',
+  '👍':'bien ok bueno like','👎':'mal dislike','👋':'hola adios wave hello bye',
+  '💪':'fuerza gym musculo strong','👏':'aplauso bravo clap',
+  '🐶':'perro dog mascota','🐱':'gato cat','🐦':'pajaro bird','🦋':'mariposa butterfly',
+  '🌹':'rosa flor rose flower','🌻':'girasol sunflower','🍀':'trebol suerte luck',
+  '🍎':'manzana apple fruta','🍊':'naranja orange','🍋':'limon lemon','🍌':'banana platano',
+  '🍉':'sandia watermelon','🍇':'uva grape','🍓':'fresa strawberry','🍒':'cereza cherry',
+  '🍑':'melocoton peach durazno','🥑':'aguacate avocado','🥦':'brocoli','🌶️':'picante chile pepper',
+  '🍞':'pan bread','🧀':'queso cheese','🥚':'huevo egg','🍳':'desayuno breakfast',
+  '🍔':'hamburguesa burger','🍕':'pizza','🍟':'papas fries patatas','🌭':'hot dog perro caliente',
+  '🌮':'taco','🌯':'burrito wrap','🍝':'pasta espagueti spaghetti','🍜':'ramen noodle sopa',
+  '🍣':'sushi japon','🍰':'pastel cake torta','🍦':'helado ice cream','🍩':'dona donut',
+  '🍪':'galleta cookie','🍫':'chocolate','🍿':'palomitas popcorn','🍺':'cerveza beer',
+  '🍷':'vino wine','🥂':'brindis champagne celebrar',
+  '⚽':'futbol soccer','🏀':'basket baloncesto','🎾':'tenis tennis','🎮':'juego game videojuego',
+  '🎨':'arte art pintura','🎤':'microfono karaoke cantar sing','🎧':'auriculares headphones musica',
+  '🎸':'guitarra guitar','🎹':'piano musica','🎲':'juego dado game dice',
+  '🚕':'taxi cab','🚌':'bus autobus','🚲':'bicicleta bike','🏍️':'moto motorcycle',
+  '🚄':'tren train','🛩️':'avion avioneta plane','🚢':'barco ship crucero',
+  '🏖️':'playa beach','🏔️':'montaña mountain','🏕️':'camping','🏰':'castillo castle',
+  '📱':'telefono phone celular','💻':'computadora laptop computer ordenador','📷':'camara foto camera photo',
+  '📺':'television tv tele','🔋':'bateria battery','💡':'luz bombilla light bulb',
+  '🔧':'herramienta tool','🔨':'martillo hammer','🔑':'llave key',
+  '📦':'paquete caja package box','💼':'maletin trabajo work briefcase','📝':'nota escribir note write',
+  '📊':'grafico chart estadistica','📅':'calendario calendar fecha date',
+  '❤️':'corazon amor love heart','💔':'corazon roto broken heart','🔥':'fuego fire',
+  '✨':'estrella sparkle brillar','⭐':'estrella star','💤':'dormir sleep zzz',
+  '✅':'check correcto si','❌':'no error cancelar','💯':'perfecto cien',
+  '🎵':'musica nota music note','♻️':'reciclar recycle eco',
+  '🧡':'naranja corazon orange heart','💛':'amarillo corazon yellow heart',
+  '💚':'verde corazon green heart','💙':'azul corazon blue heart',
+  '💜':'morado corazon purple heart','🖤':'negro corazon black heart',
+  '🏠':'casa home','🏡':'casa jardin','🏢':'oficina office edificio',
+  '🎁':'regalo gift present','🎂':'cumpleaños birthday pastel',
+  '💳':'tarjeta card credito','💸':'gasto dinero money spend',
+  '🏥':'hospital salud health','🏫':'escuela school colegio universidad',
+  '⛽':'gasolina gas fuel combustible','🚧':'obra construccion','🗺️':'mapa map',
+};
+
 const CATEGORY_ICONS: Record<string, string> = {
   'Frecuentes': '🕐',
   'Caras': '😀',
@@ -144,7 +190,11 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ value, onChange }) => 
   };
 
   const filteredCategories = search.trim()
-    ? { 'Resultados': Object.values(CATEGORIES).flat().filter(e => e.includes(search)) }
+    ? { 'Resultados': Object.values(CATEGORIES).flat().filter(e => {
+        const term = search.toLowerCase();
+        const keywords = EMOJI_KEYWORDS[e]?.toLowerCase() ?? '';
+        return e.includes(search) || keywords.includes(term);
+      })}
     : CATEGORIES;
 
   const pickerContent = (
