@@ -407,10 +407,10 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             </div>
 
             {/* Category — smart cmd-palette */}
-            <div className="cmd-palette" ref={cmdRef}>
-              <div className="form-row" style={{ marginBottom: 0 }}>
-                <label>Categoría</label>
-                <div className="cmd-input-wrap" style={{ flex: 1 }}>
+            <div className="form-row" style={{ marginBottom: 14, position: 'relative' }} ref={cmdRef}>
+              <label>Categoría</label>
+              <div className="cmd-palette" style={{ flex: 1 }}>
+                <div className="cmd-input-wrap">
                   <TagIcon />
                   {formCategory && (() => {
                     const catDef = getCategoryDef(formCategory);
@@ -432,26 +432,26 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                     onChange={(e) => { setCategorySearch(e.target.value); setCmdOpen(true); }}
                   />
                 </div>
-              </div>
-              <div className={`cmd-dropdown${cmdOpen ? ' open' : ''}`}>
-                <div className="cmd-list">
-                  {filteredCategories.map((item, idx) => (
-                    <div
-                      key={`${item.id ?? ''}-${item.name}-${idx}`}
-                      className={`cmd-option${formCategory === item.name ? ' selected' : ''}`}
-                      onClick={() => { setFormCategory(item.name); setCategorySearch(''); setCmdOpen(false); }}
-                    >
-                      <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
-                        <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
+                <div className={`cmd-dropdown${cmdOpen ? ' open' : ''}`}>
+                  <div className="cmd-list">
+                    {filteredCategories.map((item, idx) => (
+                      <div
+                        key={`${item.id ?? ''}-${item.name}-${idx}`}
+                        className={`cmd-option${formCategory === item.name ? ' selected' : ''}`}
+                        onClick={() => { setFormCategory(item.name); setCategorySearch(''); setCmdOpen(false); }}
+                      >
+                        <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
+                          <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
+                        </div>
+                        {item.name}
                       </div>
-                      {item.name}
-                    </div>
-                  ))}
-                  {categorySearch.trim() && !filteredCategories.some(c => c.name.toLowerCase() === categorySearch.toLowerCase()) && (
-                    <div className="cmd-create" onClick={() => { setFormCategory(categorySearch.trim()); setCategorySearch(''); setCmdOpen(false); }}>
-                      + Crear &ldquo;{categorySearch.trim()}&rdquo;
-                    </div>
-                  )}
+                    ))}
+                    {categorySearch.trim() && !filteredCategories.some(c => c.name.toLowerCase() === categorySearch.toLowerCase()) && (
+                      <div className="cmd-create" onClick={() => { setFormCategory(categorySearch.trim()); setCategorySearch(''); setCmdOpen(false); }}>
+                        + Crear &ldquo;{categorySearch.trim()}&rdquo;
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
