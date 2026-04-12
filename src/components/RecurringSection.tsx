@@ -409,7 +409,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             {/* Category — smart cmd-palette */}
             <div className="form-row" style={{ marginBottom: 14, position: 'relative' }} ref={cmdRef}>
               <label>Categoría</label>
-              <div className="cmd-palette" style={{ flex: 1 }}>
+              <div className="cmd-palette" style={{ flex: 1, marginBottom: 0 }}>
                 <div className="cmd-input-wrap">
                   <TagIcon />
                   {formCategory && (() => {
