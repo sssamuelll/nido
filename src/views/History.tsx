@@ -7,6 +7,7 @@ import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
+import { ArrowUpDown, Calendar, X } from 'lucide-react';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -88,6 +89,17 @@ export const History: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(incomingState.initialCategory ?? '');
 
+  // Date filter
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
+  // Sort
+  type SortKey = 'date' | 'amount';
+  type SortDir = 'asc' | 'desc';
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editDescription, setEditDescription] = useState('');
   const [editAmount, setEditAmount] = useState('0');
@@ -166,19 +178,39 @@ export const History: React.FC = () => {
     return `Ciclo del ${d.getDate()} ${MONTHS[d.getMonth()]}`;
   };
 
-  const filteredExpenses = expenses.filter(e => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch = e.description.toLowerCase().includes(term) ||
-      e.category.toLowerCase().includes(term) ||
-      e.amount.toFixed(2).includes(searchTerm) ||
-      String(e.amount).includes(searchTerm);
-    const matchesContext = activeContext === 'shared' ? e.type === 'shared' : e.type === 'personal';
-    const matchesCategory = selectedCategory === '' || e.category === selectedCategory;
-    return matchesSearch && matchesContext && matchesCategory;
-  });
+  const filteredExpenses = useMemo(() => {
+    let result = expenses.filter(e => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = !term || e.description.toLowerCase().includes(term) ||
+        e.category.toLowerCase().includes(term) ||
+        e.amount.toFixed(2).includes(searchTerm) ||
+        String(e.amount).includes(searchTerm);
+      const matchesContext = activeContext === 'shared' ? e.type === 'shared' : e.type === 'personal';
+      const matchesCategory = selectedCategory === '' || e.category === selectedCategory;
+      const matchesDateFrom = !dateFrom || e.date >= dateFrom;
+      const matchesDateTo = !dateTo || e.date <= dateTo;
+      return matchesSearch && matchesContext && matchesCategory && matchesDateFrom && matchesDateTo;
+    });
+
+    // Sort
+    result.sort((a, b) => {
+      const mul = sortDir === 'asc' ? 1 : -1;
+      if (sortKey === 'amount') return (a.amount - b.amount) * mul;
+      return a.date.localeCompare(b.date) * mul;
+    });
+
+    return result;
+  }, [expenses, searchTerm, activeContext, selectedCategory, dateFrom, dateTo, sortKey, sortDir]);
 
   const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
   const average = filteredExpenses.length > 0 ? total / filteredExpenses.length : 0;
+
+  const hasDateFilter = dateFrom || dateTo;
+  const clearDateFilter = () => { setDateFrom(''); setDateTo(''); setShowDateFilter(false); };
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir(key === 'amount' ? 'desc' : 'desc'); }
+  };
 
   const filteredCategories = useMemo(() => {
     return categories.filter((item) =>
@@ -268,13 +300,18 @@ export const History: React.FC = () => {
     );
   }
 
+  // Group by date only when sorted by date
   const grouped: Record<string, Expense[]> = {};
-  filteredExpenses.forEach(e => {
-    if (!grouped[e.date]) grouped[e.date] = [];
-    grouped[e.date].push(e);
-  });
+  if (sortKey === 'date') {
+    filteredExpenses.forEach(e => {
+      if (!grouped[e.date]) grouped[e.date] = [];
+      grouped[e.date].push(e);
+    });
+  }
 
-  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  const sortedDates = Object.keys(grouped).sort((a, b) =>
+    sortDir === 'desc' ? b.localeCompare(a) : a.localeCompare(b)
+  );
 
   const formatDayLabel = (dateStr: string) => {
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -290,6 +327,43 @@ export const History: React.FC = () => {
   const getCatColor = (category: string) => {
     const key = category.toLowerCase();
     return CAT_COLORS[key] ?? { bg: 'var(--bl)', stroke: '#60A5FA' };
+  };
+
+  const renderExpenseRow = (expense: Expense) => {
+    const catDef = getCategoryDef(expense.category);
+    const catColor = getCatColor(expense.category);
+    const payer = payerDisplayName(expense.paid_by);
+    const badgeClass = PAYER_BADGE[expense.paid_by] ?? 'badge badge-b';
+    return (
+      <div className="h-item" key={expense.id}>
+        <div className="icon-c" style={{ background: catColor.bg }}>
+          <span style={{ fontSize: '16px' }}>{catDef?.emoji ?? '📂'}</span>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '14px', fontWeight: 500 }}>{expense.description}</div>
+          <div style={{ fontSize: '12px', color: 'var(--tm)' }}>
+            {expense.category} {' · '}
+            <span className={badgeClass} style={{ fontSize: '10px', padding: '1px 6px' }}>{payer}</span>
+            {sortKey === 'amount' && (
+              <span style={{ marginLeft: '6px' }}>{expense.date}</span>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ minWidth: 0, padding: '8px 10px', borderRadius: '12px', marginRight: 8, color: 'var(--tm)' }}
+          onClick={() => openEditModal(expense)}
+          aria-label={`Editar ${expense.description}`}
+          title="Editar gasto"
+        >
+          <EditIcon />
+        </button>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--red)' }}>
+          {'−€'}{expense.amount.toFixed(2)}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -310,13 +384,68 @@ export const History: React.FC = () => {
         />
       </div>
 
-      <input
-        className="search-input an d2"
-        placeholder="Buscar gastos..."
-        value={searchTerm}
-        onChange={e => setSearchTerm(e.target.value)}
-      />
+      {/* Search + action buttons row */}
+      <div className="an d2" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <input
+          className="search-input"
+          style={{ flex: 1, marginBottom: 0 }}
+          placeholder="Buscar por nombre, categoría o monto..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+        <button
+          type="button"
+          className={`history-tool-btn${showDateFilter || hasDateFilter ? ' history-tool-btn--active' : ''}`}
+          onClick={() => setShowDateFilter(v => !v)}
+          title="Filtrar por fecha"
+        >
+          <Calendar size={16} />
+          {hasDateFilter && <span className="history-tool-dot" />}
+        </button>
+      </div>
 
+      {/* Date range filter — slides in */}
+      {showDateFilter && (
+        <div className="an d2 history-date-filter">
+          <div className="history-date-row">
+            <div className="history-date-field">
+              <label>Desde</label>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            </div>
+            <div className="history-date-field">
+              <label>Hasta</label>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
+            {hasDateFilter && (
+              <button type="button" className="history-tool-btn" onClick={clearDateFilter} title="Limpiar filtro" style={{ alignSelf: 'flex-end', marginBottom: '2px' }}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sort controls */}
+      <div className="an d2" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <button
+          type="button"
+          className={`history-sort-btn${sortKey === 'date' ? ' history-sort-btn--active' : ''}`}
+          onClick={() => toggleSort('date')}
+        >
+          <ArrowUpDown size={13} />
+          Fecha {sortKey === 'date' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+        </button>
+        <button
+          type="button"
+          className={`history-sort-btn${sortKey === 'amount' ? ' history-sort-btn--active' : ''}`}
+          onClick={() => toggleSort('amount')}
+        >
+          <ArrowUpDown size={13} />
+          Monto {sortKey === 'amount' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+        </button>
+      </div>
+
+      {/* Category chips */}
       <div className="an d2 history-filter-row">
         {selectedCategory && (
           <button type="button" className="history-filter-chip history-filter-chip--active" onClick={() => setSelectedCategory('')}>
@@ -366,50 +495,18 @@ export const History: React.FC = () => {
         </div>
       ) : (
         <div className="card an d4">
-          {sortedDates.map((date, idx) => (
-            <div key={date} style={{ marginBottom: idx < sortedDates.length - 1 ? '20px' : undefined }}>
-              <div className="day-label">{formatDayLabel(date)}</div>
-              {grouped[date].map(expense => {
-                const catDef = getCategoryDef(expense.category);
-                const catColor = getCatColor(expense.category);
-                const payer = payerDisplayName(expense.paid_by);
-                const badgeClass = PAYER_BADGE[expense.paid_by] ?? 'badge badge-b';
-                return (
-                  <div className="h-item" key={expense.id}>
-                    <div className="icon-c" style={{ background: catColor.bg }}>
-                      <span style={{ fontSize: '16px' }}>{catDef?.emoji ?? '📂'}</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 500 }}>{expense.description}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--tm)' }}>
-                        {expense.category} {' · '}
-                        <span className={badgeClass} style={{ fontSize: '10px', padding: '1px 6px' }}>{payer}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      style={{
-                        minWidth: 0,
-                        padding: '8px 10px',
-                        borderRadius: '12px',
-                        marginRight: 8,
-                        color: 'var(--tm)',
-                      }}
-                      onClick={() => openEditModal(expense)}
-                      aria-label={`Editar ${expense.description}`}
-                      title="Editar gasto"
-                    >
-                      <EditIcon />
-                    </button>
-                    <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--red)' }}>
-                      {'−€'}{expense.amount.toFixed(2)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+          {sortKey === 'date' ? (
+            /* Grouped by date */
+            sortedDates.map((date, idx) => (
+              <div key={date} style={{ marginBottom: idx < sortedDates.length - 1 ? '20px' : undefined }}>
+                <div className="day-label">{formatDayLabel(date)}</div>
+                {grouped[date].map(expense => renderExpenseRow(expense))}
+              </div>
+            ))
+          ) : (
+            /* Flat list sorted by amount */
+            filteredExpenses.map(expense => renderExpenseRow(expense))
+          )}
         </div>
       )}
 
