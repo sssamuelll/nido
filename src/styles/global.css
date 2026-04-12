@@ -1578,6 +1578,40 @@ a:hover { color: var(--text) }
 
 .add-expense__error-msg { color: var(--red); font-size: 13px; text-align: center; padding: 8px }
 
+/* Add Expense: optional date picker */
+.expense-date-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--surface);
+  color: var(--ts); font-size: 13px; font-weight: 500; font-family: inherit;
+  cursor: pointer; transition: all .15s; position: relative;
+}
+.expense-date-toggle:hover { background: var(--surface2); border-color: rgba(255,255,255,.16) }
+.expense-date-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-left: 2px;
+}
+.expense-date-picker { animation: slideDown .15s ease }
+.expense-date-input {
+  flex: 1; padding: 10px 12px; border-radius: var(--rs);
+  border: 1px solid var(--glass-border); background: var(--bg); color: var(--text);
+  font-size: 14px; font-family: inherit; min-width: 0;
+}
+.expense-date-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.1) }
+.expense-date-today {
+  padding: 8px 12px; border-radius: var(--rs);
+  border: 1px solid var(--glass-border); background: var(--gl);
+  color: var(--green); font-size: 12px; font-weight: 600; font-family: inherit;
+  cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.expense-date-today:hover { background: rgba(52,211,153,.2) }
+.expense-date-close {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: var(--rs);
+  border: 1px solid var(--glass-border); background: var(--surface);
+  color: var(--tm); cursor: pointer; transition: all .15s; flex-shrink: 0;
+}
+.expense-date-close:hover { background: var(--surface2) }
+
 .add-expense__success-icon {
   width: 64px; height: 64px; border-radius: 50%;
   background: var(--gl); color: var(--green);

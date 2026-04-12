@@ -37,6 +37,17 @@ export const AddExpense: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [expenseDate, setExpenseDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const isToday = expenseDate === format(new Date(), 'yyyy-MM-dd');
+
+  const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+    if (dateStr === yesterday) return 'Ayer';
+    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+  };
   const { categories, getCategoryDef } = useCategoryManagement(type);
   const [categorySearch, setCategorySearch] = useState('');
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -96,7 +107,7 @@ export const AddExpense: React.FC = () => {
         amount: parseFloat(amount),
         category,
         category_id: categories.find(c => c.name === category)?.id,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: expenseDate,
         type,
       });
 
@@ -187,6 +198,55 @@ export const AddExpense: React.FC = () => {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             />
+          </div>
+
+          {/* Optional date — progressive disclosure */}
+          <div className="an d3" style={{ marginBottom: 16 }}>
+            {!showDatePicker ? (
+              <button
+                type="button"
+                className="expense-date-toggle"
+                onClick={() => setShowDatePicker(true)}
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+                {isToday ? 'Hoy' : formatDateLabel(expenseDate)}
+                {!isToday && <span className="expense-date-dot" />}
+              </button>
+            ) : (
+              <div className="expense-date-picker">
+                <div className="label">Fecha del gasto</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    className="expense-date-input"
+                    value={expenseDate}
+                    onChange={e => setExpenseDate(e.target.value)}
+                    max={format(new Date(), 'yyyy-MM-dd')}
+                  />
+                  {!isToday && (
+                    <button
+                      type="button"
+                      className="expense-date-today"
+                      onClick={() => { setExpenseDate(format(new Date(), 'yyyy-MM-dd')); setShowDatePicker(false); }}
+                    >
+                      Hoy
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="expense-date-close"
+                    onClick={() => setShowDatePicker(false)}
+                  >
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="an d4" style={{ marginBottom: 24 }}>
