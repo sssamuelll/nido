@@ -79,6 +79,21 @@ export const AddExpense: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Physical keyboard support for amount input
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key >= '0' && e.key <= '9') handleKey(e.key);
+      else if (e.key === '.' || e.key === ',') handleKey('.');
+      else if (e.key === 'Backspace') handleKey('del');
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const handleKey = (key: string) => {
     if (key === 'del') {
       setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : '0'));
