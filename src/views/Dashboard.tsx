@@ -399,7 +399,7 @@ export const Dashboard: React.FC = () => {
                   <div
                     key={cat.category}
                     className={`budget-item${isOver ? ' budget-item--over' : ''}`}
-                    style={{ width: '100%', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
+                    style={{ background: 'transparent', textAlign: 'left', cursor: 'pointer' }}
                     onClick={() => navigate('/history', { state: { initialContext: activeContext, initialCategory: cat.category } })}
                   >
                     <div className="icon-c" style={{ background: iconBg }}>
@@ -409,7 +409,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: isOver ? 'var(--red)' : 'var(--text)' }}>{cat.category}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500 }}>{cat.category}</span>
                         {budget > 0 && (
                           <span style={{
                             fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
@@ -434,7 +434,7 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
-                      <span style={{ color: isOver ? 'var(--red)' : 'var(--text)' }}>€{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</span>
+                      <span>€{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</span>
                       {budget > 0 && <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/€{budget.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</small>}
                     </div>
                     <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); const def = getCategoryDef(cat.category); if (def) catModal.openEdit(def); }}>
