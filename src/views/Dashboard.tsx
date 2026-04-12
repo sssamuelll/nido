@@ -330,12 +330,23 @@ export const Dashboard: React.FC = () => {
               €{animBudget.toLocaleString('es-ES')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
-              <span style={{ color: 'var(--green)', fontWeight: 600 }}>
-                €{(activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent)).toLocaleString('es-ES', { maximumFractionDigits: 0 })} gastados
-              </span>
-              {' '}· {activeContext === 'shared' && availableShared > 0
-                ? `${Math.round(((availableShared - totalSharedSpent) / availableShared) * 100)}% disponible`
-                : `${Math.round(((toNum(data?.personal?.budget) - toNum(data?.personal?.spent)) / (toNum(data?.personal?.budget) || 1)) * 100)}% disponible`}
+              {(() => {
+                const budget = activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget);
+                const spent = activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent);
+                const remaining = budget - spent;
+                const pct = budget > 0 ? Math.round((remaining / budget) * 100) : 0;
+                return (
+                  <>
+                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>
+                      €{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })} gastados
+                    </span>
+                    {' '}· <span style={{ color: remaining >= 0 ? 'var(--ts)' : 'var(--red)', fontWeight: 500 }}>
+                      €{Math.abs(remaining).toLocaleString('es-ES', { maximumFractionDigits: 0 })} {remaining >= 0 ? 'disponible' : 'excedido'}
+                    </span>
+                    {' '}({pct}%)
+                  </>
+                );
+              })()}
             </div>
           </div>
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(52,211,153,.15)' } as React.CSSProperties}>
