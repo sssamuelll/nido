@@ -1718,8 +1718,8 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
   opacity: 0; transform: translateX(-12px);
   transition: opacity .3s ease, transform .3s ease, background .15s ease;
   transition-delay: var(--catbar-delay, 0ms);
-  padding: 8px 12px; margin: 0 -12px; border-radius: var(--rs);
-  background: transparent;
+  padding: 8px 16px; border-radius: var(--rs);
+  background: transparent; cursor: pointer;
   will-change: opacity;
 }
 .a7-catbar--visible {
@@ -1801,7 +1801,7 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
   padding: 16px 24px;
 }
 .a7-donut-svg-wrap {
-  position: relative; width: 100%; max-width: 260px; aspect-ratio: 1;
+  position: relative; width: 100%; max-width: 320px; aspect-ratio: 1;
 }
 .a7-donut-svg {
   width: 100%; height: auto; display: block;
