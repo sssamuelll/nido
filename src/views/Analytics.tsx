@@ -30,13 +30,19 @@ interface KpisData {
   totalExpenses: number;
   vsPrevPeriod: number;
 }
-interface CategoryData { name: string; amount: number; pct: number; color: string }
+interface CategoryData { name: string; amount: number; pct: number; color: string; budget: number }
 interface InsightData { type: 'positive' | 'warning' | 'tip'; message: string }
+interface HouseholdBudgetData {
+  total_amount: number;
+  allocated: number;
+  unallocated: number;
+}
 interface AnalyticsData {
   monthly: MonthlyData[];
   kpis: KpisData;
   categories: CategoryData[];
   insights: InsightData[];
+  householdBudget: HouseholdBudgetData;
 }
 
 /* ── helpers ────────────────────────────────────────────── */
@@ -342,6 +348,309 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated }) => 
   );
 };
 
+/* ── Budget Donut component ────────────────────────────── */
+
+interface DonutSlice {
+  name: string;
+  amount: number;
+  budget: number;
+  color: string;
+}
+
+interface DonutProps {
+  categories: DonutSlice[];
+  totalBudget: number;
+  animated: boolean;
+}
+
+const MAX_DONUT_SLICES = 6;
+const OUTER_R = 80;
+const INNER_R = 60;
+const OUTER_STROKE = 24;
+const INNER_STROKE = 18;
+const OUTER_C = 2 * Math.PI * OUTER_R;
+const INNER_C = 2 * Math.PI * INNER_R;
+const UNASSIGNED_COLOR = '#555562';
+const OVERSPEND_COLOR = '#f87171';
+const VIEW_SIZE = 240;
+const CENTER = VIEW_SIZE / 2;
+
+/** Collapse small slices into "Otros" to keep the donut readable */
+function collapseSlices(cats: DonutSlice[], totalBudget: number): DonutSlice[] {
+  if (cats.length <= MAX_DONUT_SLICES) return cats;
+  const sorted = [...cats].sort((a, b) => b.budget - a.budget);
+  const keep = sorted.slice(0, MAX_DONUT_SLICES - 1);
+  const rest = sorted.slice(MAX_DONUT_SLICES - 1);
+  keep.push({
+    name: 'Otros',
+    amount: rest.reduce((s, r) => s + r.amount, 0),
+    budget: rest.reduce((s, r) => s + r.budget, 0),
+    color: '#a89e94',
+  });
+  return keep;
+}
+
+const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }) => {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [tooltipData, setTooltipData] = useState<{
+    name: string; spent: number; budget: number; x: number; y: number;
+  } | null>(null);
+
+  const slices = useMemo(
+    () => collapseSlices(categories.filter(c => c.budget > 0 || c.amount > 0), totalBudget),
+    [categories, totalBudget],
+  );
+
+  const safeBudget = Math.max(totalBudget, 1);
+  const totalAllocated = slices.reduce((s, c) => s + c.budget, 0);
+  const unassigned = Math.max(0, safeBudget - totalAllocated);
+
+  // Build budget (outer) arcs — including unassigned
+  const outerArcs = useMemo(() => {
+    const arcs: Array<{ offset: number; length: number; color: string; idx: number }> = [];
+    let cum = 0;
+    slices.forEach((s, i) => {
+      const frac = s.budget / safeBudget;
+      const len = frac * OUTER_C;
+      arcs.push({ offset: cum, length: len, color: s.color, idx: i });
+      cum += len;
+    });
+    if (unassigned > 0) {
+      const frac = unassigned / safeBudget;
+      arcs.push({ offset: cum, length: frac * OUTER_C, color: UNASSIGNED_COLOR, idx: -1 });
+    }
+    return arcs;
+  }, [slices, safeBudget, unassigned]);
+
+  // Build spent (inner) arcs
+  const innerArcs = useMemo(() => {
+    const arcs: Array<{ offset: number; length: number; color: string; overBudget: boolean; idx: number }> = [];
+    let cum = 0;
+    slices.forEach((s, i) => {
+      const budgetFrac = s.budget / safeBudget;
+      const spentFrac = Math.min(s.amount, s.budget) / safeBudget;
+      const withinLen = spentFrac * INNER_C;
+      arcs.push({ offset: cum, length: withinLen, color: s.color, overBudget: false, idx: i });
+      // If overspent, add overspend arc
+      if (s.amount > s.budget) {
+        const overFrac = Math.min((s.amount - s.budget) / safeBudget, budgetFrac * 0.5);
+        const overLen = overFrac * INNER_C;
+        arcs.push({ offset: cum + withinLen, length: overLen, color: OVERSPEND_COLOR, overBudget: true, idx: i });
+      }
+      cum += budgetFrac * INNER_C;
+    });
+    if (unassigned > 0) {
+      cum += (unassigned / safeBudget) * INNER_C;
+    }
+    return arcs;
+  }, [slices, safeBudget, unassigned]);
+
+  // Calculate tooltip position based on hovered arc center angle
+  const getArcCenter = useCallback((arcOffset: number, arcLength: number) => {
+    const midAngle = ((arcOffset + arcLength / 2) / OUTER_C) * 2 * Math.PI - Math.PI / 2;
+    return {
+      x: CENTER + Math.cos(midAngle) * (OUTER_R + 20),
+      y: CENTER + Math.sin(midAngle) * (OUTER_R + 20),
+    };
+  }, []);
+
+  const handleHover = useCallback((idx: number, arcOffset: number, arcLength: number) => {
+    if (idx < 0) {
+      setHoveredIdx(null);
+      setTooltipData(null);
+      return;
+    }
+    setHoveredIdx(idx);
+    const s = slices[idx];
+    if (!s) return;
+    const pos = getArcCenter(arcOffset, arcLength);
+    setTooltipData({ name: s.name, spent: s.amount, budget: s.budget, x: pos.x, y: pos.y });
+  }, [slices, getArcCenter]);
+
+  const clearHover = useCallback(() => {
+    setHoveredIdx(null);
+    setTooltipData(null);
+  }, []);
+
+  return (
+    <div className="a7-donut-wrap">
+      <div className="a7-donut-svg-wrap">
+        <svg
+          viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
+          className="a7-donut-svg"
+          onMouseLeave={clearHover}
+        >
+          {/* Outer ring: budget allocation */}
+          {outerArcs.map((arc, i) => {
+            const isHovered = arc.idx >= 0 && arc.idx === hoveredIdx;
+            return (
+              <circle
+                key={`o-${i}`}
+                cx={CENTER}
+                cy={CENTER}
+                r={OUTER_R}
+                fill="none"
+                stroke={arc.color}
+                strokeWidth={OUTER_STROKE}
+                strokeDasharray={`${arc.length} ${OUTER_C - arc.length}`}
+                strokeDashoffset={animated ? -arc.offset : OUTER_C}
+                strokeLinecap="butt"
+                className={`a7-donut-arc a7-donut-arc--outer ${isHovered ? 'a7-donut-arc--active' : ''}`}
+                style={{
+                  opacity: hoveredIdx !== null && !isHovered ? 0.35 : (arc.idx < 0 ? 0.4 : 0.55),
+                  transitionDelay: `${i * 60}ms`,
+                } as React.CSSProperties}
+                onMouseEnter={() => handleHover(arc.idx, arc.offset, arc.length)}
+                onTouchStart={() => handleHover(arc.idx, arc.offset, arc.length)}
+              />
+            );
+          })}
+
+          {/* Invisible wider arcs for touch targets */}
+          {outerArcs.map((arc, i) => (
+            arc.idx >= 0 && (
+              <circle
+                key={`ot-${i}`}
+                cx={CENTER}
+                cy={CENTER}
+                r={OUTER_R}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={Math.max(OUTER_STROKE + 20, 44)}
+                strokeDasharray={`${arc.length} ${OUTER_C - arc.length}`}
+                strokeDashoffset={-arc.offset}
+                strokeLinecap="butt"
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => handleHover(arc.idx, arc.offset, arc.length)}
+                onTouchStart={() => handleHover(arc.idx, arc.offset, arc.length)}
+              />
+            )
+          ))}
+
+          {/* Inner ring: actual spending */}
+          {innerArcs.map((arc, i) => {
+            const isHovered = arc.idx >= 0 && arc.idx === hoveredIdx;
+            return (
+              <circle
+                key={`i-${i}`}
+                cx={CENTER}
+                cy={CENTER}
+                r={INNER_R}
+                fill="none"
+                stroke={arc.color}
+                strokeWidth={INNER_STROKE}
+                strokeDasharray={`${arc.length} ${INNER_C - arc.length}`}
+                strokeDashoffset={animated ? -arc.offset : INNER_C}
+                strokeLinecap="butt"
+                className={`a7-donut-arc a7-donut-arc--inner ${isHovered ? 'a7-donut-arc--active' : ''} ${arc.overBudget ? 'a7-donut-arc--over' : ''}`}
+                style={{
+                  opacity: hoveredIdx !== null && !isHovered ? 0.4 : (arc.overBudget ? 0.9 : 0.85),
+                  transitionDelay: `${(outerArcs.length + i) * 60}ms`,
+                } as React.CSSProperties}
+                onMouseEnter={() => handleHover(arc.idx, arc.offset, arc.length)}
+                onTouchStart={() => handleHover(arc.idx, arc.offset, arc.length)}
+              />
+            );
+          })}
+
+          {/* Center label */}
+          <text x={CENTER} y={CENTER - 8} className="a7-donut-center-value" textAnchor="middle" dominantBaseline="auto">
+            {fmtCurrency(totalBudget)}
+          </text>
+          <text x={CENTER} y={CENTER + 12} className="a7-donut-center-label" textAnchor="middle" dominantBaseline="auto">
+            Presupuesto
+          </text>
+
+          {/* Percentage labels near each outer arc */}
+          {outerArcs.map((arc, i) => {
+            if (arc.length / OUTER_C < 0.05) return null; // skip tiny slices
+            const midAngle = ((arc.offset + arc.length / 2) / OUTER_C) * 2 * Math.PI - Math.PI / 2;
+            const labelR = OUTER_R + OUTER_STROKE / 2 + 3;
+            const lx = CENTER + Math.cos(midAngle) * labelR;
+            const ly = CENTER + Math.sin(midAngle) * labelR;
+            const pct = Math.round((arc.length / OUTER_C) * 100);
+            return (
+              <text
+                key={`pct-${i}`}
+                x={lx}
+                y={ly}
+                className="a7-donut-pct-label"
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
+                {pct}%
+              </text>
+            );
+          })}
+
+          {/* Tooltip (SVG foreignObject) */}
+          {tooltipData && (
+            <foreignObject
+              x={Math.max(0, Math.min(tooltipData.x - 60, VIEW_SIZE - 120))}
+              y={Math.max(0, Math.min(tooltipData.y - 50, VIEW_SIZE - 50))}
+              width="120"
+              height="50"
+              className="a7-donut-tooltip-fo"
+            >
+              <div className="a7-donut-tooltip">
+                <span className="a7-donut-tooltip__name">{tooltipData.name}</span>
+                <span className="a7-donut-tooltip__detail">
+                  {fmtCurrency(tooltipData.spent)} / {fmtCurrency(tooltipData.budget)}
+                </span>
+              </div>
+            </foreignObject>
+          )}
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div className="a7-donut-legend">
+        {slices.map((s, i) => {
+          const pct = safeBudget > 0 ? Math.round((s.budget / safeBudget) * 100) : 0;
+          const isHovered = hoveredIdx === i;
+          return (
+            <div
+              key={s.name}
+              className={`a7-donut-legend__item ${isHovered ? 'a7-donut-legend__item--active' : ''} ${animated ? 'a7-donut-legend__item--visible' : ''}`}
+              style={{ '--legend-delay': `${(outerArcs.length + innerArcs.length) * 60 + i * 40}ms` } as React.CSSProperties}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={clearHover}
+            >
+              <span className="a7-donut-legend__dot" style={{ background: s.color }} />
+              <span className="a7-donut-legend__name">{s.name}</span>
+              <span className="a7-donut-legend__values">
+                {fmtCurrency(s.amount)} / {fmtCurrency(s.budget)}
+              </span>
+              <span
+                className="a7-donut-legend__badge"
+                style={{
+                  background: s.amount > s.budget ? 'var(--rl)' : 'var(--gl)',
+                  color: s.amount > s.budget ? 'var(--red)' : 'var(--green)',
+                }}
+              >
+                {pct}%
+              </span>
+            </div>
+          );
+        })}
+        {unassigned > 0 && (
+          <div
+            className={`a7-donut-legend__item ${animated ? 'a7-donut-legend__item--visible' : ''}`}
+            style={{ '--legend-delay': `${(outerArcs.length + innerArcs.length) * 60 + slices.length * 40}ms` } as React.CSSProperties}
+          >
+            <span className="a7-donut-legend__dot" style={{ background: UNASSIGNED_COLOR }} />
+            <span className="a7-donut-legend__name" style={{ color: 'var(--tm)' }}>Sin asignar</span>
+            <span className="a7-donut-legend__values">{fmtCurrency(unassigned)}</span>
+            <span className="a7-donut-legend__badge" style={{ background: 'var(--surface2)', color: 'var(--tm)' }}>
+              {Math.round((unassigned / safeBudget) * 100)}%
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ── Main component ─────────────────────────────────────── */
 
 export const Analytics: React.FC = () => {
@@ -489,9 +798,34 @@ export const Analytics: React.FC = () => {
             ))}
           </div>
 
-          {/* Two-column layout: chart + categories */}
+          {/* Budget donut + category bars */}
+          {data.householdBudget.total_amount > 0 && (
+            <div className="a7-donut-grid an d3">
+              <div className="a7-card a7-card--donut">
+                <div className="a7-card__head">
+                  <span className="a7-card__title">Presupuesto vs gasto</span>
+                </div>
+                <BudgetDonut
+                  categories={data.categories}
+                  totalBudget={data.householdBudget.total_amount}
+                  animated={chartAnimated}
+                />
+              </div>
+              <div className="a7-card a7-card--cats">
+                <div className="a7-card__head">
+                  <span className="a7-card__title">Por categoría</span>
+                </div>
+                {data.categories.length > 0 ? (
+                  <CategoryBars categories={data.categories} animated={chartAnimated} />
+                ) : (
+                  <div className="a7-empty">Sin gastos este periodo</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Area chart */}
           <div className="a7-grid an d3">
-            {/* Chart card */}
             <div className="a7-card a7-card--chart">
               <div className="a7-card__head">
                 <span className="a7-card__title">{chartTitle}</span>
@@ -503,17 +837,19 @@ export const Analytics: React.FC = () => {
               )}
             </div>
 
-            {/* Category breakdown */}
-            <div className="a7-card a7-card--cats">
-              <div className="a7-card__head">
-                <span className="a7-card__title">Por categoría</span>
+            {/* Category bars fallback when no budget */}
+            {data.householdBudget.total_amount <= 0 && (
+              <div className="a7-card a7-card--cats">
+                <div className="a7-card__head">
+                  <span className="a7-card__title">Por categoría</span>
+                </div>
+                {data.categories.length > 0 ? (
+                  <CategoryBars categories={data.categories} animated={chartAnimated} />
+                ) : (
+                  <div className="a7-empty">Sin gastos este periodo</div>
+                )}
               </div>
-              {data.categories.length > 0 ? (
-                <CategoryBars categories={data.categories} animated={chartAnimated} />
-              ) : (
-                <div className="a7-empty">Sin gastos este periodo</div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Insights */}
