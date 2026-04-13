@@ -159,15 +159,17 @@ router.get('/', async (req: AuthRequest, res) => {
     // Get category colors and budget_amount from categories table
     const categoryMeta = householdId
       ? await db.all<(CategoryColorRow & { budget_amount: number })[]>(
-          'SELECT name, color, COALESCE(budget_amount, 0) as budget_amount FROM categories WHERE household_id = ?',
+          'SELECT name, emoji, color, COALESCE(budget_amount, 0) as budget_amount FROM categories WHERE household_id = ?',
           householdId
         )
       : [];
     const colorMap: Record<string, string> = {};
     const budgetMap: Record<string, number> = {};
+    const emojiMap: Record<string, string> = {};
     for (const cc of categoryMeta) {
       colorMap[cc.name] = cc.color;
       budgetMap[cc.name] = cc.budget_amount;
+      if ((cc as any).emoji) emojiMap[cc.name] = (cc as any).emoji;
     }
 
     const categoryTotal = categoryRows.reduce((sum, r) => sum + r.amount, 0);
@@ -176,6 +178,7 @@ router.get('/', async (req: AuthRequest, res) => {
       amount: row.amount,
       pct: categoryTotal > 0 ? Math.round((row.amount / categoryTotal) * 100) : 0,
       color: colorMap[row.name] || CATEGORY_FALLBACK_COLORS[row.name] || '#888888',
+      emoji: emojiMap[row.name] || '📦',
       budget: budgetMap[row.name] || 0,
     }));
 
