@@ -1351,6 +1351,8 @@ a:hover { color: var(--text) }
 .settings-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px }
 .form-row-s { display: flex; align-items: center; gap: 12px; margin-bottom: 12px }
 .form-row-s label { font-size: 14px; font-weight: 500; min-width: 200px; color: var(--ts) }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer }
 .form-input-s { padding: 10px 16px; border: 1px solid var(--glass-border); border-radius: var(--rs); font-size: 15px; font-family: inherit; width: 120px; text-align: right; background: var(--surface); color: var(--text); transition: all .2s }
 .form-input-s:focus { outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52, 211, 153, .15) }
 .danger-zone { background: rgba(248, 113, 113, .05); border: 1px solid rgba(248, 113, 113, .15); border-radius: var(--r); padding: 24px }
@@ -1492,7 +1494,6 @@ a:hover { color: var(--text) }
 .history-date-field input[type="date"]:focus {
   outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.1);
 }
-.history-date-field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer }
 
 /* History: sort buttons */
 .history-sort-btn {
@@ -1816,7 +1817,6 @@ a:hover { color: var(--text) }
   font-size: 14px; font-family: inherit; min-width: 0;
 }
 .expense-date-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.1) }
-.expense-date-input::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer }
 .expense-date-today {
   padding: 8px 12px; border-radius: var(--rs);
   border: 1px solid var(--glass-border); background: var(--gl);

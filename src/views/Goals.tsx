@@ -1,20 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { GoalCard } from '../components/GoalCard';
+import { EmojiPicker } from '../components/EmojiPicker';
 import { type Goal } from '../types';
 import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
-
-/* ---- Icon options matching design reference ---- */
-const GOAL_ICONS = [
-  { id: 'sparkle', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>, emoji: '✨' },
-  { id: 'home', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3"/></svg>, emoji: '🏠' },
-  { id: 'card', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>, emoji: '💳' },
-  { id: 'camera', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="14" r="3"/></svg>, emoji: '📷' },
-  { id: 'shield', svg: <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>, emoji: '🛡️' },
-];
-
-const GOAL_COLORS = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA'];
 
 interface GoalFormData {
   name: string;
@@ -245,46 +235,10 @@ export const Goals: React.FC = () => {
                 <input className="form-input" type="number" value={formData.target} onChange={e => setFormData(prev => ({ ...prev, target: e.target.value }))} placeholder="5000" required min="1" step="any" style={{ width: 120, textAlign: 'right' }} />
               </div>
 
-              {/* Icon picker — 5 SVG icons in circles */}
+              {/* Emoji picker — replaces old SVG icon + color pickers */}
               <div className="form-row">
-                <label>Icono</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {GOAL_ICONS.map(ic => {
-                    const selected = formData.icon === ic.emoji;
-                    return (
-                      <div
-                        key={ic.id}
-                        onClick={() => setFormData(prev => ({ ...prev, icon: ic.emoji }))}
-                        style={{
-                          width: 36, height: 36, borderRadius: 'var(--rx)',
-                          border: selected ? '2px solid var(--green)' : '1px solid var(--glass-border)',
-                          background: selected ? 'var(--gl)' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                          color: selected ? 'var(--green)' : 'var(--ts)',
-                        }}
-                      >
-                        {ic.svg}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Color picker — 5 color dots */}
-              <div className="form-row">
-                <label>Color</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {GOAL_COLORS.map(c => (
-                    <div
-                      key={c}
-                      onClick={() => setFormData(prev => ({ ...prev, color: c }))}
-                      style={{
-                        width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
-                        border: `3px solid ${formData.color === c ? 'var(--text)' : 'transparent'}`,
-                      }}
-                    />
-                  ))}
-                </div>
+                <label>Emoji</label>
+                <EmojiPicker value={formData.icon} onChange={icon => setFormData(prev => ({ ...prev, icon }))} />
               </div>
 
               {/* Type toggle — Compartido / Personal as buttons */}
