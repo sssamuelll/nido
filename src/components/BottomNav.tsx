@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { House, ChartNoAxesColumn, Plus, Target, User } from 'lucide-react';
+import { House, ChartNoAxesColumn, Plus, Target, Clock } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
@@ -33,12 +33,11 @@ export const BottomNav: React.FC = () => {
         </button>
 
         <button
-          className={`bottom-nav__item ${isActive('/') && context === 'personal' ? 'bottom-nav__item--active' : ''}`}
-          onClick={() => navigate('/?context=personal')}
-          data-context="personal"
+          className={`bottom-nav__item ${isActive('/history') ? 'bottom-nav__item--active' : ''}`}
+          onClick={() => navigate('/history')}
         >
-          <User size={22} />
-          <span className="bottom-nav__item-label">Personal</span>
+          <Clock size={22} />
+          <span className="bottom-nav__item-label">Historial</span>
         </button>
 
         <button
