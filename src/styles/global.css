@@ -1806,19 +1806,23 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 /* Floating emoji + % badges outside the donut ring */
 .a7-donut-badge {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  pointer-events: none;
+  cursor: pointer; transition: transform .15s;
 }
 .a7-donut-badge__emoji {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--surface); border: 2px solid var(--badge-color, var(--glass-border));
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.3); transition: all .15s;
+}
+.a7-donut-badge--active .a7-donut-badge__emoji {
+  transform: scale(1.2); box-shadow: 0 0 12px var(--badge-color, rgba(255,255,255,.3));
+  border-width: 3px;
 }
 .a7-donut-badge__pct {
   font-size: 10px; font-weight: 700; color: var(--badge-color, var(--ts));
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
 }
+.a7-catbar--active { background: var(--surface2); margin: 0 -12px; padding: 8px 12px; border-radius: var(--rs) }
 
 /* Tooltip */
 .a7-donut-tooltip-fo {
