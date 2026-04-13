@@ -306,11 +306,13 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
 interface CategoryBarsProps {
   categories: CategoryData[];
   animated: boolean;
+  hoveredIdx: number | null;
+  onHover: (idx: number | null) => void;
 }
 
-const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated }) => {
+const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hoveredIdx, onHover }) => {
   const sorted = useMemo(
-    () => [...categories].sort((a, b) => b.amount - a.amount).slice(0, 8),
+    () => [...categories].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 8),
     [categories],
   );
   const maxAmt = useMemo(() => Math.max(...sorted.map(c => c.amount), 1), [sorted]);
@@ -319,13 +321,22 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated }) => 
     <div className="a7-catbars">
       {sorted.map((cat, i) => {
         const widthPct = (cat.amount / maxAmt) * 100;
+        const isActive = hoveredIdx === i;
+        const isDimmed = hoveredIdx !== null && !isActive;
         return (
           <div
             key={cat.name}
-            className={`a7-catbar ${animated ? 'a7-catbar--visible' : ''}`}
-            style={{ '--catbar-delay': `${i * 50}ms` } as React.CSSProperties}
+            className={`a7-catbar ${animated ? 'a7-catbar--visible' : ''} ${isActive ? 'a7-catbar--active' : ''}`}
+            style={{
+              '--catbar-delay': `${i * 50}ms`,
+              opacity: isDimmed ? 0.35 : 1,
+              transition: 'opacity .15s',
+            } as React.CSSProperties}
+            onMouseEnter={() => onHover(i)}
+            onMouseLeave={() => onHover(null)}
           >
             <div className="a7-catbar__label">
+              <span style={{ fontSize: 16, marginRight: 6 }}>{cat.emoji}</span>
               <span className="a7-catbar__name">{cat.name}</span>
             </div>
             <div className="a7-catbar__track">
@@ -353,13 +364,16 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated }) => 
 interface SpendingDonutProps {
   categories: Array<{ name: string; emoji: string; amount: number; color: string; pct: number }>;
   animated: boolean;
+  hoveredIdx: number | null;
+  onHover: (idx: number | null) => void;
 }
 
 const MAX_DONUT_SLICES = 6;
 const RING_R = 70;
 const RING_STROKE = 24;
 const RING_C = 2 * Math.PI * RING_R;
-const VIEW_SIZE = 220;
+const BADGE_R = RING_R + RING_STROKE / 2 + 24;
+const VIEW_SIZE = 280; // larger to fit badges
 const CENTER = VIEW_SIZE / 2;
 
 function collapseSlices(cats: SpendingDonutProps['categories']): SpendingDonutProps['categories'] {
@@ -377,9 +391,7 @@ function collapseSlices(cats: SpendingDonutProps['categories']): SpendingDonutPr
   return keep;
 }
 
-const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated }) => {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-
+const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hoveredIdx, onHover }) => {
   const slices = useMemo(() => collapseSlices(categories), [categories]);
   const totalSpent = slices.reduce((s, c) => s + c.amount, 0);
   const safeTotal = Math.max(totalSpent, 1);
@@ -396,14 +408,33 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated }) =
     return result;
   }, [slices, safeTotal]);
 
-  const clearHover = useCallback(() => setHoveredIdx(null), []);
+  // Spread badges to avoid overlap on small segments
+  const badgePositions = useMemo(() => {
+    const MIN_ANGLE_GAP = 0.45; // ~26 degrees minimum between badges
+    const rawAngles = arcs.map(arc => ((arc.offset + arc.length / 2) / RING_C) * 2 * Math.PI - Math.PI / 2);
+    const adjusted = [...rawAngles];
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 1; i < adjusted.length; i++) {
+        const gap = adjusted[i] - adjusted[i - 1];
+        if (gap < MIN_ANGLE_GAP) {
+          const shift = (MIN_ANGLE_GAP - gap) / 2;
+          adjusted[i - 1] -= shift;
+          adjusted[i] += shift;
+        }
+      }
+    }
+    return adjusted.map(angle => ({
+      x: CENTER + Math.cos(angle) * BADGE_R,
+      y: CENTER + Math.sin(angle) * BADGE_R,
+    }));
+  }, [arcs]);
 
   if (totalSpent === 0) return null;
 
   return (
     <div className="a7-donut-wrap">
       <div className="a7-donut-svg-wrap">
-        <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={clearHover}>
+        <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={() => onHover(null)}>
           {/* Spending ring */}
           {arcs.map((arc, i) => {
             const isHovered = arc.idx === hoveredIdx;
@@ -417,11 +448,11 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated }) =
                 strokeLinecap="butt"
                 className="a7-donut-arc"
                 style={{
-                  opacity: hoveredIdx !== null && !isHovered ? 0.3 : 0.8,
+                  opacity: hoveredIdx !== null && !isHovered ? 0.25 : 0.85,
                   transitionDelay: `${i * 60}ms`,
                 } as React.CSSProperties}
-                onMouseEnter={() => setHoveredIdx(arc.idx)}
-                onTouchStart={() => setHoveredIdx(arc.idx)}
+                onMouseEnter={() => onHover(arc.idx)}
+                onTouchStart={() => onHover(arc.idx)}
               />
             );
           })}
@@ -436,22 +467,25 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated }) =
               strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
               strokeDashoffset={-(arc.offset - RING_C / 4)} strokeLinecap="butt"
               style={{ cursor: 'pointer' }}
-              onMouseEnter={() => setHoveredIdx(arc.idx)}
-              onTouchStart={() => setHoveredIdx(arc.idx)}
+              onMouseEnter={() => onHover(arc.idx)}
+              onTouchStart={() => onHover(arc.idx)}
             />
           ))}
 
-          {/* Emoji badges */}
+          {/* Emoji badges — spread to avoid overlap */}
           {arcs.map((arc, i) => {
             const s = slices[arc.idx];
-            const midAngle = ((arc.offset + arc.length / 2) / RING_C) * 2 * Math.PI - Math.PI / 2;
-            const badgeR = RING_R + RING_STROKE / 2 + 20;
-            const bx = CENTER + Math.cos(midAngle) * badgeR;
-            const by = CENTER + Math.sin(midAngle) * badgeR;
+            const pos = badgePositions[i];
             const pct = Math.round((s.amount / safeTotal) * 100);
+            const isHovered = arc.idx === hoveredIdx;
             return (
-              <foreignObject key={`fb-${i}`} x={bx - 22} y={by - 22} width={44} height={44} style={{ overflow: 'visible' }}>
-                <div className="a7-donut-badge" style={{ '--badge-color': s.color } as React.CSSProperties}>
+              <foreignObject key={`fb-${i}`} x={pos.x - 22} y={pos.y - 22} width={44} height={44} style={{ overflow: 'visible' }}>
+                <div
+                  className={`a7-donut-badge${isHovered ? ' a7-donut-badge--active' : ''}`}
+                  style={{ '--badge-color': s.color } as React.CSSProperties}
+                  onMouseEnter={() => onHover(arc.idx)}
+                  onClick={() => onHover(hoveredIdx === arc.idx ? null : arc.idx)}
+                >
                   <span className="a7-donut-badge__emoji">{s.emoji}</span>
                   <span className="a7-donut-badge__pct">{pct}%</span>
                 </div>
@@ -471,6 +505,18 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated }) =
         </svg>
       </div>
     </div>
+  );
+};
+
+/* ── Category section — donut + bars with shared hover ─── */
+
+const CategoryDonutSection: React.FC<{ categories: CategoryData[]; animated: boolean }> = ({ categories, animated }) => {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  return (
+    <>
+      <SpendingDonut categories={categories} animated={animated} hoveredIdx={hoveredIdx} onHover={setHoveredIdx} />
+      <CategoryBars categories={categories} animated={animated} hoveredIdx={hoveredIdx} onHover={setHoveredIdx} />
+    </>
   );
 };
 
@@ -627,10 +673,7 @@ export const Analytics: React.FC = () => {
               <span className="a7-card__title">Por categoría</span>
             </div>
             {data.categories.length > 0 ? (
-              <>
-                <SpendingDonut categories={data.categories} animated={chartAnimated} />
-                <CategoryBars categories={data.categories} animated={chartAnimated} />
-              </>
+              <CategoryDonutSection categories={data.categories} animated={chartAnimated} />
             ) : (
               <div className="a7-empty">Sin gastos este periodo</div>
             )}
@@ -656,7 +699,7 @@ export const Analytics: React.FC = () => {
                   <span className="a7-card__title">Por categoría</span>
                 </div>
                 {data.categories.length > 0 ? (
-                  <CategoryBars categories={data.categories} animated={chartAnimated} />
+                  <CategoryDonutSection categories={data.categories} animated={chartAnimated} />
                 ) : (
                   <div className="a7-empty">Sin gastos este periodo</div>
                 )}
