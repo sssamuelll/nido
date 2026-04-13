@@ -98,7 +98,7 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
 
     if (type === 'shared') {
       await notifyPartner(req.user!.id, req.user!.username, 'recurring_created', 'Nuevo gasto recurrente',
-        `{name} cre\u00F3 "${name}" (\u20AC${amount}/mes)`, { recurring_id: result.lastID });
+        `{name} creó "${name}" (€${amount}/mes)`, { recurring_id: result.lastID });
     }
 
     res.status(201).json(newItem);

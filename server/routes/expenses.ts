@@ -164,7 +164,7 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 
     if (type === 'shared') {
       await notifyPartner(req.user!.id, req.user!.username, 'expense_added', 'Nuevo gasto',
-        `{name} a\u00F1adi\u00F3 \u20AC${amount} en ${categoryName}`, { expense_id: result.lastID });
+        `{name} añadió €${amount} en ${categoryName}`, { expense_id: result.lastID });
     }
 
     res.status(201).json(newExpense);
@@ -223,7 +223,7 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
 
     if (updated.type === 'shared') {
       await notifyPartner(req.user!.id, req.user!.username, 'expense_updated', 'Gasto editado',
-        `{name} edit\u00F3 "${updated.description}" (\u20AC${updated.amount})`, { expense_id: Number(id) });
+        `{name} editó "${updated.description}" (€${updated.amount})`, { expense_id: Number(id) });
     }
 
     res.json(updatedExpense);
@@ -254,7 +254,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     if (isShared) {
       await notifyPartner(req.user!.id, req.user!.username, 'expense_deleted', 'Gasto eliminado',
-        `{name} elimin\u00F3 "${existing.description}" (\u20AC${existing.amount})`, { category: existing.category });
+        `{name} eliminó "${existing.description}" (€${existing.amount})`, { category: existing.category });
     }
 
     await db.run('DELETE FROM expenses WHERE id = ?', id);

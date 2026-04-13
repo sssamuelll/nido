@@ -175,7 +175,7 @@ router.put('/', async (req: AuthRequest, res) => {
         req.user!.username,
         'budget_change_requested',
         'Cambio de presupuesto',
-        `{name} solicita cambiar el presupuesto a \u20AC${total_amount}`,
+        `{name} solicita cambiar el presupuesto a €${total_amount}`,
         { approval_id: approvalId, requested_by_user_id: req.user!.id, total_amount }
       );
 
@@ -238,7 +238,7 @@ router.post('/approve', async (req: AuthRequest, res) => {
       req.user!.username,
       'budget_approved',
       'Presupuesto aprobado',
-      `{name} aprob\u00F3 el cambio de presupuesto a \u20AC${approval.total_amount}`,
+      `{name} aprobó el cambio de presupuesto a €${approval.total_amount}`,
       { approval_id, total_amount: approval.total_amount }
     );
 

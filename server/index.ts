@@ -230,8 +230,8 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
 
     await notifyPartner(req.user!.id, req.user!.username,
       id ? 'category_updated' : 'category_created',
-      id ? 'Categor\u00EDa editada' : 'Nueva categor\u00EDa',
-      `{name} ${id ? 'edit\u00F3' : 'cre\u00F3'} la categor\u00EDa "${name}" ${emoji}`,
+      id ? 'Categoría editada' : 'Nueva categoría',
+      `{name} ${id ? 'editó' : 'creó'} la categoría "${name}" ${emoji}`,
       { category_name: name });
 
     res.json({ success: true });
@@ -260,8 +260,8 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
     );
 
     if (existing) {
-      await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categor\u00EDa eliminada',
-        `{name} elimin\u00F3 la categor\u00EDa "${existing.name}" ${existing.emoji}`, { category_name: existing.name });
+      await notifyPartner(req.user!.id, req.user!.username, 'category_deleted', 'Categoría eliminada',
+        `{name} eliminó la categoría "${existing.name}" ${existing.emoji}`, { category_name: existing.name });
     }
 
     res.json({ success: true });
