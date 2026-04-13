@@ -348,103 +348,86 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated }) => 
   );
 };
 
-/* ── Budget Donut component ────────────────────────────── */
+/* ── Spending Donut component ──────────────────────────── */
 
-interface DonutSlice {
-  name: string;
-  emoji: string;
-  amount: number;
-  budget: number;
-  color: string;
-}
-
-interface DonutProps {
-  categories: DonutSlice[];
-  totalBudget: number;
+interface SpendingDonutProps {
+  categories: Array<{ name: string; emoji: string; amount: number; color: string; pct: number }>;
   animated: boolean;
 }
 
 const MAX_DONUT_SLICES = 6;
-const RING_R = 80;
-const RING_STROKE = 28;
+const RING_R = 70;
+const RING_STROKE = 24;
 const RING_C = 2 * Math.PI * RING_R;
-const UNASSIGNED_COLOR = '#555562';
-const VIEW_SIZE = 240;
+const VIEW_SIZE = 220;
 const CENTER = VIEW_SIZE / 2;
 
-function collapseSlices(cats: DonutSlice[]): DonutSlice[] {
-  if (cats.length <= MAX_DONUT_SLICES) return cats;
-  const sorted = [...cats].sort((a, b) => b.budget - a.budget);
+function collapseSlices(cats: SpendingDonutProps['categories']): SpendingDonutProps['categories'] {
+  const filtered = cats.filter(c => c.amount > 0);
+  if (filtered.length <= MAX_DONUT_SLICES) return filtered;
+  const sorted = [...filtered].sort((a, b) => b.amount - a.amount);
   const keep = sorted.slice(0, MAX_DONUT_SLICES - 1);
   const rest = sorted.slice(MAX_DONUT_SLICES - 1);
+  const restTotal = rest.reduce((s, r) => s + r.amount, 0);
+  const total = filtered.reduce((s, r) => s + r.amount, 0);
   keep.push({
-    name: 'Otros',
-    emoji: '📦',
-    amount: rest.reduce((s, r) => s + r.amount, 0),
-    budget: rest.reduce((s, r) => s + r.budget, 0),
-    color: '#a89e94',
+    name: 'Otros', emoji: '📦', color: '#a89e94',
+    amount: restTotal, pct: total > 0 ? Math.round((restTotal / total) * 100) : 0,
   });
   return keep;
 }
 
-const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }) => {
+const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const slices = useMemo(
-    () => collapseSlices(categories.filter(c => c.budget > 0 || c.amount > 0)),
-    [categories],
-  );
+  const slices = useMemo(() => collapseSlices(categories), [categories]);
+  const totalSpent = slices.reduce((s, c) => s + c.amount, 0);
+  const safeTotal = Math.max(totalSpent, 1);
 
-  const safeBudget = Math.max(totalBudget, 1);
-  const totalAllocated = slices.reduce((s, c) => s + c.budget, 0);
-  const unassigned = Math.max(0, safeBudget - totalAllocated);
-
-  // Build single ring arcs — budget allocation per category
+  // Build arcs — spending per category as % of total spent
   const arcs = useMemo(() => {
     const result: Array<{ offset: number; length: number; color: string; idx: number }> = [];
     let cum = 0;
     slices.forEach((s, i) => {
-      const len = (s.budget / safeBudget) * RING_C;
+      const len = (s.amount / safeTotal) * RING_C;
       result.push({ offset: cum, length: len, color: s.color, idx: i });
       cum += len;
     });
-    if (unassigned > 0) {
-      result.push({ offset: cum, length: (unassigned / safeBudget) * RING_C, color: UNASSIGNED_COLOR, idx: -1 });
-    }
     return result;
-  }, [slices, safeBudget, unassigned]);
+  }, [slices, safeTotal]);
 
   const clearHover = useCallback(() => setHoveredIdx(null), []);
+
+  if (totalSpent === 0) return null;
 
   return (
     <div className="a7-donut-wrap">
       <div className="a7-donut-svg-wrap">
         <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={clearHover}>
-          {/* Budget allocation ring — offset by quarter turn to start at 12 o'clock */}
+          {/* Spending ring */}
           {arcs.map((arc, i) => {
-            const isHovered = arc.idx >= 0 && arc.idx === hoveredIdx;
-            const dashOffset = -(arc.offset - RING_C / 4);
+            const isHovered = arc.idx === hoveredIdx;
             return (
               <circle
                 key={`a-${i}`}
                 cx={CENTER} cy={CENTER} r={RING_R}
                 fill="none" stroke={arc.color} strokeWidth={RING_STROKE}
                 strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
-                strokeDashoffset={animated ? dashOffset : RING_C}
+                strokeDashoffset={animated ? -(arc.offset - RING_C / 4) : RING_C}
                 strokeLinecap="butt"
                 className="a7-donut-arc"
                 style={{
-                  opacity: hoveredIdx !== null && !isHovered ? 0.3 : (arc.idx < 0 ? 0.35 : 0.7),
+                  opacity: hoveredIdx !== null && !isHovered ? 0.3 : 0.8,
                   transitionDelay: `${i * 60}ms`,
                 } as React.CSSProperties}
-                onMouseEnter={() => arc.idx >= 0 && setHoveredIdx(arc.idx)}
-                onTouchStart={() => arc.idx >= 0 && setHoveredIdx(arc.idx)}
+                onMouseEnter={() => setHoveredIdx(arc.idx)}
+                onTouchStart={() => setHoveredIdx(arc.idx)}
               />
             );
           })}
 
           {/* Touch targets */}
-          {arcs.map((arc, i) => arc.idx >= 0 && (
+          {arcs.map((arc, i) => (
             <circle
               key={`t-${i}`}
               cx={CENTER} cy={CENTER} r={RING_R}
@@ -458,16 +441,14 @@ const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }
             />
           ))}
 
-          {/* Floating emoji badges — positioned at midpoint of each arc */}
+          {/* Emoji badges */}
           {arcs.map((arc, i) => {
-            if (arc.idx < 0) return null;
             const s = slices[arc.idx];
-            // Angle from top (12 o'clock), clockwise
             const midAngle = ((arc.offset + arc.length / 2) / RING_C) * 2 * Math.PI - Math.PI / 2;
-            const badgeR = RING_R + RING_STROKE / 2 + 22;
+            const badgeR = RING_R + RING_STROKE / 2 + 20;
             const bx = CENTER + Math.cos(midAngle) * badgeR;
             const by = CENTER + Math.sin(midAngle) * badgeR;
-            const pct = Math.round((s.budget / safeBudget) * 100);
+            const pct = Math.round((s.amount / safeTotal) * 100);
             return (
               <foreignObject key={`fb-${i}`} x={bx - 22} y={by - 22} width={44} height={44} style={{ overflow: 'visible' }}>
                 <div className="a7-donut-badge" style={{ '--badge-color': s.color } as React.CSSProperties}>
@@ -477,56 +458,17 @@ const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }
               </foreignObject>
             );
           })}
-        </svg>
-      </div>
 
-      {/* Legend */}
-      <div className="a7-donut-legend">
-        {slices.map((s, i) => {
-          const usagePct = s.budget > 0 ? Math.round((s.amount / s.budget) * 100) : (s.amount > 0 ? 999 : 0);
-          const isOver = s.budget > 0 && s.amount > s.budget;
-          const isWarning = s.budget > 0 && usagePct >= 80 && !isOver;
-          const isHovered = hoveredIdx === i;
-          return (
-            <div
-              key={s.name}
-              className={`a7-donut-legend__item ${isHovered ? 'a7-donut-legend__item--active' : ''} ${animated ? 'a7-donut-legend__item--visible' : ''}`}
-              style={{ '--legend-delay': `${arcs.length * 60 + i * 40}ms` } as React.CSSProperties}
-              onMouseEnter={() => setHoveredIdx(i)}
-              onMouseLeave={clearHover}
-            >
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{s.emoji}</span>
-              <span className="a7-donut-legend__name">{s.name}</span>
-              <span className="a7-donut-legend__values">
-                {fmtCurrency(s.amount)}{s.budget > 0 && <span style={{ color: 'var(--tm)' }}> / {fmtCurrency(s.budget)}</span>}
-              </span>
-              {s.budget > 0 && (
-                <span
-                  className="a7-donut-legend__badge"
-                  style={{
-                    background: isOver ? 'var(--rl)' : isWarning ? 'var(--ol)' : 'var(--gl)',
-                    color: isOver ? 'var(--red)' : isWarning ? 'var(--orange)' : 'var(--green)',
-                  }}
-                >
-                  {isOver ? `-${usagePct - 100}%` : `${usagePct}%`}
-                </span>
-              )}
-            </div>
-          );
-        })}
-        {unassigned > 0 && (
-          <div
-            className={`a7-donut-legend__item ${animated ? 'a7-donut-legend__item--visible' : ''}`}
-            style={{ '--legend-delay': `${arcs.length * 60 + slices.length * 40}ms` } as React.CSSProperties}
-          >
-            <span style={{ fontSize: 18, flexShrink: 0, opacity: 0.4 }}>💰</span>
-            <span className="a7-donut-legend__name" style={{ color: 'var(--tm)' }}>Sin asignar</span>
-            <span className="a7-donut-legend__values">{fmtCurrency(unassigned)}</span>
-            <span className="a7-donut-legend__badge" style={{ background: 'var(--surface2)', color: 'var(--tm)' }}>
-              {Math.round((unassigned / safeBudget) * 100)}%
-            </span>
-          </div>
-        )}
+          {/* Center total */}
+          <text x={CENTER} y={CENTER - 4} textAnchor="middle" dominantBaseline="auto"
+            style={{ fill: 'var(--text)', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            {fmtCurrency(totalSpent)}
+          </text>
+          <text x={CENTER} y={CENTER + 14} textAnchor="middle" dominantBaseline="auto"
+            style={{ fill: 'var(--tm)', fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' } as React.CSSProperties}>
+            gastado
+          </text>
+        </svg>
       </div>
     </div>
   );
@@ -679,31 +621,20 @@ export const Analytics: React.FC = () => {
             ))}
           </div>
 
-          {/* Budget donut + category bars */}
-          {data.householdBudget.total_amount > 0 && (
-            <div className="a7-donut-grid an d3">
-              <div className="a7-card a7-card--donut">
-                <div className="a7-card__head">
-                  <span className="a7-card__title">Presupuesto vs gasto</span>
-                </div>
-                <BudgetDonut
-                  categories={data.categories}
-                  totalBudget={data.householdBudget.total_amount}
-                  animated={chartAnimated}
-                />
-              </div>
-              <div className="a7-card a7-card--cats">
-                <div className="a7-card__head">
-                  <span className="a7-card__title">Por categoría</span>
-                </div>
-                {data.categories.length > 0 ? (
-                  <CategoryBars categories={data.categories} animated={chartAnimated} />
-                ) : (
-                  <div className="a7-empty">Sin gastos este periodo</div>
-                )}
-              </div>
+          {/* Category breakdown — donut + bars */}
+          <div className="a7-card an d3" style={{ marginBottom: 24 }}>
+            <div className="a7-card__head">
+              <span className="a7-card__title">Por categoría</span>
             </div>
-          )}
+            {data.categories.length > 0 ? (
+              <>
+                <SpendingDonut categories={data.categories} animated={chartAnimated} />
+                <CategoryBars categories={data.categories} animated={chartAnimated} />
+              </>
+            ) : (
+              <div className="a7-empty">Sin gastos este periodo</div>
+            )}
+          </div>
 
           {/* Area chart */}
           <div className="a7-grid an d3">
