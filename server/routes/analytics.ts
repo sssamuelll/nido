@@ -90,6 +90,22 @@ router.get('/', async (req: AuthRequest, res) => {
       total: row.total,
     }));
 
+    // Daily cumulative totals for chart
+    const dailyRows = await db.all<{ date: string; total: number }[]>(`
+      SELECT date, SUM(amount) as total
+      FROM expenses
+      WHERE ${contextFilter} ${dateFilter}
+      GROUP BY date
+      ORDER BY date
+    `, ...contextParams, ...dateParams);
+
+    // Build cumulative running total
+    let cumulative = 0;
+    const daily = dailyRows.map(row => {
+      cumulative += row.total;
+      return { date: row.date, total: cumulative };
+    });
+
     // 2. Current month KPIs
     const currentMonthExpenses = await db.get<TotalRow>(`
       SELECT COALESCE(SUM(amount), 0) as total
@@ -309,6 +325,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     res.json({
       monthly,
+      daily,
       kpis,
       categories,
       insights,
