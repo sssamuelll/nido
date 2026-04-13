@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createChart, ColorType, AreaData, Time } from 'lightweight-charts';
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
@@ -55,51 +56,6 @@ const fmtCurrency = (n: number) =>
 const fmtCurrencyDecimal = (n: number) =>
   `€${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Catmull-Rom to cubic bezier SVG path */
-function pointsToSmoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length === 0) return '';
-  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
-  if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
-
-  let d = `M ${pts[0].x} ${pts[0].y}`;
-
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(i - 1, 0)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(i + 2, pts.length - 1)];
-
-    const tension = 0.3;
-    const cp1x = p1.x + (p2.x - p0.x) * tension;
-    const cp1y = p1.y + (p2.y - p0.y) * tension;
-    const cp2x = p2.x - (p3.x - p1.x) * tension;
-    const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-  }
-
-  return d;
-}
-
-/** Nice axis values */
-function niceScale(max: number, ticks: number): number[] {
-  if (max <= 0) return [0];
-  const rough = max / ticks;
-  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-  const residual = rough / mag;
-  let nice: number;
-  if (residual <= 1.5) nice = 1 * mag;
-  else if (residual <= 3) nice = 2 * mag;
-  else if (residual <= 7) nice = 5 * mag;
-  else nice = 10 * mag;
-
-  const result: number[] = [];
-  for (let v = 0; v <= max + nice * 0.1; v += nice) {
-    result.push(Math.round(v));
-  }
-  return result;
-}
-
 const INSIGHT_ICON: Record<string, React.FC<{ size?: number }>> = {
   positive: CheckCircle,
   warning: AlertTriangle,
@@ -112,192 +68,108 @@ const INSIGHT_COLORS: Record<string, { border: string; bg: string; icon: string 
   tip: { border: 'var(--blue)', bg: 'var(--bl)', icon: 'var(--blue)' },
 };
 
-/* ── SVG Chart component ────────────────────────────────── */
-
-const CHART_PADDING = { top: 24, right: 56, bottom: 36, left: 16 };
+/* ── TradingView Lightweight Chart component ───────────── */
 
 interface AreaChartProps {
   data: MonthlyData[];
   animated: boolean;
 }
 
-const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const [pathLength, setPathLength] = useState(0);
-  const pathRef = useRef<SVGPathElement>(null);
-
-  const viewW = 640;
-  const viewH = 280;
-  const chartW = viewW - CHART_PADDING.left - CHART_PADDING.right;
-  const chartH = viewH - CHART_PADDING.top - CHART_PADDING.bottom;
-
-  const maxVal = useMemo(() => Math.max(...data.map(d => d.total), 1), [data]);
-  const yTicks = useMemo(() => niceScale(maxVal, 4), [maxVal]);
-  const scaleMax = yTicks[yTicks.length - 1] || maxVal;
-
-  const points = useMemo(() =>
-    data.map((m, i) => ({
-      x: CHART_PADDING.left + (data.length === 1 ? chartW / 2 : (i / (data.length - 1)) * chartW),
-      y: CHART_PADDING.top + chartH - (m.total / scaleMax) * chartH,
-    })),
-    [data, chartW, chartH, scaleMax],
-  );
-
-  const linePath = useMemo(() => pointsToSmoothPath(points), [points]);
-  const areaPath = useMemo(() => {
-    if (points.length === 0) return '';
-    const lastPt = points[points.length - 1];
-    const firstPt = points[0];
-    const bottomY = CHART_PADDING.top + chartH;
-    return `${linePath} L ${lastPt.x} ${bottomY} L ${firstPt.x} ${bottomY} Z`;
-  }, [linePath, points, chartH]);
+const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
 
   useEffect(() => {
-    if (pathRef.current) {
-      setPathLength(pathRef.current.getTotalLength());
-    }
-  }, [linePath]);
+    if (!containerRef.current || data.length === 0) return;
 
-  /* Delta vs previous month for tooltip */
-  const hoverDelta = useMemo(() => {
-    if (hoverIdx === null || hoverIdx <= 0) return null;
-    const prev = data[hoverIdx - 1].total;
-    if (prev === 0) return null;
-    return ((data[hoverIdx].total - prev) / prev) * 100;
-  }, [hoverIdx, data]);
-
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!svgRef.current || data.length === 0) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const mouseX = ((e.clientX - rect.left) / rect.width) * viewW;
-
-    let closest = 0;
-    let minDist = Infinity;
-    points.forEach((p, i) => {
-      const dist = Math.abs(p.x - mouseX);
-      if (dist < minDist) { minDist = dist; closest = i; }
+    // Create chart
+    const chart = createChart(containerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: 'rgba(255,255,255,0.3)',
+        fontSize: 11,
+      },
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      width: containerRef.current.clientWidth,
+      height: 300,
+      rightPriceScale: {
+        borderVisible: false,
+      },
+      timeScale: {
+        borderVisible: false,
+        tickMarkFormatter: (time: unknown) => {
+          const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+          if (typeof time === 'string') {
+            const [,m] = time.split('-');
+            return months[parseInt(m) - 1] || time;
+          }
+          return '';
+        },
+      },
+      crosshair: {
+        vertLine: {
+          color: 'rgba(52,211,153,0.3)',
+          width: 1,
+          style: 3,
+          labelBackgroundColor: 'rgba(52,211,153,0.9)',
+        },
+        horzLine: {
+          color: 'rgba(52,211,153,0.3)',
+          width: 1,
+          style: 3,
+          labelBackgroundColor: 'rgba(52,211,153,0.9)',
+        },
+      },
+      handleScale: false,
+      handleScroll: false,
     });
 
-    if (minDist < chartW / data.length) {
-      setHoverIdx(closest);
-    } else {
-      setHoverIdx(null);
-    }
-  };
+    // Add area series
+    const areaSeries = chart.addAreaSeries({
+      lineColor: '#34D399',
+      lineWidth: 2,
+      topColor: 'rgba(52,211,153,0.35)',
+      bottomColor: 'rgba(52,211,153,0)',
+      crosshairMarkerVisible: true,
+      crosshairMarkerRadius: 6,
+      crosshairMarkerBackgroundColor: '#34D399',
+      crosshairMarkerBorderColor: '#34D399',
+      priceFormat: {
+        type: 'custom',
+        formatter: (price: number) => `€${Math.round(price).toLocaleString('es-ES')}`,
+      },
+    });
 
-  const tp = hoverIdx !== null ? points[hoverIdx] : null;
-  const td = hoverIdx !== null ? data[hoverIdx] : null;
+    // Transform data: month "2026-03" → time "2026-03-01"
+    const chartData: AreaData<Time>[] = data.map(d => ({
+      time: `${d.month}-01` as Time,
+      value: d.total,
+    }));
 
-  return (
-    <div className="a7-chart-wrap">
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${viewW} ${viewH}`}
-        className="a7-chart-svg"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoverIdx(null)}
-      >
-        <defs>
-          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--green)" stopOpacity="0.35" />
-            <stop offset="60%" stopColor="var(--green)" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="var(--green)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
+    areaSeries.setData(chartData);
+    chart.timeScale().fitContent();
 
-        {/* Horizontal grid lines + right-aligned Y labels */}
-        {yTicks.map(val => {
-          const y = CHART_PADDING.top + chartH - (val / scaleMax) * chartH;
-          return (
-            <g key={val}>
-              <line
-                x1={CHART_PADDING.left}
-                y1={y}
-                x2={viewW - CHART_PADDING.right}
-                y2={y}
-                className="a7-grid-line"
-              />
-              <text
-                x={viewW - CHART_PADDING.right + 8}
-                y={y + 4}
-                className="a7-y-label"
-              >
-                {val >= 1000 ? `€${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k` : `€${val}`}
-              </text>
-            </g>
-          );
-        })}
+    chartRef.current = chart;
 
-        {/* X-axis month labels */}
-        {data.map((m, i) => {
-          const x = CHART_PADDING.left + (data.length === 1 ? chartW / 2 : (i / (data.length - 1)) * chartW);
-          return (
-            <text
-              key={m.month}
-              x={x}
-              y={viewH - 6}
-              className="a7-x-label"
-            >
-              {fmtMonth(m.month)}
-            </text>
-          );
-        })}
+    // Resize observer
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        chart.applyOptions({ width: entry.contentRect.width });
+      }
+    });
+    observer.observe(containerRef.current);
 
-        {/* Area fill */}
-        {points.length > 0 && (
-          <path
-            d={areaPath}
-            fill="url(#areaGrad)"
-            className={`a7-area ${animated ? 'a7-area--visible' : ''}`}
-          />
-        )}
+    return () => {
+      observer.disconnect();
+      chart.remove();
+      chartRef.current = null;
+    };
+  }, [data]);
 
-        {/* Line */}
-        {points.length > 0 && (
-          <path
-            ref={pathRef}
-            d={linePath}
-            className="a7-line"
-            style={{
-              '--line-dash': pathLength || 1000,
-              '--line-offset': animated ? 0 : (pathLength || 1000),
-            } as React.CSSProperties}
-          />
-        )}
-
-        {/* Crosshair — vertical + horizontal dashed lines */}
-        {tp && td && (
-          <>
-            <line
-              x1={tp.x} y1={CHART_PADDING.top}
-              x2={tp.x} y2={CHART_PADDING.top + chartH}
-              className="a7-crosshair"
-            />
-            <line
-              x1={CHART_PADDING.left} y1={tp.y}
-              x2={viewW - CHART_PADDING.right} y2={tp.y}
-              className="a7-crosshair a7-crosshair-h"
-            />
-            <circle cx={tp.x} cy={tp.y} r={6} className="a7-dot-hover" />
-          </>
-        )}
-      </svg>
-
-      {/* TradingView-style tooltip — pinned to right side */}
-      {tp && td && (
-        <div className="a7-tooltip">
-          <span className="a7-tooltip__month">{fmtMonth(td.month)}</span>
-          <span className="a7-tooltip__amount">{fmtCurrency(td.total)}</span>
-          {hoverDelta !== null && (
-            <span className={`a7-tooltip__delta ${hoverDelta <= 0 ? 'a7-tooltip__delta--good' : 'a7-tooltip__delta--bad'}`}>
-              {hoverDelta > 0 ? '+' : ''}{Math.round(hoverDelta)}% vs ant.
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return <div ref={containerRef} className="a7-tv-chart" />;
 };
 
 /* ── Category Bars component ────────────────────────────── */
