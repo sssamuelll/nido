@@ -274,10 +274,16 @@ export const Goals: React.FC = () => {
                 </div>
               )}
 
-              {/* Deadline — month input */}
+              {/* Deadline */}
               <div className="form-row">
                 <label>Fecha</label>
-                <input className="form-input" type="month" value={formData.deadline} onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))} style={{ flex: 1 }} />
+                <input
+                  className="form-input"
+                  type="date"
+                  value={formData.deadline}
+                  onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                  style={{ flex: 1 }}
+                />
               </div>
 
               {/* Actions */}
