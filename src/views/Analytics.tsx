@@ -405,7 +405,7 @@ export const Analytics: React.FC = () => {
       },
       {
         value: String(k.totalExpenses),
-        label: 'N\u00BA de gastos',
+        label: 'Nº de gastos',
         delta: undefined,
         deltaInvert: false,
         valueColor: undefined,
@@ -418,8 +418,8 @@ export const Analytics: React.FC = () => {
       {/* ── Header ── */}
       <div className="a7-header an d1">
         <div>
-          <h1 className="a7-title">Anal\u00EDtica</h1>
-          <p className="a7-subtitle">An\u00E1lisis detallado de gastos</p>
+          <h1 className="a7-title">Analítica</h1>
+          <p className="a7-subtitle">Análisis detallado de gastos</p>
         </div>
         <div className="a7-pills">
           {PERIODS.map(p => (
@@ -506,7 +506,7 @@ export const Analytics: React.FC = () => {
             {/* Category breakdown */}
             <div className="a7-card a7-card--cats">
               <div className="a7-card__head">
-                <span className="a7-card__title">Por categor\u00EDa</span>
+                <span className="a7-card__title">Por categoría</span>
               </div>
               {data.categories.length > 0 ? (
                 <CategoryBars categories={data.categories} animated={chartAnimated} />
