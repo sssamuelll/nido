@@ -1492,6 +1492,7 @@ a:hover { color: var(--text) }
 .history-date-field input[type="date"]:focus {
   outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.1);
 }
+.history-date-field input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer }
 
 /* History: sort buttons */
 .history-sort-btn {
@@ -1815,6 +1816,7 @@ a:hover { color: var(--text) }
   font-size: 14px; font-family: inherit; min-width: 0;
 }
 .expense-date-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.1) }
+.expense-date-input::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer }
 .expense-date-today {
   padding: 8px 12px; border-radius: var(--rs);
   border: 1px solid var(--glass-border); background: var(--gl);
