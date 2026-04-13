@@ -251,11 +251,11 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
           <path
             ref={pathRef}
             d={linePath}
-            className={`a7-line ${animated ? 'a7-line--drawn' : ''}`}
+            className="a7-line"
             style={{
-              strokeDasharray: pathLength || 1000,
-              strokeDashoffset: animated ? 0 : (pathLength || 1000),
-            }}
+              '--line-dash': pathLength || 1000,
+              '--line-offset': animated ? 0 : (pathLength || 1000),
+            } as React.CSSProperties}
           />
         )}
 
@@ -267,7 +267,7 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
             cy={p.y}
             r={4}
             className={`a7-dot ${animated ? 'a7-dot--visible' : ''}`}
-            style={{ transitionDelay: `${600 + i * 60}ms` }}
+            style={{ '--dot-delay': `${600 + i * 60}ms` } as React.CSSProperties}
           />
         ))}
 
@@ -289,9 +289,9 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
         <div
           className="a7-tooltip"
           style={{
-            left: `${(tooltip.x / viewW) * 100}%`,
-            top: `${(tooltip.y / viewH) * 100}%`,
-          }}
+            '--tip-x': `${(tooltip.x / viewW) * 100}%`,
+            '--tip-y': `${(tooltip.y / viewH) * 100}%`,
+          } as React.CSSProperties}
         >
           <span className="a7-tooltip__month">{fmtMonth(tooltip.month)}</span>
           <span className="a7-tooltip__amount">{fmtCurrency(tooltip.amount)}</span>
@@ -326,17 +326,13 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hover
         return (
           <div
             key={cat.name}
-            className={`a7-catbar ${animated ? 'a7-catbar--visible' : ''} ${isActive ? 'a7-catbar--active' : ''}`}
-            style={{
-              '--catbar-delay': `${i * 50}ms`,
-              opacity: isDimmed ? 0.35 : 1,
-              transition: 'opacity .15s',
-            } as React.CSSProperties}
+            className={`a7-catbar ${animated ? 'a7-catbar--visible' : ''} ${isActive ? 'a7-catbar--active' : ''} ${isDimmed ? 'a7-catbar--dimmed' : ''}`}
+            style={{ '--catbar-delay': `${i * 50}ms` } as React.CSSProperties}
             onMouseEnter={() => onHover(i)}
             onMouseLeave={() => onHover(null)}
           >
             <div className="a7-catbar__label">
-              <span style={{ fontSize: 16, marginRight: 6 }}>{cat.emoji}</span>
+              <span className="a7-catbar__emoji">{cat.emoji}</span>
               <span className="a7-catbar__name">{cat.name}</span>
             </div>
             <div className="a7-catbar__track">
@@ -350,7 +346,7 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hover
             </div>
             <div className="a7-catbar__meta">
               <span className="a7-catbar__amount">{fmtCurrency(cat.amount)}</span>
-              <span className="a7-catbar__pct" style={{ color: cat.color }}>{cat.pct}%</span>
+              <span className="a7-catbar__pct" style={{ '--catbar-pct-color': cat.color } as React.CSSProperties}>{cat.pct}%</span>
             </div>
           </div>
         );
@@ -446,11 +442,8 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
                 strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
                 strokeDashoffset={animated ? -(arc.offset - RING_C / 4) : RING_C}
                 strokeLinecap="butt"
-                className="a7-donut-arc"
-                style={{
-                  opacity: hoveredIdx !== null && !isHovered ? 0.25 : 0.85,
-                  transitionDelay: `${i * 60}ms`,
-                } as React.CSSProperties}
+                className={`a7-donut-arc${hoveredIdx !== null && !isHovered ? ' a7-donut-arc--dimmed' : ''}`}
+                style={{ '--arc-delay': `${i * 60}ms` } as React.CSSProperties}
                 onMouseEnter={() => onHover(arc.idx)}
                 onTouchStart={() => onHover(arc.idx)}
               />
@@ -466,7 +459,7 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
               strokeWidth={Math.max(RING_STROKE + 20, 44)}
               strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
               strokeDashoffset={-(arc.offset - RING_C / 4)} strokeLinecap="butt"
-              style={{ cursor: 'pointer' }}
+              className="a7-donut-touch"
               onMouseEnter={() => onHover(arc.idx)}
               onTouchStart={() => onHover(arc.idx)}
             />
@@ -479,7 +472,7 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
             const pct = Math.round((s.amount / safeTotal) * 100);
             const isHovered = arc.idx === hoveredIdx;
             return (
-              <foreignObject key={`fb-${i}`} x={pos.x - 22} y={pos.y - 22} width={44} height={44} style={{ overflow: 'visible' }}>
+              <foreignObject key={`fb-${i}`} x={pos.x - 22} y={pos.y - 22} width={44} height={44} className="a7-donut-fo">
                 <div
                   className={`a7-donut-badge${isHovered ? ' a7-donut-badge--active' : ''}`}
                   style={{ '--badge-color': s.color } as React.CSSProperties}
@@ -495,11 +488,11 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
 
           {/* Center total */}
           <text x={CENTER} y={CENTER - 4} textAnchor="middle" dominantBaseline="auto"
-            style={{ fill: 'var(--text)', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            className="a7-donut-center-value">
             {fmtCurrency(totalSpent)}
           </text>
           <text x={CENTER} y={CENTER + 14} textAnchor="middle" dominantBaseline="auto"
-            style={{ fill: 'var(--tm)', fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' } as React.CSSProperties}>
+            className="a7-donut-center-label">
             gastado
           </text>
         </svg>
@@ -648,7 +641,7 @@ export const Analytics: React.FC = () => {
               <div key={kpi.label} className="a7-kpi">
                 <div
                   className="a7-kpi__value"
-                  style={kpi.valueColor ? { color: kpi.valueColor } : undefined}
+                  style={kpi.valueColor ? { '--kpi-color': kpi.valueColor } as React.CSSProperties : undefined}
                 >
                   {kpi.value}
                 </div>
@@ -668,7 +661,7 @@ export const Analytics: React.FC = () => {
           </div>
 
           {/* Category breakdown — donut + bars */}
-          <div className="a7-card an d3" style={{ marginBottom: 24 }}>
+          <div className="a7-card a7-card--mb an d3">
             <div className="a7-card__head">
               <span className="a7-card__title">Por categoría</span>
             </div>
@@ -720,10 +713,11 @@ export const Analytics: React.FC = () => {
                     style={{
                       '--insight-border': color.border,
                       '--insight-bg': color.bg,
+                      '--insight-icon-color': color.icon,
                       '--insight-delay': `${i * 50}ms`,
                     } as React.CSSProperties}
                   >
-                    <div className="a7-insight__icon" style={{ color: color.icon }}>
+                    <div className="a7-insight__icon">
                       <Icon size={16} />
                     </div>
                     <p className="a7-insight__msg">{ins.message}</p>
