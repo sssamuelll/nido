@@ -10,7 +10,7 @@ const CATEGORY_FALLBACK_COLORS: Record<string, string> = {
   Gastos: '#7cb5e8',
   Servicios: '#c4a0e8',
   Ocio: '#e87ca0',
-  'Inversi\u00F3n': '#a6c79c',
+  'Inversión': '#a6c79c',
   Otros: '#a89e94',
 };
 
@@ -205,7 +205,7 @@ router.get('/', async (req: AuthRequest, res) => {
         if (pctUsed >= 80) {
           insights.push({
             type: 'warning',
-            message: `${cb.name} est\u00E1 al ${Math.round(pctUsed)}% del presupuesto.`,
+            message: `${cb.name} está al ${Math.round(pctUsed)}% del presupuesto.`,
           });
         }
       }
@@ -223,7 +223,7 @@ router.get('/', async (req: AuthRequest, res) => {
       if (projectedSavings > 0) {
         insights.push({
           type: 'tip',
-          message: `Si mantienen este ritmo, cerrar\u00E1n con \u20AC${Math.round(projectedSavings)} de ahorro.`,
+          message: `Si mantienen este ritmo, cerrarán con €${Math.round(projectedSavings)} de ahorro.`,
         });
       }
     }
@@ -247,7 +247,7 @@ router.get('/', async (req: AuthRequest, res) => {
           if (pctAbove > 30) {
             insights.push({
               type: 'warning',
-              message: `${cat.name} subi\u00F3 un ${Math.round(pctAbove)}% respecto a vuestra media.`,
+              message: `${cat.name} subió un ${Math.round(pctAbove)}% respecto a vuestra media.`,
             });
           }
         }
@@ -285,7 +285,7 @@ router.get('/', async (req: AuthRequest, res) => {
       if (streak >= 3) {
         insights.push({
           type: 'positive',
-          message: `Llevan ${streak} meses ahorrando. \u00BFQuieren crear un objetivo?`,
+          message: `Llevan ${streak} meses ahorrando. ¿Quieren crear un objetivo?`,
         });
       }
     }
