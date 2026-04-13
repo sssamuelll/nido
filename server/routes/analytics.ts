@@ -156,16 +156,18 @@ router.get('/', async (req: AuthRequest, res) => {
       ORDER BY amount DESC
     `, ...contextParams, currentMonth);
 
-    // Get category colors from categories table
-    const categoryColors = householdId
-      ? await db.all<CategoryColorRow[]>(
-          'SELECT name, color FROM categories WHERE household_id = ?',
+    // Get category colors and budget_amount from categories table
+    const categoryMeta = householdId
+      ? await db.all<(CategoryColorRow & { budget_amount: number })[]>(
+          'SELECT name, color, COALESCE(budget_amount, 0) as budget_amount FROM categories WHERE household_id = ?',
           householdId
         )
       : [];
     const colorMap: Record<string, string> = {};
-    for (const cc of categoryColors) {
+    const budgetMap: Record<string, number> = {};
+    for (const cc of categoryMeta) {
       colorMap[cc.name] = cc.color;
+      budgetMap[cc.name] = cc.budget_amount;
     }
 
     const categoryTotal = categoryRows.reduce((sum, r) => sum + r.amount, 0);
@@ -174,6 +176,7 @@ router.get('/', async (req: AuthRequest, res) => {
       amount: row.amount,
       pct: categoryTotal > 0 ? Math.round((row.amount / categoryTotal) * 100) : 0,
       color: colorMap[row.name] || CATEGORY_FALLBACK_COLORS[row.name] || '#888888',
+      budget: budgetMap[row.name] || 0,
     }));
 
     // 5. Generate insights
@@ -290,11 +293,23 @@ router.get('/', async (req: AuthRequest, res) => {
       }
     }
 
+    // 6. Household budget summary
+    const totalBudgetAmount = budget
+      ? (context === 'shared' ? budget.total_amount : getPersonalBudget(budget, currentUser))
+      : 0;
+    const allocated = categories.reduce((sum, c) => sum + c.budget, 0);
+    const householdBudget = {
+      total_amount: totalBudgetAmount,
+      allocated,
+      unallocated: Math.max(0, totalBudgetAmount - allocated),
+    };
+
     res.json({
       monthly,
       kpis,
       categories,
       insights,
+      householdBudget,
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
