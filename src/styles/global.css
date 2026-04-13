@@ -1630,32 +1630,34 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .a7-card__title { font-size: 15px; font-weight: 600; color: var(--text) }
 
-/* ── SVG Area Chart ── */
+/* ── SVG Area Chart (TradingView style) ── */
 .a7-chart-wrap {
   position: relative; width: 100%;
 }
 .a7-chart-svg {
-  width: 100%; height: auto; display: block;
+  width: 100%; height: auto; display: block; cursor: crosshair;
 }
 
 .a7-grid-line {
-  stroke: var(--border); stroke-width: 1; stroke-dasharray: 4 4;
+  stroke: rgba(255, 255, 255, 0.04); stroke-width: 1;
 }
 .a7-y-label {
-  fill: var(--tm); font-size: 11px; text-anchor: end;
+  fill: var(--tm); font-size: 10px; text-anchor: start;
   font-variant-numeric: tabular-nums;
 }
 .a7-x-label {
-  fill: var(--tm); font-size: 11px; text-anchor: middle;
+  fill: var(--tm); font-size: 10px; text-anchor: middle;
 }
 
 /* Line — dash values via CSS custom properties */
 .a7-line {
-  fill: none; stroke: var(--green); stroke-width: 2.5;
+  fill: none; stroke: var(--green); stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
   stroke-dasharray: var(--line-dash, 1000);
   stroke-dashoffset: var(--line-offset, 1000);
   transition: stroke-dashoffset 1.2s cubic-bezier(.16, 1, .3, 1);
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, .5));
+  will-change: stroke-dashoffset;
 }
 
 /* Area gradient fill */
@@ -1666,46 +1668,48 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .a7-area--visible { opacity: 1 }
 
-/* Data dots — delay via CSS custom property */
-.a7-dot {
-  fill: var(--green); stroke: var(--bg); stroke-width: 2;
-  opacity: 0; transform-origin: center;
-  transition: opacity .25s ease, r .15s ease;
-  transition-delay: var(--dot-delay, 0ms);
-  will-change: opacity;
-}
-.a7-dot--visible { opacity: 1 }
-
-/* Hover state */
+/* Crosshair — vertical + horizontal dashed */
 .a7-crosshair {
-  stroke: var(--tm); stroke-width: 1; stroke-dasharray: 3 3;
-  opacity: .5;
+  stroke: var(--tm); stroke-width: 1; stroke-dasharray: 4 4;
+  opacity: .4;
 }
-.a7-dot-hover {
-  fill: var(--green); stroke: var(--bg); stroke-width: 3;
-  filter: drop-shadow(0 0 6px var(--green));
+.a7-crosshair-h {
+  stroke: var(--tm); stroke-width: 1; stroke-dasharray: 4 4;
+  opacity: .4;
 }
 
-/* Tooltip */
+/* Hover dot — hidden by default, only shown on active point */
+.a7-dot-hover {
+  fill: var(--green); stroke: var(--bg); stroke-width: 3; r: 6;
+  filter: drop-shadow(0 0 8px rgba(52, 211, 153, .6));
+}
+
+/* Tooltip — dark glass pill pinned to right side */
 .a7-tooltip {
   position: absolute; pointer-events: none;
-  left: var(--tip-x, 0); top: var(--tip-y, 0);
-  transform: translate(-50%, -120%);
-  background: var(--surface2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  right: 12px; top: 12px;
+  background: rgba(20, 20, 25, .85);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border); border-radius: var(--rx);
-  padding: 6px 12px; display: flex; flex-direction: column;
-  align-items: center; gap: 2px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
-  z-index: 10;
+  padding: 10px 16px; display: flex; flex-direction: column;
+  align-items: flex-start; gap: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
+  z-index: 10; min-width: 100px;
 }
 .a7-tooltip__month {
-  font-size: 11px; color: var(--tm); text-transform: uppercase;
-  letter-spacing: .04em; font-weight: 500;
+  font-size: 10px; color: var(--tm); text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 500;
 }
 .a7-tooltip__amount {
-  font-size: 15px; font-weight: 700; color: var(--text);
+  font-size: 18px; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.a7-tooltip__delta {
+  font-size: 11px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+.a7-tooltip__delta--good { color: var(--green) }
+.a7-tooltip__delta--bad { color: var(--red) }
 
 /* ── Category Bars ── */
 .a7-catbars {
@@ -1764,29 +1768,29 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
   color: var(--catbar-pct-color, inherit);
 }
 
-/* ── Insights ── */
-.a7-insights {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-}
-
-.a7-insight {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 16px 18px; border-radius: var(--rs);
+/* ── Insight banner (single, top) ── */
+.a7-insight-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border-radius: var(--rs);
   background: var(--insight-bg, var(--bl));
   border-left: 3px solid var(--insight-border, var(--blue));
-  opacity: 0; transform: translateY(8px);
-  transition: opacity .3s ease, transform .3s ease;
-  transition-delay: var(--insight-delay, 0ms);
 }
-.a7-insight--visible {
-  opacity: 1; transform: translateY(0);
-}
-.a7-insight__icon {
-  flex-shrink: 0; margin-top: 1px;
+.a7-insight-banner__icon {
+  flex-shrink: 0;
   color: var(--insight-icon-color, inherit);
 }
-.a7-insight__msg {
+.a7-insight-banner__msg {
+  flex: 1; min-width: 0;
   font-size: 13px; line-height: 1.55; color: var(--ts); font-weight: 450;
+}
+.a7-insight-banner__close {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  color: var(--tm); cursor: pointer; transition: background .15s, color .15s;
+  background: transparent; border: none;
+}
+.a7-insight-banner__close:hover {
+  background: rgba(255, 255, 255, .08); color: var(--text);
 }
 
 /* ── Budget Donut ── */
@@ -1929,15 +1933,14 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .a7-line { transition: none }
+  .a7-line { transition: none; filter: none }
   .a7-area { transition: none }
-  .a7-dot { transition: none }
   .a7-catbar { transition: none }
   .a7-catbar__fill { transition: none }
-  .a7-insight { transition: none }
   .a7-kpi--skeleton { animation: none }
   .a7-donut-arc { transition: none }
   .a7-donut-legend__item { transition: none }
+  .a7-dot-hover { filter: none }
 }
 
 /* ============================================
@@ -2381,7 +2384,6 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
   .a7-kpi__value { font-size: 22px }
   .a7-grid { grid-template-columns: 1fr }
   .a7-donut-grid { grid-template-columns: 1fr }
-  .a7-insights { grid-template-columns: 1fr }
   .a7-ctx { width: 100% }
 
   /* Goals */
