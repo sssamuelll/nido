@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
-import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
 
 /* ── constants ──────────────────────────────────────────── */
 
@@ -114,7 +114,7 @@ const INSIGHT_COLORS: Record<string, { border: string; bg: string; icon: string 
 
 /* ── SVG Chart component ────────────────────────────────── */
 
-const CHART_PADDING = { top: 24, right: 16, bottom: 36, left: 52 };
+const CHART_PADDING = { top: 24, right: 56, bottom: 36, left: 16 };
 
 interface AreaChartProps {
   data: MonthlyData[];
@@ -123,7 +123,7 @@ interface AreaChartProps {
 
 const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; month: string; amount: number } | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [pathLength, setPathLength] = useState(0);
   const pathRef = useRef<SVGPathElement>(null);
 
@@ -159,6 +159,14 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
     }
   }, [linePath]);
 
+  /* Delta vs previous month for tooltip */
+  const hoverDelta = useMemo(() => {
+    if (hoverIdx === null || hoverIdx <= 0) return null;
+    const prev = data[hoverIdx - 1].total;
+    if (prev === 0) return null;
+    return ((data[hoverIdx].total - prev) / prev) * 100;
+  }, [hoverIdx, data]);
+
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current || data.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -172,16 +180,14 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
     });
 
     if (minDist < chartW / data.length) {
-      setTooltip({
-        x: points[closest].x,
-        y: points[closest].y,
-        month: data[closest].month,
-        amount: data[closest].total,
-      });
+      setHoverIdx(closest);
     } else {
-      setTooltip(null);
+      setHoverIdx(null);
     }
   };
+
+  const tp = hoverIdx !== null ? points[hoverIdx] : null;
+  const td = hoverIdx !== null ? data[hoverIdx] : null;
 
   return (
     <div className="a7-chart-wrap">
@@ -190,16 +196,17 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
         viewBox={`0 0 ${viewW} ${viewH}`}
         className="a7-chart-svg"
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => setTooltip(null)}
+        onMouseLeave={() => setHoverIdx(null)}
       >
         <defs>
           <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--green)" stopOpacity="0.25" />
+            <stop offset="0%" stopColor="var(--green)" stopOpacity="0.35" />
+            <stop offset="60%" stopColor="var(--green)" stopOpacity="0.08" />
             <stop offset="100%" stopColor="var(--green)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
-        {/* Horizontal grid lines */}
+        {/* Horizontal grid lines + right-aligned Y labels */}
         {yTicks.map(val => {
           const y = CHART_PADDING.top + chartH - (val / scaleMax) * chartH;
           return (
@@ -212,7 +219,7 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
                 className="a7-grid-line"
               />
               <text
-                x={CHART_PADDING.left - 8}
+                x={viewW - CHART_PADDING.right + 8}
                 y={y + 4}
                 className="a7-y-label"
               >
@@ -259,42 +266,34 @@ const AreaChart: React.FC<AreaChartProps> = ({ data, animated }) => {
           />
         )}
 
-        {/* Data points */}
-        {points.map((p, i) => (
-          <circle
-            key={data[i].month}
-            cx={p.x}
-            cy={p.y}
-            r={4}
-            className={`a7-dot ${animated ? 'a7-dot--visible' : ''}`}
-            style={{ '--dot-delay': `${600 + i * 60}ms` } as React.CSSProperties}
-          />
-        ))}
-
-        {/* Tooltip crosshair */}
-        {tooltip && (
+        {/* Crosshair — vertical + horizontal dashed lines */}
+        {tp && td && (
           <>
             <line
-              x1={tooltip.x} y1={CHART_PADDING.top}
-              x2={tooltip.x} y2={CHART_PADDING.top + chartH}
+              x1={tp.x} y1={CHART_PADDING.top}
+              x2={tp.x} y2={CHART_PADDING.top + chartH}
               className="a7-crosshair"
             />
-            <circle cx={tooltip.x} cy={tooltip.y} r={6} className="a7-dot-hover" />
+            <line
+              x1={CHART_PADDING.left} y1={tp.y}
+              x2={viewW - CHART_PADDING.right} y2={tp.y}
+              className="a7-crosshair a7-crosshair-h"
+            />
+            <circle cx={tp.x} cy={tp.y} r={6} className="a7-dot-hover" />
           </>
         )}
       </svg>
 
-      {/* HTML tooltip */}
-      {tooltip && (
-        <div
-          className="a7-tooltip"
-          style={{
-            '--tip-x': `${(tooltip.x / viewW) * 100}%`,
-            '--tip-y': `${(tooltip.y / viewH) * 100}%`,
-          } as React.CSSProperties}
-        >
-          <span className="a7-tooltip__month">{fmtMonth(tooltip.month)}</span>
-          <span className="a7-tooltip__amount">{fmtCurrency(tooltip.amount)}</span>
+      {/* TradingView-style tooltip — pinned to right side */}
+      {tp && td && (
+        <div className="a7-tooltip">
+          <span className="a7-tooltip__month">{fmtMonth(td.month)}</span>
+          <span className="a7-tooltip__amount">{fmtCurrency(td.total)}</span>
+          {hoverDelta !== null && (
+            <span className={`a7-tooltip__delta ${hoverDelta <= 0 ? 'a7-tooltip__delta--good' : 'a7-tooltip__delta--bad'}`}>
+              {hoverDelta > 0 ? '+' : ''}{Math.round(hoverDelta)}% vs ant.
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -539,6 +538,7 @@ export const Analytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartAnimated, setChartAnimated] = useState(false);
+  const [insightDismissed, setInsightDismissed] = useState(false);
 
   const months = PERIOD_TO_MONTHS[activePeriod] ?? 6;
 
@@ -546,6 +546,7 @@ export const Analytics: React.FC = () => {
     setLoading(true);
     setError(null);
     setChartAnimated(false);
+    setInsightDismissed(false);
     try {
       const result = await Api.getAnalytics(months, activeContext);
       setData(result);
@@ -601,6 +602,14 @@ export const Analytics: React.FC = () => {
     ];
   }, [data]);
 
+  /* Pick the single most relevant insight */
+  const topInsight = useMemo(() => {
+    if (!data?.insights.length) return null;
+    return data.insights.find(i => i.type === 'warning')
+      || data.insights.find(i => i.type === 'tip')
+      || data.insights[0];
+  }, [data?.insights]);
+
   return (
     <div className="a7">
       {/* ── Header ── */}
@@ -628,6 +637,30 @@ export const Analytics: React.FC = () => {
         onChange={setActiveContext}
         className="a7-ctx an d1"
       />
+
+      {/* ── Insight banner ── */}
+      {topInsight && !insightDismissed && !loading && (
+        <div
+          className="a7-insight-banner an d2"
+          style={{
+            '--insight-border': INSIGHT_COLORS[topInsight.type]?.border ?? 'var(--blue)',
+            '--insight-bg': INSIGHT_COLORS[topInsight.type]?.bg ?? 'var(--bl)',
+            '--insight-icon-color': INSIGHT_COLORS[topInsight.type]?.icon ?? 'var(--blue)',
+          } as React.CSSProperties}
+        >
+          <div className="a7-insight-banner__icon">
+            {React.createElement(INSIGHT_ICON[topInsight.type] || Lightbulb, { size: 16 })}
+          </div>
+          <p className="a7-insight-banner__msg">{topInsight.message}</p>
+          <button
+            className="a7-insight-banner__close"
+            onClick={() => setInsightDismissed(true)}
+            aria-label="Cerrar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* ── Loading ── */}
       {loading && (
@@ -717,32 +750,6 @@ export const Analytics: React.FC = () => {
             )}
           </div>
 
-          {/* Insights */}
-          {data.insights.length > 0 && (
-            <div className="a7-insights an d4">
-              {data.insights.map((ins, i) => {
-                const color = INSIGHT_COLORS[ins.type] || INSIGHT_COLORS.tip;
-                const Icon = INSIGHT_ICON[ins.type] || Lightbulb;
-                return (
-                  <div
-                    key={i}
-                    className={`a7-insight ${chartAnimated ? 'a7-insight--visible' : ''}`}
-                    style={{
-                      '--insight-border': color.border,
-                      '--insight-bg': color.bg,
-                      '--insight-icon-color': color.icon,
-                      '--insight-delay': `${i * 50}ms`,
-                    } as React.CSSProperties}
-                  >
-                    <div className="a7-insight__icon">
-                      <Icon size={16} />
-                    </div>
-                    <p className="a7-insight__msg">{ins.message}</p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </>
       )}
     </div>
