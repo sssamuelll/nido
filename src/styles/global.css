@@ -1790,7 +1790,6 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .a7-donut-svg {
   width: 100%; height: auto; display: block;
-  transform: rotate(-90deg);
 }
 
 /* Arcs */
@@ -1824,7 +1823,6 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 /* Tooltip */
 .a7-donut-tooltip-fo {
   pointer-events: none;
-  transform: rotate(90deg); transform-origin: 120px 120px;
 }
 .a7-donut-tooltip {
   display: flex; flex-direction: column; align-items: center;

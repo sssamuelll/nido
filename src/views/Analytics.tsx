@@ -420,16 +420,17 @@ const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }
     <div className="a7-donut-wrap">
       <div className="a7-donut-svg-wrap">
         <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={clearHover}>
-          {/* Budget allocation ring */}
+          {/* Budget allocation ring — offset by quarter turn to start at 12 o'clock */}
           {arcs.map((arc, i) => {
             const isHovered = arc.idx >= 0 && arc.idx === hoveredIdx;
+            const dashOffset = -(arc.offset - RING_C / 4);
             return (
               <circle
                 key={`a-${i}`}
                 cx={CENTER} cy={CENTER} r={RING_R}
                 fill="none" stroke={arc.color} strokeWidth={RING_STROKE}
                 strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
-                strokeDashoffset={animated ? -arc.offset : RING_C}
+                strokeDashoffset={animated ? dashOffset : RING_C}
                 strokeLinecap="butt"
                 className="a7-donut-arc"
                 style={{
@@ -450,17 +451,18 @@ const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }
               fill="none" stroke="transparent"
               strokeWidth={Math.max(RING_STROKE + 20, 44)}
               strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
-              strokeDashoffset={-arc.offset} strokeLinecap="butt"
+              strokeDashoffset={-(arc.offset - RING_C / 4)} strokeLinecap="butt"
               style={{ cursor: 'pointer' }}
               onMouseEnter={() => setHoveredIdx(arc.idx)}
               onTouchStart={() => setHoveredIdx(arc.idx)}
             />
           ))}
 
-          {/* Floating emoji badges outside the ring */}
+          {/* Floating emoji badges — positioned at midpoint of each arc */}
           {arcs.map((arc, i) => {
-            if (arc.idx < 0 || arc.length / RING_C < 0.05) return null;
+            if (arc.idx < 0) return null;
             const s = slices[arc.idx];
+            // Angle from top (12 o'clock), clockwise
             const midAngle = ((arc.offset + arc.length / 2) / RING_C) * 2 * Math.PI - Math.PI / 2;
             const badgeR = RING_R + RING_STROKE / 2 + 22;
             const bx = CENTER + Math.cos(midAngle) * badgeR;
