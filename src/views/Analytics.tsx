@@ -457,26 +457,24 @@ const BudgetDonut: React.FC<DonutProps> = ({ categories, totalBudget, animated }
             />
           ))}
 
-          {/* Emoji labels on arcs */}
+          {/* Floating emoji badges outside the ring */}
           {arcs.map((arc, i) => {
-            if (arc.idx < 0 || arc.length / RING_C < 0.06) return null;
+            if (arc.idx < 0 || arc.length / RING_C < 0.05) return null;
+            const s = slices[arc.idx];
             const midAngle = ((arc.offset + arc.length / 2) / RING_C) * 2 * Math.PI - Math.PI / 2;
-            const lx = CENTER + Math.cos(midAngle) * RING_R;
-            const ly = CENTER + Math.sin(midAngle) * RING_R;
+            const badgeR = RING_R + RING_STROKE / 2 + 22;
+            const bx = CENTER + Math.cos(midAngle) * badgeR;
+            const by = CENTER + Math.sin(midAngle) * badgeR;
+            const pct = Math.round((s.budget / safeBudget) * 100);
             return (
-              <text key={`e-${i}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="central" style={{ fontSize: 14 }}>
-                {slices[arc.idx]?.emoji}
-              </text>
+              <foreignObject key={`fb-${i}`} x={bx - 22} y={by - 22} width={44} height={44} style={{ overflow: 'visible' }}>
+                <div className="a7-donut-badge" style={{ '--badge-color': s.color } as React.CSSProperties}>
+                  <span className="a7-donut-badge__emoji">{s.emoji}</span>
+                  <span className="a7-donut-badge__pct">{pct}%</span>
+                </div>
+              </foreignObject>
             );
           })}
-
-          {/* Center */}
-          <text x={CENTER} y={CENTER - 8} className="a7-donut-center-value" textAnchor="middle" dominantBaseline="auto">
-            {fmtCurrency(totalBudget)}
-          </text>
-          <text x={CENTER} y={CENTER + 12} className="a7-donut-center-label" textAnchor="middle" dominantBaseline="auto">
-            Presupuesto
-          </text>
         </svg>
       </div>
 

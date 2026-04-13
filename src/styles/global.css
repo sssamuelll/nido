@@ -1804,21 +1804,20 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 
 /* Center text — counter-rotate to stay upright */
-.a7-donut-center-value {
-  fill: var(--text); font-size: 20px; font-weight: 700;
+/* Floating emoji + % badges outside the donut ring */
+.a7-donut-badge {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  pointer-events: none;
+}
+.a7-donut-badge__emoji {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--badge-color, var(--glass-border));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.a7-donut-badge__pct {
+  font-size: 10px; font-weight: 700; color: var(--badge-color, var(--ts));
   font-variant-numeric: tabular-nums;
-  transform: rotate(90deg); transform-origin: 120px 120px;
-}
-.a7-donut-center-label {
-  fill: var(--tm); font-size: 10px; font-weight: 500;
-  text-transform: uppercase; letter-spacing: .06em;
-  transform: rotate(90deg); transform-origin: 120px 120px;
-}
-
-/* Percentage labels near arcs — counter-rotate */
-.a7-donut-pct-label {
-  fill: var(--ts); font-size: 9px; font-weight: 600;
-  transform: rotate(90deg); transform-origin: 120px 120px;
   pointer-events: none;
 }
 
