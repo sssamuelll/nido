@@ -1630,86 +1630,13 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .a7-card__title { font-size: 15px; font-weight: 600; color: var(--text) }
 
-/* ── SVG Area Chart (TradingView style) ── */
-.a7-chart-wrap {
-  position: relative; width: 100%;
+/* ── TradingView Lightweight Chart ── */
+.a7-tv-chart {
+  width: 100%;
+  min-height: 300px;
+  border-radius: var(--rs);
+  overflow: hidden;
 }
-.a7-chart-svg {
-  width: 100%; height: auto; display: block; cursor: crosshair;
-}
-
-.a7-grid-line {
-  stroke: rgba(255, 255, 255, 0.04); stroke-width: 1;
-}
-.a7-y-label {
-  fill: var(--tm); font-size: 10px; text-anchor: start;
-  font-variant-numeric: tabular-nums;
-}
-.a7-x-label {
-  fill: var(--tm); font-size: 10px; text-anchor: middle;
-}
-
-/* Line — dash values via CSS custom properties */
-.a7-line {
-  fill: none; stroke: var(--green); stroke-width: 2;
-  stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: var(--line-dash, 1000);
-  stroke-dashoffset: var(--line-offset, 1000);
-  transition: stroke-dashoffset 1.2s cubic-bezier(.16, 1, .3, 1);
-  filter: drop-shadow(0 0 6px rgba(52, 211, 153, .5));
-  will-change: stroke-dashoffset;
-}
-
-/* Area gradient fill */
-.a7-area {
-  opacity: 0;
-  transition: opacity .6s ease .4s;
-  will-change: opacity;
-}
-.a7-area--visible { opacity: 1 }
-
-/* Crosshair — vertical + horizontal dashed */
-.a7-crosshair {
-  stroke: var(--tm); stroke-width: 1; stroke-dasharray: 4 4;
-  opacity: .4;
-}
-.a7-crosshair-h {
-  stroke: var(--tm); stroke-width: 1; stroke-dasharray: 4 4;
-  opacity: .4;
-}
-
-/* Hover dot — hidden by default, only shown on active point */
-.a7-dot-hover {
-  fill: var(--green); stroke: var(--bg); stroke-width: 3; r: 6;
-  filter: drop-shadow(0 0 8px rgba(52, 211, 153, .6));
-}
-
-/* Tooltip — dark glass pill pinned to right side */
-.a7-tooltip {
-  position: absolute; pointer-events: none;
-  right: 12px; top: 12px;
-  background: rgba(20, 20, 25, .85);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border); border-radius: var(--rx);
-  padding: 10px 16px; display: flex; flex-direction: column;
-  align-items: flex-start; gap: 4px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
-  z-index: 10; min-width: 100px;
-}
-.a7-tooltip__month {
-  font-size: 10px; color: var(--tm); text-transform: uppercase;
-  letter-spacing: .06em; font-weight: 500;
-}
-.a7-tooltip__amount {
-  font-size: 18px; font-weight: 700; color: var(--text);
-  font-variant-numeric: tabular-nums; line-height: 1.1;
-}
-.a7-tooltip__delta {
-  font-size: 11px; font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.a7-tooltip__delta--good { color: var(--green) }
-.a7-tooltip__delta--bad { color: var(--red) }
 
 /* ── Category Bars ── */
 .a7-catbars {
@@ -1933,14 +1860,11 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .a7-line { transition: none; filter: none }
-  .a7-area { transition: none }
   .a7-catbar { transition: none }
   .a7-catbar__fill { transition: none }
   .a7-kpi--skeleton { animation: none }
   .a7-donut-arc { transition: none }
   .a7-donut-legend__item { transition: none }
-  .a7-dot-hover { filter: none }
 }
 
 /* ============================================
