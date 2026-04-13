@@ -308,9 +308,10 @@ interface CategoryBarsProps {
   animated: boolean;
   hoveredIdx: number | null;
   onHover: (idx: number | null) => void;
+  onClick: (idx: number | null) => void;
 }
 
-const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hoveredIdx, onHover }) => {
+const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hoveredIdx, onHover, onClick }) => {
   const sorted = useMemo(
     () => [...categories].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 8),
     [categories],
@@ -330,6 +331,7 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hover
             style={{ '--catbar-delay': `${i * 50}ms` } as React.CSSProperties}
             onMouseEnter={() => onHover(i)}
             onMouseLeave={() => onHover(null)}
+            onClick={() => onClick(i)}
           >
             <div className="a7-catbar__label">
               <span className="a7-catbar__emoji">{cat.emoji}</span>
@@ -362,6 +364,7 @@ interface SpendingDonutProps {
   animated: boolean;
   hoveredIdx: number | null;
   onHover: (idx: number | null) => void;
+  onClick: (idx: number | null) => void;
 }
 
 const MAX_DONUT_SLICES = 6;
@@ -387,7 +390,7 @@ function collapseSlices(cats: SpendingDonutProps['categories']): SpendingDonutPr
   return keep;
 }
 
-const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hoveredIdx, onHover }) => {
+const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hoveredIdx, onHover, onClick }) => {
   const slices = useMemo(() => collapseSlices(categories), [categories]);
   const totalSpent = slices.reduce((s, c) => s + c.amount, 0);
   const safeTotal = Math.max(totalSpent, 1);
@@ -430,7 +433,7 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
   return (
     <div className="a7-donut-wrap">
       <div className="a7-donut-svg-wrap">
-        <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={() => onHover(null)}>
+        <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={() => onHover(null)} onClick={(e) => { if ((e.target as SVGElement).tagName === 'svg') onClick(null); }}>
           {/* Spending ring */}
           {arcs.map((arc, i) => {
             const isHovered = arc.idx === hoveredIdx;
@@ -462,6 +465,7 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
               className="a7-donut-touch"
               onMouseEnter={() => onHover(arc.idx)}
               onTouchStart={() => onHover(arc.idx)}
+              onClick={() => onClick(arc.idx)}
             />
           ))}
 
@@ -477,7 +481,7 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
                   className={`a7-donut-badge${isHovered ? ' a7-donut-badge--active' : ''}`}
                   style={{ '--badge-color': s.color } as React.CSSProperties}
                   onMouseEnter={() => onHover(arc.idx)}
-                  onClick={() => onHover(hoveredIdx === arc.idx ? null : arc.idx)}
+                  onClick={() => onClick(arc.idx)}
                 >
                   <span className="a7-donut-badge__emoji">{s.emoji}</span>
                   <span className="a7-donut-badge__pct">{pct}%</span>
@@ -505,10 +509,23 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
 
 const CategoryDonutSection: React.FC<{ categories: CategoryData[]; animated: boolean }> = ({ categories, animated }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [lockedIdx, setLockedIdx] = useState<number | null>(null);
+
+  const activeIdx = lockedIdx ?? hoveredIdx;
+
+  const handleHover = useCallback((idx: number | null) => {
+    if (lockedIdx === null) setHoveredIdx(idx);
+  }, [lockedIdx]);
+
+  const handleClick = useCallback((idx: number | null) => {
+    setLockedIdx(prev => prev === idx ? null : idx);
+    setHoveredIdx(null);
+  }, []);
+
   return (
     <>
-      <SpendingDonut categories={categories} animated={animated} hoveredIdx={hoveredIdx} onHover={setHoveredIdx} />
-      <CategoryBars categories={categories} animated={animated} hoveredIdx={hoveredIdx} onHover={setHoveredIdx} />
+      <SpendingDonut categories={categories} animated={animated} hoveredIdx={activeIdx} onHover={handleHover} onClick={handleClick} />
+      <CategoryBars categories={categories} animated={animated} hoveredIdx={activeIdx} onHover={handleHover} onClick={handleClick} />
     </>
   );
 };
