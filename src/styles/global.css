@@ -1798,6 +1798,7 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .a7-donut-wrap {
   display: flex; flex-direction: column; align-items: center; gap: 20px;
+  padding: 16px 24px;
 }
 .a7-donut-svg-wrap {
   position: relative; width: 100%; max-width: 260px; aspect-ratio: 1;
