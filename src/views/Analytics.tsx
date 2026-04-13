@@ -38,8 +38,10 @@ interface HouseholdBudgetData {
   allocated: number;
   unallocated: number;
 }
+interface DailyData { date: string; total: number }
 interface AnalyticsData {
   monthly: MonthlyData[];
+  daily: DailyData[];
   kpis: KpisData;
   categories: CategoryData[];
   insights: InsightData[];
@@ -71,8 +73,7 @@ const INSIGHT_COLORS: Record<string, { border: string; bg: string; icon: string 
 /* ── TradingView Lightweight Chart component ───────────── */
 
 interface AreaChartProps {
-  data: MonthlyData[];
-  animated: boolean;
+  data: Array<{ date: string; total: number }>;
 }
 
 const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
@@ -109,6 +110,10 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
           return '';
         },
       },
+      localization: {
+        locale: 'es-ES',
+        priceFormatter: (price: number) => `€${Math.round(price).toLocaleString('es-ES')}`,
+      },
       crosshair: {
         vertLine: {
           color: 'rgba(52,211,153,0.3)',
@@ -137,15 +142,17 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
       crosshairMarkerRadius: 6,
       crosshairMarkerBackgroundColor: '#34D399',
       crosshairMarkerBorderColor: '#34D399',
+      lastValueVisible: true,
+      priceLineVisible: true,
       priceFormat: {
         type: 'custom',
         formatter: (price: number) => `€${Math.round(price).toLocaleString('es-ES')}`,
       },
     });
 
-    // Transform data: month "2026-03" → time "2026-03-01"
+    // Transform data: date is already YYYY-MM-DD
     const chartData: AreaData<Time>[] = data.map(d => ({
-      time: `${d.month}-01` as Time,
+      time: d.date as Time,
       value: d.total,
     }));
 
@@ -435,8 +442,8 @@ export const Analytics: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const chartTitle = activeContext === 'shared'
-    ? 'Evolución — Gastos compartidos'
-    : 'Evolución — Gastos personales';
+    ? 'Gasto acumulado — Compartido'
+    : 'Gasto acumulado — Personal';
 
   /* ── KPI data ── */
   const kpis = useMemo(() => {
@@ -600,8 +607,8 @@ export const Analytics: React.FC = () => {
               <div className="a7-card__head">
                 <span className="a7-card__title">{chartTitle}</span>
               </div>
-              {data.monthly.length > 0 ? (
-                <AreaChart data={data.monthly} animated={chartAnimated} />
+              {data.daily.length > 0 ? (
+                <AreaChart data={data.daily} />
               ) : (
                 <div className="a7-empty">Sin datos para el periodo seleccionado</div>
               )}
