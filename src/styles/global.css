@@ -878,6 +878,7 @@ a:hover { color: var(--text) }
 
 .goal-card__deadline { font-size: 12px; color: var(--tm) }
 
+
 .goal-card__contribute-btn {
   width: 100%; margin-top: 16px;
   font-family: var(--font-family);

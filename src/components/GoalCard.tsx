@@ -16,6 +16,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
   icon,
   current,
   target,
+  start_date,
   deadline,
   owner_type,
   onContribute,
@@ -58,7 +59,13 @@ export const GoalCard: React.FC<GoalCardProps> = ({
       </div>
 
       <div className="goal-card__deadline">
-        {deadline ? `Proyección: ${deadline}` : 'Sin fecha límite'}
+        {start_date && deadline
+          ? `${start_date} → ${deadline}`
+          : start_date
+            ? `Desde: ${start_date}`
+            : deadline
+              ? `Hasta: ${deadline}`
+              : 'Sin fecha límite'}
       </div>
 
       {onContribute && (

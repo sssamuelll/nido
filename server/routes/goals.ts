@@ -46,7 +46,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
 // Create goal
 router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
-  const { name, icon, target, deadline, owner_type } = req.validatedData as GoalInput;
+  const { name, icon, target, start_date, deadline, owner_type } = req.validatedData as GoalInput;
 
   try {
     const db = getDatabase();
@@ -62,12 +62,13 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
     const ownerUserId = owner_type === 'personal' ? req.user!.id : null;
 
     const result = await db.run(
-      `INSERT INTO goals (household_id, name, icon, target, deadline, owner_type, owner_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO goals (household_id, name, icon, target, start_date, deadline, owner_type, owner_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       user.household_id,
       name,
       icon,
       target,
+      start_date || null,
       deadline || null,
       owner_type,
       ownerUserId
@@ -90,7 +91,7 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
 // Update goal
 router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { name, icon, target, deadline } = req.validatedData as GoalUpdateInput;
+  const { name, icon, target, start_date, deadline } = req.validatedData as GoalUpdateInput;
 
   try {
     const db = getDatabase();
@@ -123,11 +124,14 @@ router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => 
         name = COALESCE(?, name),
         icon = COALESCE(?, icon),
         target = COALESCE(?, target),
-        deadline = CASE WHEN ?1 = 1 THEN ?2 ELSE deadline END
+        start_date = CASE WHEN ?1 = 1 THEN ?2 ELSE start_date END,
+        deadline = CASE WHEN ?3 = 1 THEN ?4 ELSE deadline END
       WHERE id = ?`,
       name,
       icon,
       target,
+      start_date !== undefined ? 1 : 0,
+      start_date !== undefined ? start_date : null,
       deadline !== undefined ? 1 : 0,
       deadline !== undefined ? deadline : null,
       id

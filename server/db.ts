@@ -236,6 +236,7 @@ export const initDatabase = async () => {
       icon TEXT DEFAULT '🎯',
       target REAL NOT NULL,
       current REAL DEFAULT 0,
+      start_date TEXT,
       deadline TEXT,
       owner_type TEXT NOT NULL DEFAULT 'shared',
       owner_user_id INTEGER,
@@ -590,6 +591,13 @@ export const initDatabase = async () => {
       // SQLite < 3.35.0 doesn't support DROP COLUMN — log and skip
       console.warn('Could not drop users.password column (SQLite version may not support DROP COLUMN)');
     }
+  }
+
+  // === Migration: Add start_date to goals ===
+  const goalsStartDateRan = await database.get(`SELECT name FROM migrations WHERE name = 'goals_start_date'`);
+  if (!goalsStartDateRan) {
+    await ensureColumn(database, 'goals', 'start_date', 'TEXT');
+    await database.run(`INSERT INTO migrations (name) VALUES ('goals_start_date')`);
   }
 
   // === Migration: Add cycle frequency to recurring expenses ===

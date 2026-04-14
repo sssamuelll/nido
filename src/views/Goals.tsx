@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import { GoalCard } from '../components/GoalCard';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { type Goal } from '../types';
@@ -6,19 +7,33 @@ import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
 
+const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const formatDateLabel = (dateStr: string) => {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+  if (dateStr === today) return 'Hoy';
+  if (dateStr === yesterday) return 'Ayer';
+  const d = new Date(dateStr + 'T12:00:00');
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+};
+
 interface GoalFormData {
   name: string;
   icon: string;
   target: string;
+  start_date: string;
   deadline: string;
   owner_type: 'shared' | 'personal';
   color: string;
 }
 
+const todayStr = () => format(new Date(), 'yyyy-MM-dd');
+
 const EMPTY_FORM: GoalFormData = {
   name: '',
   icon: '✨',
   target: '',
+  start_date: todayStr(),
   deadline: '',
   owner_type: 'shared',
   color: '#60A5FA',
@@ -32,6 +47,7 @@ export const Goals: React.FC = () => {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [showStartDate, setShowStartDate] = useState(false);
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
 
   const fetchGoals = async () => {
@@ -67,10 +83,12 @@ export const Goals: React.FC = () => {
       name: goal.name,
       icon: goal.icon,
       target: String(goal.target),
+      start_date: goal.start_date || '',
       deadline: goal.deadline || '',
       owner_type: goal.owner_type,
       color: '#60A5FA',
     });
+    setShowStartDate(!!goal.start_date);
     setShowCreateModal(true);
   };
 
@@ -96,6 +114,7 @@ export const Goals: React.FC = () => {
           name: formData.name,
           icon: formData.icon,
           target: Number(formData.target),
+          start_date: formData.start_date || null,
           deadline: formData.deadline || null,
         });
         showToast('Objetivo actualizado');
@@ -104,6 +123,7 @@ export const Goals: React.FC = () => {
           name: formData.name,
           icon: formData.icon,
           target: Number(formData.target),
+          start_date: formData.start_date || undefined,
           deadline: formData.deadline || undefined,
           owner_type: formData.owner_type,
         });
@@ -124,6 +144,7 @@ export const Goals: React.FC = () => {
   const openCreateModal = () => {
     setEditingGoal(null);
     setFormData(EMPTY_FORM);
+    setShowStartDate(false);
     setShowCreateModal(true);
   };
 
@@ -274,15 +295,58 @@ export const Goals: React.FC = () => {
                 </div>
               )}
 
-              {/* Deadline */}
+              {/* Date range — Desde uses pill pattern like AddExpense */}
               <div className="form-row">
-                <label>Fecha</label>
+                <label>Desde</label>
+                {!showStartDate ? (
+                  <button
+                    type="button"
+                    className="expense-date-toggle"
+                    onClick={() => setShowStartDate(true)}
+                  >
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                    </svg>
+                    {formatDateLabel(formData.start_date || todayStr())}
+                    {formData.start_date && formData.start_date !== todayStr() && <span className="expense-date-dot" />}
+                  </button>
+                ) : (
+                  <div className="expense-date-picker">
+                    <input
+                      className="expense-date-input"
+                      type="date"
+                      value={formData.start_date || todayStr()}
+                      onChange={e => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                    />
+                    {formData.start_date !== todayStr() && (
+                      <button
+                        type="button"
+                        className="expense-date-today"
+                        onClick={() => { setFormData(prev => ({ ...prev, start_date: todayStr() })); setShowStartDate(false); }}
+                      >
+                        Hoy
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="expense-date-close"
+                      onClick={() => setShowStartDate(false)}
+                    >
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="form-row">
+                <label>Hasta</label>
                 <input
                   className="form-input"
                   type="date"
                   value={formData.deadline}
                   onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                  style={{ flex: 1 }}
+                  placeholder="Sin fecha límite"
                 />
               </div>
 

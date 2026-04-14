@@ -43,6 +43,7 @@ export interface Goal {
   icon: string;
   target: number;
   current: number;
+  start_date?: string | null;
   deadline: string | null;
   owner_type: 'shared' | 'personal';
   owner_user_id: number | null;
