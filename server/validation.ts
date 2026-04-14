@@ -37,6 +37,7 @@ export const goalCreateSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido').max(100),
   icon: z.string().max(10).optional().default('🎯'),
   target: z.coerce.number().positive('El objetivo debe ser positivo'),
+  start_date: z.string().max(50).optional(),
   deadline: z.string().max(50).optional(),
   owner_type: z.enum(['shared', 'personal']),
   owner_user_id: z.coerce.number().optional(),
@@ -46,6 +47,7 @@ export const goalUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   icon: z.string().max(10).optional(),
   target: z.coerce.number().positive().optional(),
+  start_date: z.string().max(50).optional().nullable(),
   deadline: z.string().max(50).optional().nullable(),
 });
 
