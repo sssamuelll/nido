@@ -16,14 +16,45 @@ interface Props {
   onClose: () => void;
   onSave: () => void;
   onDelete?: () => void;
+  totalBudget?: number;
+  allocatedBudget?: number;
 }
 
 export const CategoryModal: React.FC<Props> = ({
   isOpen, mode, name, onNameChange, emoji, onEmojiChange,
   color, onColorChange, colorOptions, budget, onBudgetChange,
-  onClose, onSave, onDelete,
+  onClose, onSave, onDelete, totalBudget, allocatedBudget,
 }) => {
   if (!isOpen) return null;
+
+  const hasTotalBudget = totalBudget != null && totalBudget > 0;
+
+  const handleAmountChange = (val: string) => {
+    onBudgetChange(val);
+  };
+
+  const handlePctChange = (pctStr: string) => {
+    const pct = parseFloat(pctStr);
+    if (hasTotalBudget && Number.isFinite(pct)) {
+      const amount = Math.round((pct / 100) * totalBudget!);
+      onBudgetChange(String(amount));
+    }
+  };
+
+  const currentAmount = parseFloat(budget) || 0;
+  const pctOfTotal = hasTotalBudget
+    ? ((currentAmount / totalBudget!) * 100).toFixed(1)
+    : '';
+  const totalAllocated = (allocatedBudget || 0) + currentAmount;
+  const pctAllocated = hasTotalBudget ? Math.round((totalAllocated / totalBudget!) * 100) : 0;
+  const remaining = hasTotalBudget ? totalBudget! - totalAllocated : 0;
+
+  const barColorClass = pctAllocated > 100
+    ? 'cat-budget-bar--over'
+    : pctAllocated >= 80
+      ? 'cat-budget-bar--warn'
+      : '';
+
   return (
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
@@ -51,8 +82,55 @@ export const CategoryModal: React.FC<Props> = ({
         </div>
         <div className="form-row">
           <label>Límite</label>
-          <span style={{ color: 'var(--tm)' }}>€</span>
-          <input className="form-input" type="number" placeholder="200" value={budget} onChange={e => onBudgetChange(e.target.value)} style={{ width: 100, textAlign: 'right' }} autoFocus />
+          {hasTotalBudget ? (
+            <div className="cat-budget-dual-wrap">
+              <div className="cat-budget-dual">
+                <div className="cat-budget-input">
+                  <span className="cat-budget-input__symbol">€</span>
+                  <input
+                    className="form-input"
+                    type="number"
+                    placeholder="200"
+                    value={budget}
+                    onChange={e => handleAmountChange(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <span className="cat-budget-swap">↔</span>
+                <div className="cat-budget-input">
+                  <input
+                    className="form-input"
+                    type="number"
+                    placeholder="15.0"
+                    value={pctOfTotal}
+                    onChange={e => handlePctChange(e.target.value)}
+                    step="0.1"
+                  />
+                  <span className="cat-budget-input__symbol">%</span>
+                </div>
+              </div>
+              <div className="cat-budget-bar-wrap">
+                <div className={`cat-budget-bar ${barColorClass}`} style={{ '--cat-budget-pct': `${Math.min(pctAllocated, 100)}%` } as React.CSSProperties} />
+              </div>
+              <div className="cat-budget-info">
+                {pctAllocated}% asignado · €{remaining.toLocaleString('es-ES', { maximumFractionDigits: 0 })} disponible
+              </div>
+            </div>
+          ) : (
+            <div className="cat-budget-dual-wrap">
+              <div className="cat-budget-input cat-budget-input--solo">
+                <span className="cat-budget-input__symbol">€</span>
+                <input
+                  className="form-input"
+                  type="number"
+                  placeholder="200"
+                  value={budget}
+                  onChange={e => handleAmountChange(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="modal-actions">

@@ -532,6 +532,12 @@ export const Dashboard: React.FC = () => {
             categories,
             onSuccess: () => { reloadCategories(); loadDashboardData(); },
           })}
+          totalBudget={activeContext === 'shared' ? availableShared : personalBudgetRaw}
+          allocatedBudget={
+            categoryBreakdown
+              .filter(cat => cat.category !== catModal.originalName)
+              .reduce((sum, cat) => sum + toNum(cat.budget), 0)
+          }
         />
     </>
   );
