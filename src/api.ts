@@ -265,11 +265,11 @@ export class Api {
     return this.request('/goals');
   }
 
-  static async createGoal(data: { name: string; icon?: string; target: number; deadline?: string; owner_type: 'shared' | 'personal' }) {
+  static async createGoal(data: { name: string; icon?: string; target: number; start_date?: string; deadline?: string; owner_type: 'shared' | 'personal' }) {
     return this.request('/goals', { method: 'POST', body: data });
   }
 
-  static async updateGoal(id: number, data: Partial<{ name: string; icon: string; target: number; deadline: string | null }>) {
+  static async updateGoal(id: number, data: Partial<{ name: string; icon: string; target: number; start_date: string | null; deadline: string | null }>) {
     return this.request(`/goals/${id}`, { method: 'PUT', body: data });
   }
 
