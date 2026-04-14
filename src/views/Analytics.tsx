@@ -602,32 +602,31 @@ export const Analytics: React.FC = () => {
           </div>
 
           {/* Area chart */}
-          <div className="a7-grid an d3">
-            <div className="a7-card a7-card--chart">
-              <div className="a7-card__head">
-                <span className="a7-card__title">{chartTitle}</span>
-              </div>
-              {data.daily.length > 0 ? (
-                <AreaChart data={data.daily} />
-              ) : (
-                <div className="a7-empty">Sin datos para el periodo seleccionado</div>
-              )}
+          {/* Area chart — full width */}
+          <div className="a7-card an d3" style={{ marginBottom: 24 }}>
+            <div className="a7-card__head">
+              <span className="a7-card__title">{chartTitle}</span>
             </div>
-
-            {/* Category bars fallback when no budget */}
-            {data.householdBudget.total_amount <= 0 && (
-              <div className="a7-card a7-card--cats">
-                <div className="a7-card__head">
-                  <span className="a7-card__title">Por categoría</span>
-                </div>
-                {data.categories.length > 0 ? (
-                  <CategoryDonutSection categories={data.categories} animated={chartAnimated} />
-                ) : (
-                  <div className="a7-empty">Sin gastos este periodo</div>
-                )}
-              </div>
+            {data.daily.length > 0 ? (
+              <AreaChart data={data.daily} />
+            ) : (
+              <div className="a7-empty">Sin datos para el periodo seleccionado</div>
             )}
           </div>
+
+          {/* Category bars fallback when no budget */}
+          {data.householdBudget.total_amount <= 0 && (
+            <div className="a7-card an d3" style={{ marginBottom: 24 }}>
+              <div className="a7-card__head">
+                <span className="a7-card__title">Por categoría</span>
+              </div>
+              {data.categories.length > 0 ? (
+                <CategoryDonutSection categories={data.categories} animated={chartAnimated} />
+              ) : (
+                <div className="a7-empty">Sin gastos este periodo</div>
+              )}
+            </div>
+          )}
 
         </>
       )}
