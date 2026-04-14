@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { createChart, ColorType, AreaData, Time } from 'lightweight-charts';
+import { createChart, ColorType, AreaData, Time, AreaSeries } from 'lightweight-charts';
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
@@ -132,8 +132,8 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
       handleScroll: false,
     });
 
-    // Add area series
-    const areaSeries = chart.addAreaSeries({
+    // Add area series (v5 API)
+    const areaSeries = chart.addSeries(AreaSeries, {
       lineColor: '#34D399',
       lineWidth: 2,
       topColor: 'rgba(52,211,153,0.35)',
