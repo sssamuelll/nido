@@ -2475,7 +2475,42 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 }
 
 /* ============================================
-   SECTION 51: Print Styles
+   SECTION 51: Goal Contribute Modal
+   ============================================ */
+.contribute-amount-wrap {
+  display: flex; align-items: center; gap: 8px; flex: 1;
+}
+.contribute-currency {
+  color: var(--tm); font-size: 16px; font-weight: 500;
+}
+.contribute-input {
+  font-size: 20px; font-weight: 700; text-align: right;
+}
+.contribute-chips {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0;
+}
+.contribute-chip {
+  padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--surface);
+  color: var(--text); font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: all .15s;
+}
+.contribute-chip:hover { background: var(--surface2); border-color: rgba(255,255,255,.16) }
+.contribute-chip--active {
+  background: var(--gl); color: var(--green); border-color: rgba(52,211,153,.35);
+}
+.contribute-chip--fill {
+  color: var(--blue); border-color: rgba(96,165,250,.35);
+}
+.contribute-chip--fill:hover { background: var(--bl) }
+.contribute-info {
+  font-size: 12px; color: var(--tm); padding: 8px 12px;
+  background: var(--surface); border-radius: var(--rs);
+  margin-bottom: 16px;
+}
+
+/* ============================================
+   SECTION 52: Print Styles
    ============================================ */
 
 @media print {

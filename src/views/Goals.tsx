@@ -49,6 +49,9 @@ export const Goals: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showStartDate, setShowStartDate] = useState(false);
   const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
+  const [contributeGoal, setContributeGoal] = useState<Goal | null>(null);
+  const [contributeAmount, setContributeAmount] = useState('');
+  const [contributing, setContributing] = useState(false);
 
   const fetchGoals = async () => {
     try {
@@ -65,15 +68,28 @@ export const Goals: React.FC = () => {
 
   useEffect(() => { fetchGoals(); }, []);
 
-  const handleContribute = async (id: number) => {
+  const openContributeModal = (goal: Goal) => {
+    setContributeGoal(goal);
+    setContributeAmount('50');
+    setContributing(false);
+  };
+
+  const handleContributeSubmit = async () => {
+    if (!contributeGoal) return;
+    const amount = parseFloat(contributeAmount);
+    if (!Number.isFinite(amount) || amount <= 0) { showToast('Ingresa un monto válido'); return; }
     try {
-      await Api.contributeToGoal(id, 50);
+      setContributing(true);
+      await Api.contributeToGoal(contributeGoal.id, amount);
       await fetchGoals();
+      setContributeGoal(null);
       launchConfetti();
-      showToast('¡Contribución registrada! Siguen avanzando juntos 🚀');
+      showToast(`¡€${amount} añadidos a ${contributeGoal.name}! 🚀`);
     } catch (err) {
-      console.error('Failed to contribute to goal:', err);
+      console.error('Failed to contribute:', err);
       showToast('Error al contribuir');
+    } finally {
+      setContributing(false);
     }
   };
 
@@ -223,14 +239,14 @@ export const Goals: React.FC = () => {
         <div className="goals__column">
           {col1Goals.map((goal, i) => (
             <div key={goal.id} className={`an d${3 + i * 2}`}>
-              <GoalCard {...goal} onContribute={() => handleContribute(goal.id)} onEdit={() => handleEdit(goal)} />
+              <GoalCard {...goal} onContribute={() => openContributeModal(goal)} onEdit={() => handleEdit(goal)} />
             </div>
           ))}
         </div>
         <div className="goals__column">
           {col2Goals.map((goal, i) => (
             <div key={goal.id} className={`an d${4 + i * 2}`}>
-              <GoalCard {...goal} onContribute={() => handleContribute(goal.id)} onEdit={() => handleEdit(goal)} />
+              <GoalCard {...goal} onContribute={() => openContributeModal(goal)} onEdit={() => handleEdit(goal)} />
             </div>
           ))}
         </div>
@@ -365,6 +381,74 @@ export const Goals: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Contribute modal */}
+      {contributeGoal && (
+        <div className="modal-overlay open" onClick={() => setContributeGoal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>Contribuir a {contributeGoal.name}</h3>
+            <p>
+              Progreso actual: €{contributeGoal.current.toLocaleString('es-ES')} de €{contributeGoal.target.toLocaleString('es-ES')}
+              {' '}({contributeGoal.target > 0 ? Math.round((contributeGoal.current / contributeGoal.target) * 100) : 0}%)
+            </p>
+
+            {/* Amount with quick-select buttons */}
+            <div className="form-row">
+              <label>Monto</label>
+              <div className="contribute-amount-wrap">
+                <span className="contribute-currency">€</span>
+                <input
+                  className="form-input contribute-input"
+                  type="number"
+                  min="1"
+                  step="any"
+                  value={contributeAmount}
+                  onChange={e => setContributeAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Quick amount chips */}
+            <div className="contribute-chips">
+              {[25, 50, 100, 200].map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`contribute-chip ${contributeAmount === String(v) ? 'contribute-chip--active' : ''}`}
+                  onClick={() => setContributeAmount(String(v))}
+                >
+                  €{v}
+                </button>
+              ))}
+              {/* "Remaining" chip - fills the rest to reach target */}
+              {contributeGoal.target > contributeGoal.current && (
+                <button
+                  type="button"
+                  className={`contribute-chip contribute-chip--fill`}
+                  onClick={() => setContributeAmount(String(Math.round(contributeGoal.target - contributeGoal.current)))}
+                >
+                  Completar (€{Math.round(contributeGoal.target - contributeGoal.current)})
+                </button>
+              )}
+            </div>
+
+            {/* Info: where the money comes from */}
+            <div className="contribute-info">
+              Este monto se descuenta del presupuesto {contributeGoal.owner_type === 'shared' ? 'compartido' : 'personal'}
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setContributeGoal(null)} disabled={contributing}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleContributeSubmit} disabled={contributing}>
+                {contributing ? 'Guardando...' : `Añadir €${contributeAmount || '0'}`}
+              </button>
+            </div>
           </div>
         </div>
       )}
