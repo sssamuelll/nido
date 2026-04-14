@@ -3,27 +3,24 @@ import { createChart, ColorType, AreaData, Time, AreaSeries } from 'lightweight-
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
+import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
 
 /* ── constants ──────────────────────────────────────────── */
 
-const PERIODS = ['3M', '6M', '1A', 'Todo'] as const;
-const PERIOD_TO_MONTHS: Record<string, number> = {
-  '3M': 3,
-  '6M': 6,
-  '1A': 12,
-  'Todo': 0,
-};
-
-const MONTH_LABELS: Record<string, string> = {
-  '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr',
-  '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago',
-  '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic',
-};
+const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 /* ── types ──────────────────────────────────────────────── */
 
-interface MonthlyData { month: string; total: number }
+type CycleInfo = {
+  id: number;
+  month: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  started_at: string | null;
+};
+
 interface KpisData {
   totalSpent: number;
   netSavings: number;
@@ -40,7 +37,6 @@ interface HouseholdBudgetData {
 }
 interface DailyData { date: string; total: number }
 interface AnalyticsData {
-  monthly: MonthlyData[];
   daily: DailyData[];
   kpis: KpisData;
   categories: CategoryData[];
@@ -49,8 +45,6 @@ interface AnalyticsData {
 }
 
 /* ── helpers ────────────────────────────────────────────── */
-
-const fmtMonth = (m: string) => MONTH_LABELS[m.split('-')[1]] || m.split('-')[1];
 
 const fmtCurrency = (n: number) =>
   `€${n.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -104,8 +98,8 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
         tickMarkFormatter: (time: unknown) => {
           const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
           if (typeof time === 'string') {
-            const [,m] = time.split('-');
-            return months[parseInt(m) - 1] || time;
+            const [,m, d] = time.split('-');
+            return `${parseInt(d)} ${months[parseInt(m) - 1] || m}`;
           }
           return '';
         },
@@ -411,7 +405,6 @@ const CategoryDonutSection: React.FC<{ categories: CategoryData[]; animated: boo
 /* ── Main component ─────────────────────────────────────── */
 
 export const Analytics: React.FC = () => {
-  const [activePeriod, setActivePeriod] = useState('6M');
   const { activeContext, setActiveContext } = useContextSelector();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -419,7 +412,23 @@ export const Analytics: React.FC = () => {
   const [chartAnimated, setChartAnimated] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
 
-  const months = PERIOD_TO_MONTHS[activePeriod] ?? 6;
+  // Cycle-based navigation (same pattern as History.tsx)
+  const [cycles, setCycles] = useState<CycleInfo[]>([]);
+  const [cycleIndex, setCycleIndex] = useState(0);
+
+  useEffect(() => {
+    Api.listCycles().then(data => setCycles(Array.isArray(data) ? data : [])).catch(() => setCycles([]));
+  }, []);
+
+  const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
+
+  const getCycleLabel = () => {
+    if (!currentCycle) return 'Todos los gastos';
+    if (cycleIndex === 0 && currentCycle.status === 'active') return 'Ciclo actual';
+    if (!currentCycle.start_date) return 'Ciclo';
+    const d = new Date(currentCycle.start_date + 'T12:00:00');
+    return `Ciclo del ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -427,7 +436,12 @@ export const Analytics: React.FC = () => {
     setChartAnimated(false);
     setInsightDismissed(false);
     try {
-      const result = await Api.getAnalytics(months, activeContext);
+      const params: { context: string; start_date?: string; end_date?: string } = { context: activeContext };
+      if (currentCycle?.start_date) {
+        params.start_date = currentCycle.start_date;
+        if (currentCycle.end_date) params.end_date = currentCycle.end_date;
+      }
+      const result = await Api.getAnalytics(params);
       setData(result);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setChartAnimated(true));
@@ -437,7 +451,7 @@ export const Analytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [months, activeContext]);
+  }, [activeContext, currentCycle?.id, cycles.length]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -497,17 +511,6 @@ export const Analytics: React.FC = () => {
           <h1 className="a7-title">Analítica</h1>
           <p className="a7-subtitle">Análisis detallado de gastos</p>
         </div>
-        <div className="a7-pills">
-          {PERIODS.map(p => (
-            <button
-              key={p}
-              className={`a7-pill ${activePeriod === p ? 'a7-pill--active' : ''}`}
-              onClick={() => setActivePeriod(p)}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ── Context tabs ── */}
@@ -515,6 +518,14 @@ export const Analytics: React.FC = () => {
         active={activeContext}
         onChange={setActiveContext}
         className="a7-ctx an d1"
+      />
+
+      {/* ── Cycle navigator ── */}
+      <MonthNavigator
+        label={getCycleLabel()}
+        onPrev={() => setCycleIndex(i => Math.min(cycles.length - 1, i + 1))}
+        onNext={() => setCycleIndex(i => Math.max(0, i - 1))}
+        className="an d1"
       />
 
       {/* ── Insight banner ── */}
@@ -601,9 +612,8 @@ export const Analytics: React.FC = () => {
             )}
           </div>
 
-          {/* Area chart */}
           {/* Area chart — full width */}
-          <div className="a7-card an d3" style={{ marginBottom: 24 }}>
+          <div className="a7-card a7-card--mb an d3">
             <div className="a7-card__head">
               <span className="a7-card__title">{chartTitle}</span>
             </div>
@@ -616,7 +626,7 @@ export const Analytics: React.FC = () => {
 
           {/* Category bars fallback when no budget */}
           {data.householdBudget.total_amount <= 0 && (
-            <div className="a7-card an d3" style={{ marginBottom: 24 }}>
+            <div className="a7-card a7-card--mb an d3">
               <div className="a7-card__head">
                 <span className="a7-card__title">Por categoría</span>
               </div>

@@ -14,11 +14,6 @@ const CATEGORY_FALLBACK_COLORS: Record<string, string> = {
   Otros: '#a89e94',
 };
 
-interface MonthlyRow {
-  month: string;
-  total: number;
-}
-
 interface CategoryRow {
   name: string;
   amount: number;
@@ -51,46 +46,30 @@ interface HouseholdBudgetRow {
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const months = parseInt(req.query.months as string) || 6;
     const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
     const currentUser = req.user!;
     const userId = req.user!.id;
 
-    // Build date range
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Accept start_date / end_date (same pattern as expenses endpoint)
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
 
     let dateFilter = '';
     let dateParams: string[] = [];
-    if (months > 0) {
-      const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
-      const startMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-      dateFilter = 'AND date >= ?';
-      dateParams = [`${startMonth}-01`];
+    if (startDate) {
+      dateFilter = endDate
+        ? 'AND date >= ? AND date < ?'
+        : 'AND date >= ?';
+      dateParams = endDate ? [startDate, endDate] : [startDate];
     }
 
     // Context filter
-    // DEPRECATED: paid_by filter — ideally use paid_by_user_id once CHECK constraint is removed
     const contextFilter = context === 'shared'
       ? "type = 'shared'"
       : `type = 'personal' AND paid_by = ?`;
     const contextParams = context === 'personal' ? [getLegacyPersonKey(currentUser)] : [];
 
-    // 1. Monthly totals
-    const monthlyRows = await db.all<MonthlyRow[]>(`
-      SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
-      FROM expenses
-      WHERE ${contextFilter} ${dateFilter}
-      GROUP BY month
-      ORDER BY month
-    `, ...contextParams, ...dateParams);
-
-    const monthly = monthlyRows.map(row => ({
-      month: row.month,
-      total: row.total,
-    }));
-
-    // Daily cumulative totals for chart
+    // 1. Daily cumulative totals for chart
     const dailyRows = await db.all<{ date: string; total: number }[]>(`
       SELECT date, SUM(amount) as total
       FROM expenses
@@ -99,41 +78,47 @@ router.get('/', async (req: AuthRequest, res) => {
       ORDER BY date
     `, ...contextParams, ...dateParams);
 
-    // Build cumulative running total
     let cumulative = 0;
     const daily = dailyRows.map(row => {
       cumulative += row.total;
       return { date: row.date, total: cumulative };
     });
 
-    // 2. Current month KPIs
-    const currentMonthExpenses = await db.get<TotalRow>(`
+    // 2. KPIs for the selected period
+    const periodExpenses = await db.get<TotalRow>(`
       SELECT COALESCE(SUM(amount), 0) as total
       FROM expenses
-      WHERE ${contextFilter} AND strftime('%Y-%m', date) = ?
-    `, ...contextParams, currentMonth);
+      WHERE ${contextFilter} ${dateFilter}
+    `, ...contextParams, ...dateParams);
 
-    const currentMonthCount = await db.get<CountRow>(`
+    const periodCount = await db.get<CountRow>(`
       SELECT COUNT(*) as count
       FROM expenses
-      WHERE ${contextFilter} AND strftime('%Y-%m', date) = ?
-    `, ...contextParams, currentMonth);
+      WHERE ${contextFilter} ${dateFilter}
+    `, ...contextParams, ...dateParams);
 
-    // Previous month
-    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-
-    const prevMonthExpenses = await db.get<TotalRow>(`
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM expenses
-      WHERE ${contextFilter} AND strftime('%Y-%m', date) = ?
-    `, ...contextParams, prevMonth);
-
-    const totalSpent = currentMonthExpenses?.total ?? 0;
-    const totalExpenses = currentMonthCount?.count ?? 0;
-    const prevTotal = prevMonthExpenses?.total ?? 0;
-    const vsPrevPeriod = prevTotal > 0 ? ((totalSpent - prevTotal) / prevTotal) * 100 : 0;
+    const totalSpent = periodExpenses?.total ?? 0;
+    const totalExpenses = periodCount?.count ?? 0;
     const avgTicket = totalExpenses > 0 ? totalSpent / totalExpenses : 0;
+
+    // Compare against previous period of equal length
+    let vsPrevPeriod = 0;
+    if (startDate) {
+      const periodStart = new Date(startDate);
+      const periodEnd = endDate ? new Date(endDate) : new Date();
+      const periodDays = Math.max(1, Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000));
+      const prevStart = new Date(periodStart.getTime() - periodDays * 86400000);
+      const prevEnd = periodStart;
+
+      const prevTotal = await db.get<TotalRow>(`
+        SELECT COALESCE(SUM(amount), 0) as total FROM expenses
+        WHERE ${contextFilter} AND date >= ? AND date < ?
+      `, ...contextParams, prevStart.toISOString().slice(0, 10), prevEnd.toISOString().slice(0, 10));
+
+      if (prevTotal && prevTotal.total > 0) {
+        vsPrevPeriod = ((totalSpent - prevTotal.total) / prevTotal.total) * 100;
+      }
+    }
 
     // 3. Net savings from household budget
     const householdUser = await db.get<{ household_id: number }>(
@@ -163,7 +148,7 @@ router.get('/', async (req: AuthRequest, res) => {
       vsPrevPeriod: Math.round(vsPrevPeriod * 100) / 100,
     };
 
-    // 4. Category breakdown (matches selected period, not just current month)
+    // 4. Category breakdown (matches selected period)
     const categoryRows = await db.all<CategoryRow[]>(`
       SELECT category as name, SUM(amount) as amount
       FROM expenses
@@ -201,18 +186,18 @@ router.get('/', async (req: AuthRequest, res) => {
     // 5. Generate insights
     const insights: Array<{ type: 'positive' | 'warning' | 'tip'; message: string }> = [];
 
-    // Insight: Positive trend (current < previous)
-    if (prevTotal > 0 && totalSpent < prevTotal) {
-      const pctDrop = Math.round(((prevTotal - totalSpent) / prevTotal) * 100);
+    // Insight: Positive trend (current period < previous period)
+    if (startDate && vsPrevPeriod < 0) {
+      const pctDrop = Math.abs(Math.round(vsPrevPeriod));
       const topCategory = categoryRows.length > 0 ? categoryRows[0].name : null;
       const suffix = topCategory ? ` Recorte principal: ${topCategory}.` : '';
       insights.push({
         type: 'positive',
-        message: `Gastaron ${pctDrop}% menos.${suffix}`,
+        message: `Gastaron ${pctDrop}% menos que el ciclo anterior.${suffix}`,
       });
     }
 
-    // Insight: Budget alert (category > 80% of its budget) — from categories.budget_amount
+    // Insight: Budget alert (category > 80% of its budget)
     const budgetContextFilter = context === 'shared'
       ? `context = 'shared' AND owner_user_id IS NULL`
       : `context = 'personal' AND owner_user_id = ${userId}`;
@@ -236,82 +221,28 @@ router.get('/', async (req: AuthRequest, res) => {
       }
     }
 
-    // Insight: Projection (extrapolate current spending to month end)
-    const dayOfMonth = now.getDate();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    if (dayOfMonth > 0 && budget) {
-      const projectedSpend = (totalSpent / dayOfMonth) * daysInMonth;
-      const budgetAmount = context === 'shared'
-        ? budget.total_amount
-        : getPersonalBudget(budget, currentUser);
-      const projectedSavings = budgetAmount - projectedSpend;
-      if (projectedSavings > 0) {
-        insights.push({
-          type: 'tip',
-          message: `Si mantienen este ritmo, cerrarán con €${Math.round(projectedSavings)} de ahorro.`,
-        });
-      }
-    }
+    // Insight: Spending rate comparison (daily spend vs overall average)
+    if (startDate) {
+      const periodStart = new Date(startDate);
+      const periodEnd = endDate ? new Date(endDate) : new Date();
+      const periodDays = Math.max(1, Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000));
+      const dailyRate = totalSpent / periodDays;
 
-    // Insight: Anomaly (category > 30% above historical average)
-    if (months > 0) {
-      for (const cat of categoryRows) {
-        const historicalAvg = await db.get<TotalRow>(`
-          SELECT COALESCE(AVG(monthly_total), 0) as total
-          FROM (
-            SELECT SUM(amount) as monthly_total
-            FROM expenses
-            WHERE ${contextFilter} AND category = ? AND strftime('%Y-%m', date) != ?
-            ${dateFilter}
-            GROUP BY strftime('%Y-%m', date)
-          )
-        `, ...contextParams, cat.name, currentMonth, ...dateParams);
+      const overallAvg = await db.get<TotalRow & CountRow>(`
+        SELECT COALESCE(SUM(amount), 0) as total,
+               COUNT(DISTINCT date) as count
+        FROM expenses
+        WHERE ${contextFilter}
+      `, ...contextParams);
 
-        if (historicalAvg && historicalAvg.total > 0) {
-          const pctAbove = ((cat.amount - historicalAvg.total) / historicalAvg.total) * 100;
-          if (pctAbove > 30) {
-            insights.push({
-              type: 'warning',
-              message: `${cat.name} subió un ${Math.round(pctAbove)}% respecto a vuestra media.`,
-            });
-          }
+      if (overallAvg && overallAvg.count > 0) {
+        const overallDailyRate = overallAvg.total / overallAvg.count;
+        if (overallDailyRate > 0 && dailyRate < overallDailyRate * 0.8) {
+          insights.push({
+            type: 'tip',
+            message: `Ritmo de gasto diario (€${Math.round(dailyRate)}) por debajo de la media histórica (€${Math.round(overallDailyRate)}).`,
+          });
         }
-      }
-    }
-
-    // Insight: Savings streak (3+ consecutive months with savings)
-    if (budget) {
-      const streakMonths: string[] = [];
-      for (let i = 0; i < 6; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        streakMonths.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-      }
-
-      let streak = 0;
-      for (const m of streakMonths) {
-        const mSpent = await db.get<TotalRow>(`
-          SELECT COALESCE(SUM(amount), 0) as total
-          FROM expenses
-          WHERE ${contextFilter} AND strftime('%Y-%m', date) = ?
-        `, ...contextParams, m);
-
-        // Use current household budget for comparison (no per-month budgets anymore)
-        const budgetAmount = context === 'shared'
-          ? budget.total_amount
-          : getPersonalBudget(budget, currentUser);
-
-        if ((mSpent?.total ?? 0) < budgetAmount) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-
-      if (streak >= 3) {
-        insights.push({
-          type: 'positive',
-          message: `Llevan ${streak} meses ahorrando. ¿Quieren crear un objetivo?`,
-        });
       }
     }
 
@@ -327,7 +258,6 @@ router.get('/', async (req: AuthRequest, res) => {
     };
 
     res.json({
-      monthly,
       daily,
       kpis,
       categories,
