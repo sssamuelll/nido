@@ -1942,6 +1942,28 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .expense-repeat-cancel:hover { background: var(--rl); color: var(--red) }
 
+/* Cycle frequency stepper (recurring expenses) */
+.cycle-stepper {
+  display: flex; align-items: center; gap: 6px;
+}
+.cycle-stepper__btn {
+  width: 36px; height: 36px; border: 1px solid var(--glass-border); border-radius: 50%;
+  background: var(--surface); color: var(--text); font-size: 18px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .12s; font-family: inherit;
+}
+.cycle-stepper__btn:hover { background: var(--gl); color: var(--green); border-color: var(--green) }
+.cycle-stepper__btn:active { transform: scale(0.9) }
+.cycle-stepper__btn:disabled { opacity: 0.3; cursor: default }
+.cycle-stepper__btn:disabled:hover { background: var(--surface); color: var(--text); border-color: var(--glass-border) }
+.cycle-stepper__value {
+  min-width: 32px; text-align: center; font-size: 18px; font-weight: 700;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.cycle-stepper__label {
+  color: var(--ts); font-size: 13px; margin-left: 4px;
+}
+
 .add-expense__success-icon {
   width: 64px; height: 64px; border-radius: 50%;
   background: var(--gl); color: var(--green);
