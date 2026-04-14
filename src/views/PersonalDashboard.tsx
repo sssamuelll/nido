@@ -160,7 +160,7 @@ export const PersonalDashboard: React.FC = () => {
           <span className="personal-dashboard__eyebrow">{displayName}</span>
           <div className="personal-dashboard__hero-title">{toCurrency(detail.remaining)}</div>
           <div className="personal-dashboard__hero-subtitle">
-            {toCurrency(detail.personalSpent)} de {toCurrency(detail.personalBudget)} usados este mes
+            {toCurrency(detail.personalSpent)} de {toCurrency(detail.personalBudget)} usados este ciclo
           </div>
         </div>
         <div className="personal-dashboard__hero-stats">
@@ -190,7 +190,7 @@ export const PersonalDashboard: React.FC = () => {
 
           <div className="personal-dashboard__category-list">
             {detail.categories.length === 0 ? (
-              <div className="personal-dashboard__empty">Todavía no hay gastos personales este mes.</div>
+              <div className="personal-dashboard__empty">Todavía no hay gastos personales este ciclo.</div>
             ) : (
               detail.categories.map((category) => {
                 const categoryDef = getCategoryDef(category.category);
@@ -233,7 +233,7 @@ export const PersonalDashboard: React.FC = () => {
 
           <div className="personal-dashboard__transactions">
             {detail.recentExpenses.length === 0 ? (
-              <div className="personal-dashboard__empty">No hay gastos personales registrados este mes.</div>
+              <div className="personal-dashboard__empty">No hay gastos personales registrados este ciclo.</div>
             ) : (
               detail.recentExpenses.map((expense) => {
                 const categoryDef = getCategoryDef(expense.category);
