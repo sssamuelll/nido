@@ -163,14 +163,14 @@ router.get('/', async (req: AuthRequest, res) => {
       vsPrevPeriod: Math.round(vsPrevPeriod * 100) / 100,
     };
 
-    // 4. Category breakdown (current month)
+    // 4. Category breakdown (matches selected period, not just current month)
     const categoryRows = await db.all<CategoryRow[]>(`
       SELECT category as name, SUM(amount) as amount
       FROM expenses
-      WHERE ${contextFilter} AND strftime('%Y-%m', date) = ?
+      WHERE ${contextFilter} ${dateFilter}
       GROUP BY category
       ORDER BY amount DESC
-    `, ...contextParams, currentMonth);
+    `, ...contextParams, ...dateParams);
 
     // Get category colors and budget_amount from categories table
     const categoryMeta = householdId
@@ -213,10 +213,13 @@ router.get('/', async (req: AuthRequest, res) => {
     }
 
     // Insight: Budget alert (category > 80% of its budget) — from categories.budget_amount
+    const budgetContextFilter = context === 'shared'
+      ? `context = 'shared' AND owner_user_id IS NULL`
+      : `context = 'personal' AND owner_user_id = ${userId}`;
     const categoryBudgets = householdId
       ? await db.all<CategoryBudgetRow[]>(
           `SELECT name, budget_amount FROM categories
-           WHERE household_id = ? AND context = 'shared' AND owner_user_id IS NULL AND budget_amount > 0`,
+           WHERE household_id = ? AND ${budgetContextFilter} AND budget_amount > 0`,
           householdId
         )
       : [];
