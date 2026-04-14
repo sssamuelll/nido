@@ -462,19 +462,27 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
               <input className="form-input" value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Opcional..." style={{ flex: 1 }} />
             </div>
 
-            {/* Cycle frequency */}
-            <div className="form-row" style={{ marginBottom: 16 }}>
+            {/* Cycle frequency — stepper buttons */}
+            <div className="form-row">
               <label>Se repite cada</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="number"
-                  className="form-input"
-                  style={{ width: 70, textAlign: 'center' }}
-                  min={1}
-                  value={everyNCycles}
-                  onChange={e => setEveryNCycles(Math.max(1, parseInt(e.target.value) || 1))}
-                />
-                <span style={{ color: 'var(--ts)', fontSize: 14 }}>
+              <div className="cycle-stepper">
+                <button
+                  type="button"
+                  className="cycle-stepper__btn"
+                  onClick={() => setEveryNCycles(v => Math.max(1, v - 1))}
+                  disabled={everyNCycles <= 1}
+                >
+                  −
+                </button>
+                <span className="cycle-stepper__value">{everyNCycles}</span>
+                <button
+                  type="button"
+                  className="cycle-stepper__btn"
+                  onClick={() => setEveryNCycles(v => Math.min(24, v + 1))}
+                >
+                  +
+                </button>
+                <span className="cycle-stepper__label">
                   {everyNCycles === 1 ? 'ciclo (siempre)' : 'ciclos'}
                 </span>
               </div>
