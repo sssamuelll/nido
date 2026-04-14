@@ -15,13 +15,6 @@ const TagIcon = () => (
   </svg>
 );
 
-const EditIcon = () => (
-  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
-  </svg>
-);
-
 const PlusIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
     <path d="M12 4v16m-8-8h16" />
@@ -414,10 +407,10 @@ export const History: React.FC = () => {
         else next.add(expense.id);
         return next;
       });
-    } : undefined;
+    } : () => openEditModal(expense);
 
     return (
-      <div className="h-item" key={expense.id} onClick={handleRowClick} style={selectMode ? { cursor: 'pointer' } : undefined}>
+      <div className="h-item h-item--clickable" key={expense.id} onClick={handleRowClick}>
         {selectMode ? (
           <div className="bulk-check" style={{
             width: 36, height: 36, borderRadius: '50%', display: 'flex',
@@ -443,18 +436,6 @@ export const History: React.FC = () => {
             )}
           </div>
         </div>
-        {!selectMode && (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{ minWidth: 0, padding: '8px 10px', borderRadius: '12px', marginRight: 8, color: 'var(--tm)' }}
-            onClick={() => openEditModal(expense)}
-            aria-label={`Editar ${expense.description}`}
-            title="Editar gasto"
-          >
-            <EditIcon />
-          </button>
-        )}
         <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--red)' }}>
           {'−€'}{expense.amount.toFixed(2)}
         </div>
