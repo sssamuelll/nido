@@ -281,8 +281,11 @@ export class Api {
     return this.request(`/goals/${id}/contribute`, { method: 'POST', body: { amount } });
   }
 
-  static async getAnalytics(months: number, context: 'shared' | 'personal') {
-    return this.request(`/analytics?months=${months}&context=${context}`);
+  static async getAnalytics(params: { context: string; start_date?: string; end_date?: string }) {
+    const qs = new URLSearchParams({ context: params.context });
+    if (params.start_date) qs.set('start_date', params.start_date);
+    if (params.end_date) qs.set('end_date', params.end_date);
+    return this.request(`/analytics?${qs}`);
   }
 
   static async getNotifications() {

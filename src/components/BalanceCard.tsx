@@ -54,7 +54,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
       </div>
 
       <div className="balance-card__change">
-        {monthChange >= 0 ? '↑ +' : '↓ '}€{Math.abs(monthChange).toLocaleString('es-ES')} este mes
+        {monthChange >= 0 ? '↑ +' : '↓ '}€{Math.abs(monthChange).toLocaleString('es-ES')} este ciclo
       </div>
 
       <div className="balance-card__progress">

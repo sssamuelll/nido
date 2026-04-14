@@ -197,7 +197,6 @@ interface PasskeyInfo {
 
 export const Settings: React.FC = () => {
   const { user, logout, registerPasskey } = useAuth();
-  const currentMonth = format(new Date(), 'yyyy-MM');
   const [budget, setBudget] = useState<HouseholdBudgetData | null>(null);
   const [members, setMembers] = useState<Array<{ id: number; username: string }>>([]);
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
@@ -393,7 +392,18 @@ export const Settings: React.FC = () => {
 
   const exportToCSV = async () => {
     try {
-      const expenses = await Api.getExpenses(currentMonth);
+      let expenses;
+      let filename: string;
+      if (currentCycle?.start_date) {
+        expenses = await Api.getExpenses({
+          start_date: currentCycle.start_date,
+          end_date: currentCycle.end_date ?? undefined,
+        });
+        filename = `nido-ciclo-${currentCycle.start_date}.csv`;
+      } else {
+        expenses = await Api.getExpenses();
+        filename = `nido-todos.csv`;
+      }
       const csv = [
         'Fecha,Descripción,Cantidad,Categoría,Pagado por,Tipo',
         ...expenses.map((e: { date: string; description: string; amount: number; category: string; paid_by: string; type: string }) =>
@@ -403,7 +413,7 @@ export const Settings: React.FC = () => {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `nido-${currentMonth}.csv`;
+      link.download = filename;
       link.click();
       setToast({ type: 'success', msg: 'CSV descargado' });
     } catch (err) {
@@ -464,12 +474,12 @@ export const Settings: React.FC = () => {
                 <rect x="3" y="11" width="18" height="10" rx="2" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
-              {' '}Presupuesto Mensual
+              {' '}Presupuesto
             </h3>
 
             <div className="form-row-s">
               <label>Presupuesto compartido</label>
-              <span style={{ color: 'var(--tm)' }}>{'\u20AC'}</span>
+              <span style={{ color: 'var(--tm)' }}>{'€'}</span>
               <input
                 className="form-input-s"
                 type="number"
@@ -508,7 +518,7 @@ export const Settings: React.FC = () => {
 
             <div className="form-row-s">
               <label>Tu disponible personal</label>
-              <span style={{ color: 'var(--tm)' }}>{'\u20AC'}</span>
+              <span style={{ color: 'var(--tm)' }}>{'€'}</span>
               <input
                 className="form-input-s"
                 type="number"
