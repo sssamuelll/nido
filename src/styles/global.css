@@ -2592,6 +2592,48 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 }
 
 /* ============================================
+   SECTION: Event Detail View
+   ============================================ */
+.ev-back { display: flex; align-items: center; gap: 4px; background: none; border: none; color: var(--ts); font-size: 14px; cursor: pointer; font-family: var(--font-family); padding: 0; transition: color .2s }
+.ev-back:hover { color: var(--text) }
+.ev-title { font-size: 28px; font-weight: 800; margin-bottom: 24px }
+.ev-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px }
+.ev-kpi { padding: 16px; text-align: left }
+.ev-kpi__label { font-size: 12px; color: var(--ts); margin-bottom: 4px }
+.ev-kpi__value { font-size: 24px; font-weight: 700; margin-bottom: 8px; font-variant-numeric: tabular-nums }
+.ev-kpi__bar { height: 4px; border-radius: 2px; background: var(--surface2); overflow: hidden }
+.ev-kpi__bar-fill { height: 100%; border-radius: 2px; transition: width .3s }
+.ev-kpi__bar-fill--neutral { background: var(--ts) }
+.ev-kpi__bar-fill--green { background: var(--green) }
+.ev-kpi__bar-fill--orange { background: var(--orange) }
+.ev-kpi__sub { font-size: 11px; color: var(--ts); margin-top: 4px }
+.ev-breakdown { padding: 24px; margin-bottom: 24px }
+.ev-donut-section { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; justify-content: center }
+.ev-donut-svg { width: 200px; height: 200px; flex-shrink: 0 }
+.ev-donut-legend { display: flex; flex-direction: column; gap: 10px }
+.ev-donut-legend__item { display: flex; align-items: center; gap: 8px; font-size: 14px }
+.ev-donut-legend__emoji { font-size: 16px }
+.ev-donut-legend__name { color: var(--ts); min-width: 100px }
+.ev-donut-legend__amount { font-weight: 600; font-variant-numeric: tabular-nums }
+.ev-donut-legend__pct { color: var(--ts); font-size: 12px }
+.ev-donut-legend__bar { width: 40px; height: 3px; border-radius: 2px; background: var(--bar-color) }
+.ev-transactions { padding: 24px }
+.ev-transactions h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px }
+.ev-date-label { font-size: 12px; font-weight: 600; color: var(--ts); text-transform: uppercase; margin: 16px 0 8px; letter-spacing: .5px }
+.ev-expense-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--glass-border) }
+.ev-expense-row:last-child { border-bottom: none }
+.ev-expense-row__desc { font-size: 14px; font-weight: 500 }
+.ev-expense-row__cat { font-size: 12px; color: var(--ts) }
+.ev-expense-row__right { text-align: right }
+.ev-expense-row__amount { font-size: 15px; font-weight: 600; color: var(--red) }
+.ev-expense-row__who { font-size: 11px; color: var(--ts) }
+
+@media (max-width: 767px) {
+  .ev-kpis { grid-template-columns: 1fr; gap: 12px }
+  .ev-donut-section { flex-direction: column }
+}
+
+/* ============================================
    SECTION 53: Event Cards in Budget List
    ============================================ */
 
