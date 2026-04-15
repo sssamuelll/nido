@@ -1195,6 +1195,7 @@ a:hover { color: var(--text) }
 
 /* Emoji Picker — Notion-style popover */
 .ep-wrap { position: relative; display: flex; justify-content: center; margin-bottom: 12px }
+.modal .form-row .ep-wrap { margin-bottom: 0; justify-content: flex-start }
 .ep-trigger {
   width: 56px; height: 56px; border-radius: 16px;
   background: var(--surface2); border: 1px solid var(--glass-border);
@@ -1204,6 +1205,8 @@ a:hover { color: var(--text) }
 .ep-trigger:hover { box-shadow: 0 2px 12px rgba(0,0,0,.15) }
 .ep-trigger:active { transform: scale(.93) }
 .ep-trigger-emoji { font-size: 28px; line-height: 1 }
+.modal .form-row .ep-trigger { width: 44px; height: 44px; border-radius: var(--rs) }
+.modal .form-row .ep-trigger-emoji { font-size: 22px }
 .ep-popover {
   position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   width: 320px; background: var(--modal-bg); border: 1px solid var(--glass-border);
@@ -2376,9 +2379,11 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 
   /* Modal */
   .modal { width: calc(100vw - 32px); padding: 24px; max-height: 90vh; overflow-y: auto }
-  .modal .form-row { flex-direction: column; align-items: flex-start; gap: 6px }
+  .modal .form-row { flex-direction: column; align-items: flex-start; gap: 8px }
   .modal .form-row label { min-width: auto }
   .cat-budget-dual-wrap { width: 100% }
+  .cat-budget-dual { gap: 6px }
+  .cat-budget-input .form-input { padding: 10px; min-width: 0 }
 
   /* Theme toggle */
   .theme-toggle { width: 36px; height: 36px }
@@ -2498,6 +2503,25 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
   color: var(--ts);
   font-variant-numeric: tabular-nums;
 }
+
+/* Category color dots */
+.cat-color-options { display: flex; gap: 10px; align-items: center }
+.cat-color-dot {
+  width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent;
+  background: var(--dot-color); cursor: pointer; transition: border-color .15s, transform .15s;
+  padding: 0; flex-shrink: 0;
+}
+.cat-color-dot--active { border-color: var(--text) }
+.cat-color-dot:hover:not(.cat-color-dot--active) { transform: scale(1.1) }
+
+/* Danger outline button (delete) */
+.btn-danger-outline {
+  color: var(--red); border: 1px solid var(--red); background: transparent;
+  margin-right: auto; padding: 8px 16px; border-radius: var(--rs);
+  font-size: 14px; font-weight: 500; cursor: pointer; transition: all .2s;
+  font-family: var(--font-family);
+}
+.btn-danger-outline:hover { background: rgba(239, 68, 68, .1) }
 
 /* ============================================
    SECTION 51: Goal Contribute Modal
