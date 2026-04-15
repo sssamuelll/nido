@@ -8,6 +8,7 @@ import { PinPage } from './views/PinPage';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { MeshBackground } from './components/MeshBackground';
+import { ConnectionBanner } from './components/ConnectionBanner';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -96,6 +97,7 @@ const App: React.FC = () => {
 
   return (
     <AuthProvider>
+      <ConnectionBanner />
       <Router>
         <Routes>
           <Route path="/setup" element={<Setup />} />
