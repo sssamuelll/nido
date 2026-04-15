@@ -2436,12 +2436,15 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .cat-budget-dual {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cat-budget-swap {
@@ -2466,6 +2469,8 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 .cat-budget-input .form-input {
   text-align: right;
   min-height: 44px;
+  min-width: 0;
+  width: 100%;
 }
 
 .cat-budget-input__symbol {
