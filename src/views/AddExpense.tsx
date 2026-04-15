@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { useAuth } from '../auth';
@@ -29,6 +29,7 @@ const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
 
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
@@ -56,6 +57,8 @@ export const AddExpense: React.FC = () => {
   const [newCatColor, setNewCatColor] = useState(COLOR_OPTIONS[0]);
   const [savingCat, setSavingCat] = useState(false);
   const [repeatCount, setRepeatCount] = useState(1);
+  const [events, setEvents] = useState<any[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const cmdRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +81,26 @@ export const AddExpense: React.FC = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const allEvents = await Api.getEvents(type as 'shared' | 'personal');
+        const activeEvents = allEvents.filter((ev: any) => new Date(ev.end_date) >= new Date());
+        setEvents(activeEvents);
+      } catch {
+        setEvents([]);
+      }
+    };
+    loadEvents();
+  }, [type]);
+
+  useEffect(() => {
+    const incomingState = location.state as any;
+    if (incomingState?.eventId) {
+      setSelectedEventId(incomingState.eventId);
+    }
   }, []);
 
   const OPS = ['+', '-', '×', '÷'] as const;
@@ -195,6 +218,7 @@ export const AddExpense: React.FC = () => {
         category_id: categories.find(c => c.name === category)?.id,
         date: expenseDate,
         type,
+        event_id: selectedEventId || undefined,
       };
       for (let i = 0; i < repeatCount; i++) {
         await Api.createExpense(expenseData);
@@ -447,6 +471,24 @@ export const AddExpense: React.FC = () => {
               )}
             </div>
           </div>
+
+          {events.length > 0 && (
+            <div className="an d4" style={{ marginBottom: 16 }}>
+              <div className="label">Evento (opcional)</div>
+              <div className="ev-select-wrap">
+                <select
+                  className="ev-select"
+                  value={selectedEventId ?? ''}
+                  onChange={e => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">Sin evento</option>
+                  {events.map(ev => (
+                    <option key={ev.id} value={ev.id}>{ev.emoji} {ev.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           <div className="an d5">
             <div style={{
