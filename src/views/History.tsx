@@ -493,11 +493,23 @@ export const History: React.FC = () => {
         <button
           type="button"
           className="history-tool-btn"
-          onClick={() => {
-            const params = new URLSearchParams({ context: activeContext });
-            if (currentCycle?.start_date) params.set('start_date', currentCycle.start_date);
-            if (currentCycle?.end_date) params.set('end_date', currentCycle.end_date);
-            window.open(`/api/expenses/export?${params}`, '_blank');
+          onClick={async () => {
+            try {
+              const params = new URLSearchParams({ context: activeContext });
+              if (currentCycle?.start_date) params.set('start_date', currentCycle.start_date);
+              if (currentCycle?.end_date) params.set('end_date', currentCycle.end_date);
+              const resp = await fetch(`/api/expenses/export?${params}`, { credentials: 'include' });
+              if (!resp.ok) throw new Error('Export failed');
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `nido-gastos-${currentCycle?.start_date || 'todos'}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch (err) {
+              console.error('CSV export error:', err);
+            }
           }}
           title="Exportar CSV"
         >
