@@ -20,6 +20,17 @@ export class Api {
     this.unauthorizedHandler = handler;
   }
 
+  private static connectionListeners: Set<(online: boolean) => void> = new Set();
+
+  static onConnectionChange(listener: (online: boolean) => void) {
+    this.connectionListeners.add(listener);
+    return () => { this.connectionListeners.delete(listener); };
+  }
+
+  private static notifyConnection(online: boolean) {
+    this.connectionListeners.forEach(fn => fn(online));
+  }
+
   private static async request(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', body, headers = {} } = options;
 
@@ -37,10 +48,23 @@ export class Api {
       config.body = JSON.stringify(body);
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${endpoint}`, config);
+    } catch (_err) {
+      this.notifyConnection(false);
+      throw new ApiError(0, 'Sin conexión al servidor. Revisa tu internet e inténtalo de nuevo.');
+    }
+
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      this.notifyConnection(false);
+      throw new ApiError(response.status, 'El servidor no está disponible. Inténtalo en unos minutos.');
+    }
+
+    this.notifyConnection(true);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({ error: 'Error del servidor' }));
 
       if (
         response.status === 401 &&
@@ -52,7 +76,7 @@ export class Api {
         this.unauthorizedHandler?.();
       }
 
-      throw new ApiError(response.status, errorData.error || 'Request failed');
+      throw new ApiError(response.status, errorData.error || 'Error del servidor');
     }
 
     if (response.status === 204) {
