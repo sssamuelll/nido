@@ -305,6 +305,31 @@ export class Api {
     return this.request(`/goals/${id}/contribute`, { method: 'POST', body: { amount } });
   }
 
+  // Events
+  static async getEvents(context: 'shared' | 'personal' = 'shared') {
+    return this.request(`/events?context=${context}`);
+  }
+
+  static async getEventDetail(id: number) {
+    return this.request(`/events/${id}`);
+  }
+
+  static async createEvent(data: {
+    name: string; emoji?: string; budget_amount?: number;
+    start_date: string; end_date: string; goal_id?: number | null;
+    context?: string; subcategories?: Array<{ name: string; emoji: string; color: string }>;
+  }) {
+    return this.request('/events', { method: 'POST', body: data });
+  }
+
+  static async updateEvent(id: number, data: Record<string, unknown>) {
+    return this.request(`/events/${id}`, { method: 'PUT', body: data });
+  }
+
+  static async deleteEvent(id: number) {
+    return this.request(`/events/${id}`, { method: 'DELETE' });
+  }
+
   static async getAnalytics(params: { context: string; start_date?: string; end_date?: string }) {
     const qs = new URLSearchParams({ context: params.context });
     if (params.start_date) qs.set('start_date', params.start_date);
