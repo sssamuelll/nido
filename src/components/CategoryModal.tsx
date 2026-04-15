@@ -18,12 +18,23 @@ interface Props {
   onDelete?: () => void;
   totalBudget?: number;
   allocatedBudget?: number;
+  isEvent?: boolean;
+  onIsEventChange?: (v: boolean) => void;
+  eventStartDate?: string;
+  onEventStartDateChange?: (v: string) => void;
+  eventEndDate?: string;
+  onEventEndDateChange?: (v: string) => void;
+  eventGoalId?: number | null;
+  onEventGoalIdChange?: (v: number | null) => void;
+  goals?: Array<{ id: number; name: string; icon: string; current: number }>;
 }
 
 export const CategoryModal: React.FC<Props> = ({
   isOpen, mode, name, onNameChange, emoji, onEmojiChange,
   color, onColorChange, colorOptions, budget, onBudgetChange,
   onClose, onSave, onDelete, totalBudget, allocatedBudget,
+  isEvent, onIsEventChange, eventStartDate, onEventStartDateChange,
+  eventEndDate, onEventEndDateChange, eventGoalId, onEventGoalIdChange, goals,
 }) => {
   if (!isOpen) return null;
 
@@ -60,6 +71,19 @@ export const CategoryModal: React.FC<Props> = ({
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3>{mode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</h3>
         <p>{mode === 'edit' ? 'Edita nombre, emoji y límite' : 'Crea una categoría para organizar tus gastos'}</p>
+
+        <div className="form-row event-toggle-wrap">
+          <label className="event-toggle-row" onClick={() => onIsEventChange?.(!isEvent)}>
+            <span className={`event-toggle ${isEvent ? 'event-toggle--active' : ''}`}>
+              <span className="event-toggle__track">
+                <span className="event-toggle__thumb" />
+              </span>
+            </span>
+            <span className="event-toggle__label">
+              {isEvent ? 'Evento' : 'Convertir en evento'}
+            </span>
+          </label>
+        </div>
 
         <div className="form-row">
           <label>Nombre</label>
@@ -136,6 +160,34 @@ export const CategoryModal: React.FC<Props> = ({
             </div>
           )}
         </div>
+
+        {isEvent && (
+          <>
+            <div className="form-row">
+              <label>Inicio</label>
+              <input className="form-input" type="date" value={eventStartDate || ''} onChange={e => onEventStartDateChange?.(e.target.value)} />
+            </div>
+            <div className="form-row">
+              <label>Fin</label>
+              <input className="form-input" type="date" value={eventEndDate || ''} onChange={e => onEventEndDateChange?.(e.target.value)} />
+            </div>
+            {goals && goals.length > 0 && (
+              <div className="form-row">
+                <label>Fondeo</label>
+                <select
+                  className="form-input"
+                  value={eventGoalId ?? ''}
+                  onChange={e => onEventGoalIdChange?.(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">Presupuesto compartido</option>
+                  {goals.map(g => (
+                    <option key={g.id} value={g.id}>{g.icon} {g.name} (€{g.current.toLocaleString('es-ES')})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
 
         <div className="modal-actions">
           {mode === 'edit' && onDelete && (
