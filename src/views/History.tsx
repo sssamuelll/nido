@@ -7,7 +7,7 @@ import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
-import { ArrowUpDown, Calendar, Check, CheckSquare, X } from 'lucide-react';
+import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -489,6 +489,19 @@ export const History: React.FC = () => {
           title="Seleccionar gastos"
         >
           <CheckSquare size={16} />
+        </button>
+        <button
+          type="button"
+          className="history-tool-btn"
+          onClick={() => {
+            const params = new URLSearchParams({ context: activeContext });
+            if (currentCycle?.start_date) params.set('start_date', currentCycle.start_date);
+            if (currentCycle?.end_date) params.set('end_date', currentCycle.end_date);
+            window.open(`/api/expenses/export?${params}`, '_blank');
+          }}
+          title="Exportar CSV"
+        >
+          <Download size={16} />
         </button>
       </div>
 

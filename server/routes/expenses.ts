@@ -130,6 +130,56 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
+// Export expenses as CSV
+router.get('/export', async (req: AuthRequest, res) => {
+  try {
+    const db = getDatabase();
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const context = req.query.context as string | undefined;
+
+    let where = '(type = \'shared\' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))';
+    const params: (string | number)[] = [req.user!.id, req.user!.username];
+
+    if (context === 'shared') {
+      where = 'type = \'shared\'';
+      params.length = 0;
+    } else if (context === 'personal') {
+      where = '(type = \'personal\' AND (paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?)))';
+      params.length = 0;
+      params.push(req.user!.id, req.user!.username);
+    }
+
+    if (startDate) {
+      where += ' AND date >= ?';
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ' AND date < ?';
+      params.push(endDate);
+    }
+
+    const rows = await db.all<{ date: string; description: string; amount: number; category: string; type: string; paid_by: string; status: string }[]>(
+      `SELECT date, description, amount, category, type, paid_by, status FROM expenses WHERE ${where} ORDER BY date DESC, created_at DESC`,
+      ...params
+    );
+
+    const header = 'Fecha,Descripción,Monto,Categoría,Tipo,Pagado por,Estado';
+    const csvRows = rows.map(r => {
+      const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      return `${r.date},${escape(r.description)},${r.amount.toFixed(2)},${escape(r.category)},${r.type},${r.paid_by},${r.status}`;
+    });
+    const csv = [header, ...csvRows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="nido-gastos-${startDate || 'todos'}.csv"`);
+    res.send('\uFEFF' + csv); // BOM for Excel UTF-8
+  } catch (error) {
+    console.error('Error exporting expenses:', error);
+    res.status(500).json({ error: 'Error al exportar gastos' });
+  }
+});
+
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
   const data = req.validatedData as ExpenseInput;
