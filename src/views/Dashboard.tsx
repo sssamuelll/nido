@@ -108,6 +108,15 @@ export const Dashboard: React.FC = () => {
   const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
 
+  // Events state
+  const [events, setEvents] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [isEvent, setIsEvent] = useState(false);
+  const [eventStartDate, setEventStartDate] = useState('');
+  const [eventEndDate, setEventEndDate] = useState('');
+  const [eventGoalId, setEventGoalId] = useState<number | null>(null);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+
   const currentMonth = format(new Date(), 'yyyy-MM');
 
   // useCountUp hooks must be called unconditionally (before any early returns)
@@ -173,6 +182,14 @@ export const Dashboard: React.FC = () => {
 
       setData(summary);
       setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
+
+      // Load events and goals in parallel
+      const [eventsData, goalsData] = await Promise.all([
+        Api.getEvents(activeContext as 'shared' | 'personal'),
+        Api.getGoals(),
+      ]);
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
+      setGoals(Array.isArray(goalsData) ? goalsData : []);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
       setError('Error al cargar los datos');
@@ -378,6 +395,39 @@ export const Dashboard: React.FC = () => {
             <div className="sh">
               <div className="st">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
             </div>
+            {events.filter(ev => {
+              const endDate = new Date(ev.end_date);
+              const now = new Date();
+              return endDate >= new Date(now.getTime() - 7 * 86400000);
+            }).map(ev => {
+              const isActive = new Date(ev.end_date) >= new Date();
+              const daysLeft = isActive ? Math.ceil((new Date(ev.end_date).getTime() - Date.now()) / 86400000) : 0;
+              const spent = ev.total_spent || 0;
+              const pct = ev.budget_amount > 0 ? Math.round((spent / ev.budget_amount) * 100) : 0;
+
+              return (
+                <div
+                  key={`event-${ev.id}`}
+                  className={`budget-item event-budget-item${!isActive ? ' event-budget-item--finished' : ''}`}
+                  onClick={() => navigate(`/events/${ev.id}`)}
+                >
+                  <div className="event-badge">Evento</div>
+                  <div className="budget-item__row">
+                    <span className="budget-item__name">{ev.emoji} {ev.name}</span>
+                    <span className="budget-item__meta">
+                      {isActive ? `${daysLeft} días restantes` : 'Finalizado'}
+                    </span>
+                  </div>
+                  <div className="budget-item__bar">
+                    <div className="budget-item__bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: 'var(--green)' }} />
+                  </div>
+                  <div className="budget-item__amounts">
+                    <span>€{spent.toLocaleString('es-ES')}</span>
+                    <span style={{ color: 'var(--ts)' }}>/ €{ev.budget_amount.toLocaleString('es-ES')}</span>
+                  </div>
+                </div>
+              );
+            })}
             {categoryBreakdown.length === 0 ? (
               <div className="empty-view">Sin datos de categorias</div>
             ) : (
@@ -446,7 +496,10 @@ export const Dashboard: React.FC = () => {
                 );
               })
             )}
-            <div className="add-cat-row" onClick={catModal.openAdd}>
+            <div className="add-cat-row" onClick={() => {
+              setIsEvent(false); setEventStartDate(''); setEventEndDate(''); setEventGoalId(null); setEditingEvent(null);
+              catModal.openAdd();
+            }}>
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>
               {' '}Añadir categoria
             </div>
@@ -523,11 +576,36 @@ export const Dashboard: React.FC = () => {
           budget={catModal.budget}
           onBudgetChange={catModal.setBudget}
           onClose={catModal.close}
-          onSave={() => catModal.save({
-            context: activeContext,
-            categories,
-            onSuccess: () => { reloadCategories(); loadDashboardData(); },
-          })}
+          onSave={async () => {
+            if (isEvent) {
+              const eventData = {
+                name: catModal.name, emoji: catModal.emoji,
+                budget_amount: parseFloat(catModal.budget) || 0,
+                start_date: eventStartDate, end_date: eventEndDate,
+                goal_id: eventGoalId, context: activeContext,
+              };
+              try {
+                if (editingEvent) {
+                  await Api.updateEvent(editingEvent.id, eventData);
+                } else {
+                  await Api.createEvent(eventData);
+                }
+              } catch (err) {
+                console.error('Failed to save event:', err);
+                return;
+              }
+              setIsEvent(false); setEventStartDate(''); setEventEndDate('');
+              setEventGoalId(null); setEditingEvent(null);
+              catModal.close();
+              loadDashboardData();
+              return;
+            }
+            catModal.save({
+              context: activeContext,
+              categories,
+              onSuccess: () => { reloadCategories(); loadDashboardData(); },
+            });
+          }}
           onDelete={() => catModal.remove({
             categories,
             onSuccess: () => { reloadCategories(); loadDashboardData(); },
@@ -538,6 +616,15 @@ export const Dashboard: React.FC = () => {
               .filter(cat => cat.category !== catModal.originalName)
               .reduce((sum, cat) => sum + toNum(cat.budget), 0)
           }
+          isEvent={isEvent}
+          onIsEventChange={setIsEvent}
+          eventStartDate={eventStartDate}
+          onEventStartDateChange={setEventStartDate}
+          eventEndDate={eventEndDate}
+          onEventEndDateChange={setEventEndDate}
+          eventGoalId={eventGoalId}
+          onEventGoalIdChange={setEventGoalId}
+          goals={goals}
         />
     </>
   );

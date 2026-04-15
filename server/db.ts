@@ -317,6 +317,30 @@ export const initDatabase = async () => {
       FOREIGN KEY (cycle_id) REFERENCES billing_cycles(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      household_id INTEGER NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      emoji TEXT NOT NULL DEFAULT '✈️',
+      budget_amount REAL NOT NULL DEFAULT 0,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+      context TEXT NOT NULL DEFAULT 'shared',
+      owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
+      created_by INTEGER NOT NULL REFERENCES app_users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS event_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      emoji TEXT NOT NULL,
+      color TEXT NOT NULL,
+      UNIQUE(event_id, name)
+    );
   `);
 
   // Migrations: Ensure 'pin' column exists
@@ -332,6 +356,9 @@ export const initDatabase = async () => {
 
   // Cycle-based architecture: cycles track start_date
   await ensureColumn(database, 'billing_cycles', 'start_date', 'TEXT');
+
+  // Events feature: link expenses to events
+  await ensureColumn(database, 'expenses', 'event_id', 'INTEGER REFERENCES events(id) ON DELETE SET NULL');
 
   // Seed users (auth is via passkeys; users table only stores username + PIN)
   const hashedPin = bcrypt.hashSync('1234', 10);

@@ -24,6 +24,7 @@ import analyticsRouter from './routes/analytics.js';
 import notificationsRouter from './routes/notifications.js';
 import recurringRouter from './routes/recurring.js';
 import cyclesRouter from './routes/cycles.js';
+import eventsRouter from './routes/events.js';
 import { port, appSessionCookieName, allowedOrigins, isProduction } from './config.js';
 import { pinSchema } from './validation.js';
 
@@ -141,6 +142,7 @@ app.use('/api/analytics', authenticateToken, apiLimiter, analyticsRouter);
 app.use('/api/notifications', authenticateToken, apiLimiter, notificationsRouter);
 app.use('/api/recurring', authenticateToken, apiLimiter, recurringRouter);
 app.use('/api/cycles', authenticateToken, apiLimiter, cyclesRouter);
+app.use('/api/events', authenticateToken, apiLimiter, eventsRouter);
 
 // Categories routes
 app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {

@@ -1191,6 +1191,25 @@ a:hover { color: var(--text) }
 .modal .form-input[type="date"],
 .modal .form-input[type="month"] { -webkit-appearance: none; appearance: none }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px }
+
+/* Event toggle in CategoryModal */
+.event-toggle-wrap { margin-bottom: 6px }
+.event-toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; width: 100% }
+.event-toggle { flex-shrink: 0 }
+.event-toggle__track {
+  display: block; width: 40px; height: 22px; border-radius: 11px;
+  background: rgba(255,255,255,.15); position: relative; transition: background .2s;
+}
+.event-toggle--active .event-toggle__track { background: var(--green) }
+.event-toggle__thumb {
+  display: block; width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(255,255,255,.4); position: absolute; top: 2px; left: 2px;
+  transition: transform .2s, background .2s;
+}
+.event-toggle--active .event-toggle__thumb { transform: translateX(18px); background: #fff }
+.event-toggle__label { font-size: 13px; color: var(--ts); transition: color .2s }
+.event-toggle--active + .event-toggle__label { color: var(--green); font-weight: 500 }
+
 .approval-note { background: rgba(96, 165, 250, .08); border: 1px solid rgba(96, 165, 250, .15); border-radius: var(--rx); padding: 10px 14px; font-size: 12px; color: var(--blue); margin-top: 14px; display: flex; align-items: center; gap: 8px }
 
 /* Emoji Picker — Notion-style popover */
@@ -1947,6 +1966,18 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .expense-repeat-cancel:hover { background: var(--rl); color: var(--red) }
 
+/* Event select in AddExpense */
+.ev-select-wrap { margin-bottom: 16px }
+.ev-select {
+  width: 100%; padding: 12px 16px; border: 1px solid var(--glass-border);
+  border-radius: var(--rs); font-size: 14px; font-family: var(--font-family);
+  background: var(--surface); color: var(--text); appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' fill='none' stroke='rgba(255,255,255,.4)' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6' stroke-width='2'/%3E%3C/svg%3E");
+  background-position: right 14px center; background-repeat: no-repeat;
+  cursor: pointer; transition: border-color .2s;
+}
+.ev-select:focus { outline: none; border-color: var(--green); box-shadow: 0 0 12px rgba(52, 211, 153, .15) }
+
 /* Cycle frequency stepper (recurring expenses) */
 .cycle-stepper {
   display: flex; align-items: center; gap: 6px;
@@ -2570,4 +2601,74 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
 @media print {
   .sidebar, .bottom-nav, .bottom-nav__fab { display: none }
   body { background: white; color: black }
+}
+
+/* ============================================
+   SECTION: Event Detail View
+   ============================================ */
+.ev-back { display: flex; align-items: center; gap: 4px; background: none; border: none; color: var(--ts); font-size: 14px; cursor: pointer; font-family: var(--font-family); padding: 0; transition: color .2s }
+.ev-back:hover { color: var(--text) }
+.ev-title { font-size: 28px; font-weight: 800; margin-bottom: 24px }
+.ev-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px }
+.ev-kpi { padding: 16px; text-align: left }
+.ev-kpi__label { font-size: 12px; color: var(--ts); margin-bottom: 4px }
+.ev-kpi__value { font-size: 24px; font-weight: 700; margin-bottom: 8px; font-variant-numeric: tabular-nums }
+.ev-kpi__bar { height: 4px; border-radius: 2px; background: var(--surface2); overflow: hidden }
+.ev-kpi__bar-fill { height: 100%; border-radius: 2px; transition: width .3s }
+.ev-kpi__bar-fill--neutral { background: var(--ts) }
+.ev-kpi__bar-fill--green { background: var(--green) }
+.ev-kpi__bar-fill--orange { background: var(--orange) }
+.ev-kpi__sub { font-size: 11px; color: var(--ts); margin-top: 4px }
+.ev-breakdown { padding: 24px; margin-bottom: 24px }
+.ev-donut-section { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; justify-content: center }
+.ev-donut-svg { width: 200px; height: 200px; flex-shrink: 0 }
+.ev-donut-legend { display: flex; flex-direction: column; gap: 10px }
+.ev-donut-legend__item { display: flex; align-items: center; gap: 8px; font-size: 14px }
+.ev-donut-legend__emoji { font-size: 16px }
+.ev-donut-legend__name { color: var(--ts); min-width: 100px }
+.ev-donut-legend__amount { font-weight: 600; font-variant-numeric: tabular-nums }
+.ev-donut-legend__pct { color: var(--ts); font-size: 12px }
+.ev-donut-legend__bar { width: 40px; height: 3px; border-radius: 2px; background: var(--bar-color) }
+.ev-transactions { padding: 24px }
+.ev-transactions h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px }
+.ev-date-label { font-size: 12px; font-weight: 600; color: var(--ts); text-transform: uppercase; margin: 16px 0 8px; letter-spacing: .5px }
+.ev-expense-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--glass-border) }
+.ev-expense-row:last-child { border-bottom: none }
+.ev-expense-row__desc { font-size: 14px; font-weight: 500 }
+.ev-expense-row__cat { font-size: 12px; color: var(--ts) }
+.ev-expense-row__right { text-align: right }
+.ev-expense-row__amount { font-size: 15px; font-weight: 600; color: var(--red) }
+.ev-expense-row__who { font-size: 11px; color: var(--ts) }
+
+@media (max-width: 767px) {
+  .ev-kpis { grid-template-columns: 1fr; gap: 12px }
+  .ev-donut-section { flex-direction: column }
+}
+
+/* ============================================
+   SECTION 53: Event Cards in Budget List
+   ============================================ */
+
+.event-budget-item { cursor: pointer; flex-direction: column; align-items: flex-start; gap: 4px }
+.event-budget-item--finished { opacity: .5 }
+.event-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 12px;
+  background: rgba(52, 211, 153, .15); color: var(--green);
+  font-size: 11px; font-weight: 600; margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.budget-item__row {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; gap: 8px;
+}
+.budget-item__name { font-size: 14px; font-weight: 500 }
+.budget-item__meta { font-size: 12px; color: var(--ts); flex-shrink: 0 }
+.budget-item__bar {
+  width: 100%; height: 4px; border-radius: 2px;
+  background: var(--surface2); overflow: hidden;
+}
+.budget-item__bar-fill { height: 100%; border-radius: 2px; transition: width .3s ease }
+.budget-item__amounts {
+  display: flex; gap: 4px; font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }

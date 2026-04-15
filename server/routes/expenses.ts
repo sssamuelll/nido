@@ -86,32 +86,40 @@ router.get('/', async (req: AuthRequest, res) => {
   const startDate = req.query.start_date as string | undefined;
   const endDate = req.query.end_date as string | undefined;
   const month = req.query.month as string | undefined;
+  const eventId = req.query.event_id as string | undefined;
 
   try {
     const db = getDatabase();
     let expenses;
+    const eventFilter = eventId ? ` AND event_id = ?` : '';
 
     if (startDate) {
       expenses = await db.all(
         `SELECT * FROM expenses
-         WHERE ${visibleExpensesWhereRange}
+         WHERE ${visibleExpensesWhereRange}${eventFilter}
          ORDER BY date DESC, created_at DESC`,
-        startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
+        ...(eventId
+          ? [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username, eventId]
+          : [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username])
       );
     } else if (month) {
       expenses = await db.all(
         `SELECT * FROM expenses
-         WHERE ${visibleExpensesWhereMonth}
+         WHERE ${visibleExpensesWhereMonth}${eventFilter}
          ORDER BY date DESC, created_at DESC`,
-        `${month}%`, req.user!.id, req.user!.username
+        ...(eventId
+          ? [`${month}%`, req.user!.id, req.user!.username, eventId]
+          : [`${month}%`, req.user!.id, req.user!.username])
       );
     } else {
       // No filter: return all visible expenses
       expenses = await db.all(
         `SELECT * FROM expenses
-         WHERE (type = 'shared' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))
+         WHERE (type = 'shared' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))${eventFilter}
          ORDER BY date DESC, created_at DESC`,
-        req.user!.id, req.user!.username
+        ...(eventId
+          ? [req.user!.id, req.user!.username, eventId]
+          : [req.user!.id, req.user!.username])
       );
     }
 
@@ -125,7 +133,7 @@ router.get('/', async (req: AuthRequest, res) => {
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
   const data = req.validatedData as ExpenseInput;
-  const { description, amount, date, type, status = 'paid' } = data;
+  const { description, amount, date, type, status = 'paid', event_id } = data;
   // DEPRECATED: paid_by TEXT column — use paid_by_user_id instead.
   // Still written because of CHECK (paid_by IN ('samuel','maria')) constraint.
   const paid_by = getLegacyPaidBy(req.user);
@@ -133,6 +141,19 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
   try {
     const db = getDatabase();
     const paidByUserId = req.user!.id;
+
+    // Validate event_id if provided
+    if (event_id) {
+      const household = await db.get<{ household_id: number }>(
+        'SELECT household_id FROM app_users WHERE id = ?',
+        req.user!.id
+      );
+      const event = await db.get(
+        'SELECT id FROM events WHERE id = ? AND household_id = ?',
+        event_id, household!.household_id
+      );
+      if (!event) return res.status(400).json({ error: 'Evento no encontrado' });
+    }
 
     // Resolve category_id
     let categoryId: number | null = data.category_id ?? null;
@@ -155,9 +176,9 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 
     // DEPRECATED: paid_by is legacy; paid_by_user_id is the real FK.
     const result = await db.run(
-      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status
+      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status, event_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status, event_id ?? null
     );
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
@@ -193,6 +214,20 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Solo puedes editar tus propios gastos personales' });
     }
 
+    // Validate event_id if provided
+    const event_id = validatedData.event_id;
+    if (event_id) {
+      const household = await db.get<{ household_id: number }>(
+        'SELECT household_id FROM app_users WHERE id = ?',
+        req.user!.id
+      );
+      const event = await db.get(
+        'SELECT id FROM events WHERE id = ? AND household_id = ?',
+        event_id, household!.household_id
+      );
+      if (!event) return res.status(400).json({ error: 'Evento no encontrado' });
+    }
+
     // Resolve category_id if category name changed
     let categoryId = validatedData.category_id ?? existing.category_id;
     const categoryName = validatedData.category ?? existing.category;
@@ -210,13 +245,16 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
     }
 
     const updated = { ...existing, ...validatedData, category_id: categoryId };
+    // event_id: use new value if provided, preserve existing if not included in payload,
+    // allow explicit null to clear the association
+    const updatedEventId = 'event_id' in validatedData ? (event_id ?? null) : (existing as ExpenseRow & { event_id?: number | null }).event_id ?? null;
 
     await db.run(
       `UPDATE expenses
-       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?
+       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?, event_id = ?
        WHERE id = ?`,
       updated.description, updated.amount, updated.category, updated.category_id,
-      updated.date, updated.paid_by, updated.type, updated.status, id
+      updated.date, updated.paid_by, updated.type, updated.status, updatedEventId, id
     );
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);

@@ -19,7 +19,8 @@ export const expenseCreateSchema = z.object({
   type: z.enum(['shared', 'personal'], {
     errorMap: () => ({ message: 'El tipo debe ser shared o personal' })
   }),
-  status: z.enum(['paid', 'pending']).optional().default('paid')
+  status: z.enum(['paid', 'pending']).optional().default('paid'),
+  event_id: z.coerce.number().int().positive().optional(),
 }).refine(data => data.category || data.category_id, {
   message: 'category or category_id is required',
   path: ['category'],
