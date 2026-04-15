@@ -71,12 +71,16 @@ export const CategoryModal: React.FC<Props> = ({
         </div>
         <div className="form-row">
           <label>Color</label>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="cat-color-options">
             {colorOptions.map(c => (
-              <div key={c} onClick={() => onColorChange(c)} style={{
-                width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
-                border: `3px solid ${color === c ? 'var(--text)' : 'transparent'}`,
-              }} />
+              <button
+                key={c}
+                type="button"
+                className={`cat-color-dot${color === c ? ' cat-color-dot--active' : ''}`}
+                style={{ '--dot-color': c } as React.CSSProperties}
+                onClick={() => onColorChange(c)}
+                aria-label={`Color ${c}`}
+              />
             ))}
           </div>
         </div>
@@ -135,7 +139,7 @@ export const CategoryModal: React.FC<Props> = ({
 
         <div className="modal-actions">
           {mode === 'edit' && onDelete && (
-            <button type="button" onClick={onDelete} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>
+            <button type="button" onClick={onDelete} className="btn btn-danger-outline">
               Eliminar
             </button>
           )}
