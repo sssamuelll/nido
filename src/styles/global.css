@@ -1193,22 +1193,28 @@ a:hover { color: var(--text) }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px }
 
 /* Event toggle in CategoryModal */
-.event-toggle-wrap { margin-bottom: 6px }
-.event-toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; width: 100% }
+.event-toggle-wrap.form-row { display: block; margin-bottom: 14px }
+.modal .event-toggle-wrap label { min-width: auto; color: inherit }
+.event-toggle-row {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; width: 100%;
+  padding: 10px 14px; background: var(--surface); border: 1px solid var(--glass-border);
+  border-radius: var(--rs); transition: border-color .2s;
+}
+.event-toggle-row:hover { border-color: rgba(255,255,255,.15) }
 .event-toggle { flex-shrink: 0 }
 .event-toggle__track {
   display: block; width: 40px; height: 22px; border-radius: 11px;
-  background: rgba(255,255,255,.15); position: relative; transition: background .2s;
+  background: rgba(255,255,255,.2); position: relative; transition: background .2s;
 }
 .event-toggle--active .event-toggle__track { background: var(--green) }
 .event-toggle__thumb {
   display: block; width: 18px; height: 18px; border-radius: 50%;
-  background: rgba(255,255,255,.4); position: absolute; top: 2px; left: 2px;
+  background: rgba(255,255,255,.5); position: absolute; top: 2px; left: 2px;
   transition: transform .2s, background .2s;
 }
 .event-toggle--active .event-toggle__thumb { transform: translateX(18px); background: #fff }
 .event-toggle__label { font-size: 13px; color: var(--ts); transition: color .2s }
-.event-toggle--active + .event-toggle__label { color: var(--green); font-weight: 500 }
+.event-toggle--active ~ .event-toggle__label { color: var(--green); font-weight: 500 }
 
 .approval-note { background: rgba(96, 165, 250, .08); border: 1px solid rgba(96, 165, 250, .15); border-radius: var(--rx); padding: 10px 14px; font-size: 12px; color: var(--blue); margin-top: 14px; display: flex; align-items: center; gap: 8px }
 
