@@ -1194,6 +1194,20 @@ a:hover { color: var(--text) }
 .modal .form-input[type="month"] { -webkit-appearance: none; appearance: none }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px }
 
+/* Edit expense modal actions (4 buttons) */
+.edit-modal-actions {
+  display: flex; gap: 10px; justify-content: space-between; margin-top: 20px;
+  flex-wrap: wrap;
+}
+.edit-modal-actions__secondary { display: flex; gap: 8px }
+.edit-modal-actions__primary { display: flex; gap: 8px }
+@media (max-width: 480px) {
+  .edit-modal-actions { flex-direction: column; gap: 12px }
+  .edit-modal-actions__secondary { order: 2 }
+  .edit-modal-actions__primary { order: 1; justify-content: stretch }
+  .edit-modal-actions__primary .btn { flex: 1 }
+}
+
 /* Event toggle in CategoryModal */
 .event-toggle-wrap.form-row { display: block; margin-bottom: 14px }
 .modal .event-toggle-wrap label { min-width: auto; color: inherit }
