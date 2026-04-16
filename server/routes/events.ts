@@ -271,6 +271,8 @@ router.put('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Solo puedes editar tus propios eventos personales' });
     }
 
+    const goalIdValue = goal_id !== undefined ? (goal_id ?? null) : (existing as any).goal_id;
+
     await db.run(
       `UPDATE events SET
          name          = COALESCE(?, name),
@@ -278,15 +280,14 @@ router.put('/:id', async (req: AuthRequest, res) => {
          budget_amount = COALESCE(?, budget_amount),
          start_date    = COALESCE(?, start_date),
          end_date      = COALESCE(?, end_date),
-         goal_id       = CASE WHEN ?1 = 1 THEN ?2 ELSE goal_id END
+         goal_id       = ?
        WHERE id = ?`,
       name ?? null,
       emoji ?? null,
       budget_amount ?? null,
       start_date ?? null,
       end_date ?? null,
-      goal_id !== undefined ? 1 : 0,
-      goal_id !== undefined ? (goal_id ?? null) : null,
+      goalIdValue,
       id
     );
 
