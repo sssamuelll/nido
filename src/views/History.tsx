@@ -776,28 +776,16 @@ export const History: React.FC = () => {
 
               {editError && <div className="add-expense__error-msg">{editError}</div>}
 
-              <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-sm"
-                    onClick={handleDeleteExpense}
-                    disabled={savingEdit}
-                    style={{ opacity: 0.8 }}
-                  >
+              <div className="edit-modal-actions">
+                <div className="edit-modal-actions__secondary">
+                  <button type="button" className="btn btn-danger-outline btn-sm" onClick={handleDeleteExpense} disabled={savingEdit}>
                     Eliminar
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={handleDuplicateExpense}
-                    disabled={savingEdit}
-                    title="Crear una copia de este gasto"
-                  >
+                  <button type="button" className="btn btn-outline btn-sm" onClick={handleDuplicateExpense} disabled={savingEdit} title="Crear una copia de este gasto">
                     Duplicar
                   </button>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="edit-modal-actions__primary">
                   <button type="button" className="btn btn-outline" onClick={closeEditModal} disabled={savingEdit}>
                     Cancelar
                   </button>
