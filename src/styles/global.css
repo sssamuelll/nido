@@ -236,6 +236,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -281,6 +282,7 @@ a:hover { color: var(--text) }
 .app-layout {
   background: var(--bg);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .content-area {
