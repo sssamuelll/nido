@@ -388,6 +388,7 @@ a:hover { color: var(--text) }
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--glass-border);
   padding: 8px 0 env(safe-area-inset-bottom, 8px); height: auto;
+  transform: translateZ(0); /* GPU layer — prevents shift on Android Chrome URL bar hide/show */
 }
 
 /* Inner flex wrapper (design reference) */
