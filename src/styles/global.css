@@ -236,7 +236,6 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  min-height: 100dvh;
   overflow-x: hidden;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -282,7 +281,6 @@ a:hover { color: var(--text) }
 .app-layout {
   background: var(--bg);
   min-height: 100vh;
-  min-height: 100dvh;
 }
 
 .content-area {
@@ -383,12 +381,12 @@ a:hover { color: var(--text) }
    ============================================ */
 
 .bottom-nav {
-  display: none; position: fixed; bottom: 0; left: 0; right: 0;
+  display: none;
   z-index: 200; background: var(--glass);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--glass-border);
-  padding: 8px 0 env(safe-area-inset-bottom, 8px); height: auto;
-  transform: translateZ(0); /* GPU layer — prevents shift on Android Chrome URL bar hide/show */
+  padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  flex-shrink: 0;
 }
 
 /* Inner flex wrapper (design reference) */
@@ -2365,10 +2363,15 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
    ============================================ */
 
 @media (max-width: 768px) {
-  /* Navigation: hide rail, show bottom nav */
+  /* Mobile layout: flex column container, content scrolls internally, bottom nav is in flow */
+  .app-layout {
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+  }
   .sidebar { display: none !important }
-  .content-area { margin-left: 0; padding: 20px 16px 100px }
-  .main { margin-left: 0 !important; padding: 20px 16px 100px !important }
+  .content-area { margin-left: 0; padding: 20px 16px 24px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch }
+  .main { margin-left: 0 !important; padding: 20px 16px 24px !important }
   .bottom-nav { display: block }
 
   /* Login */

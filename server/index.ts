@@ -129,7 +129,8 @@ app.post('/api/auth/logout', async (req, res) => {
 // General rate limit for all authenticated API routes
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 300,
+  max: 120,
+  keyGenerator: (req) => (req as AuthRequest).user?.id?.toString() || req.ip || 'unknown',
   message: { error: 'Demasiadas peticiones, intenta de nuevo en un momento' },
   standardHeaders: true,
   legacyHeaders: false,
