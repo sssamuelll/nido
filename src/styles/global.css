@@ -2363,16 +2363,12 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
    ============================================ */
 
 @media (max-width: 768px) {
-  /* Mobile layout: flex column container, content scrolls internally, bottom nav is in flow */
-  .app-layout {
-    display: flex; flex-direction: column;
-    height: 100vh; height: 100dvh;
-    overflow: hidden;
-  }
+  /* Mobile layout: flex column, normal document scroll, sticky bottom nav */
+  .app-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh }
   .sidebar { display: none !important }
-  .content-area { margin-left: 0; padding: 20px 16px 24px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch }
+  .content-area { margin-left: 0; padding: 20px 16px 24px; flex: 1 }
   .main { margin-left: 0 !important; padding: 20px 16px 24px !important }
-  .bottom-nav { display: block }
+  .bottom-nav { display: block; position: sticky; bottom: 0 }
 
   /* Login */
   .login-page.visible { flex-direction: column }
