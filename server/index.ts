@@ -129,7 +129,7 @@ app.post('/api/auth/logout', async (req, res) => {
 // General rate limit for all authenticated API routes
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100,
+  max: 300,
   message: { error: 'Demasiadas peticiones, intenta de nuevo en un momento' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -298,6 +298,10 @@ app.use(express.static(clientBuildPath));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Endpoint de API no encontrado' });
+  }
+  // Don't serve index.html for missing static assets (prevents MIME type mismatch)
+  if (req.path.startsWith('/assets/') || req.path.match(/\.(js|css|map|png|jpg|svg|ico|woff2?)$/)) {
+    return res.status(404).end();
   }
   res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
