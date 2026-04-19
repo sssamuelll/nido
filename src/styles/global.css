@@ -381,12 +381,15 @@ a:hover { color: var(--text) }
    ============================================ */
 
 .bottom-nav {
+  --bnav-height: 66px;
   display: none;
+  position: fixed; left: 0; right: 0;
+  bottom: 0; /* fallback for browsers without dvh */
+  top: calc(100dvh - var(--bnav-height) - env(safe-area-inset-bottom, 0px));
   z-index: 200; background: var(--glass);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--glass-border);
   padding: 8px 0 env(safe-area-inset-bottom, 8px);
-  flex-shrink: 0;
 }
 
 /* Inner flex wrapper (design reference) */
@@ -2363,12 +2366,11 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
    ============================================ */
 
 @media (max-width: 768px) {
-  /* Mobile layout: flex column, normal document scroll, sticky bottom nav */
-  .app-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh }
+  /* Mobile: hide sidebar, show bottom nav, content needs padding for fixed nav */
   .sidebar { display: none !important }
-  .content-area { margin-left: 0; padding: 20px 16px 24px; flex: 1 }
-  .main { margin-left: 0 !important; padding: 20px 16px 24px !important }
-  .bottom-nav { display: block; position: sticky; bottom: 0 }
+  .content-area { margin-left: 0; padding: 20px 16px 90px }
+  .main { margin-left: 0 !important; padding: 20px 16px 90px !important }
+  .bottom-nav { display: block }
 
   /* Login */
   .login-page.visible { flex-direction: column }
