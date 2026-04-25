@@ -3,7 +3,6 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
-import type { AuthenticatorTransportFuture } from '@simplewebauthn/server';
 import { getDatabase } from '../db.js';
 import { createAppSession, setAppSessionCookie, verifyPin } from '../auth.js';
 import {
@@ -13,6 +12,7 @@ import {
   getAndDeleteChallenge,
   loginLimiter,
 } from './passkey-shared.js';
+import { parseTransports } from './passkey-transports.js';
 
 const router = Router();
 
@@ -28,7 +28,7 @@ router.post('/login/start', loginLimiter, async (_req: Request, res: Response) =
       rpID,
       allowCredentials: credentials.map((c) => ({
         id: c.credential_id,
-        transports: JSON.parse(c.transports || '[]') as AuthenticatorTransportFuture[],
+        transports: parseTransports(c.transports, { credentialId: c.credential_id }),
       })),
       userVerification: 'preferred',
     });
