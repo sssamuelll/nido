@@ -3,7 +3,6 @@ import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
-import type { AuthenticatorTransportFuture } from '@simplewebauthn/server';
 import { getDatabase } from '../db.js';
 import { authenticateToken, AuthRequest } from '../auth.js';
 import {
@@ -14,6 +13,7 @@ import {
   getAndDeleteChallenge,
   deriveDeviceName,
 } from './passkey-shared.js';
+import { parseTransports } from './passkey-transports.js';
 
 const router = Router();
 
@@ -41,7 +41,7 @@ router.post('/register/start', authenticateToken, async (req: AuthRequest, res: 
       },
       excludeCredentials: existingCreds.map((c) => ({
         id: c.credential_id,
-        transports: JSON.parse(c.transports || '[]') as AuthenticatorTransportFuture[],
+        transports: parseTransports(c.transports, { credentialId: c.credential_id }),
       })),
     });
 
