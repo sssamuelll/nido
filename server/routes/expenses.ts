@@ -5,7 +5,14 @@ import {
   expenseCreateSchema,
   expenseUpdateSchema,
   validate,
+  validateQuery,
+  expenseListQuerySchema,
+  expenseSummaryQuerySchema,
+  expenseExportQuerySchema,
   ExpenseInput,
+  ExpenseListQuery,
+  ExpenseSummaryQuery,
+  ExpenseExportQuery,
 } from '../validation.js';
 import { getLegacyPaidBy, getPersonalBudget } from '../user-utils.js';
 
@@ -82,23 +89,21 @@ const resolveCategoryId = async (
 };
 
 // Get expenses — supports both month (legacy) and date range (cycle-based)
-router.get('/', async (req: AuthRequest, res) => {
-  const startDate = req.query.start_date as string | undefined;
-  const endDate = req.query.end_date as string | undefined;
-  const month = req.query.month as string | undefined;
-  const eventId = req.query.event_id as string | undefined;
+router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, res) => {
+  const { start_date: startDate, end_date: endDate, month, event_id: eventId } =
+    (req as AuthRequest & { validatedQuery: ExpenseListQuery }).validatedQuery;
 
   try {
     const db = getDatabase();
     let expenses;
-    const eventFilter = eventId ? ` AND event_id = ?` : '';
+    const eventFilter = eventId !== undefined ? ` AND event_id = ?` : '';
 
     if (startDate) {
       expenses = await db.all(
         `SELECT * FROM expenses
          WHERE ${visibleExpensesWhereRange}${eventFilter}
          ORDER BY date DESC, created_at DESC`,
-        ...(eventId
+        ...(eventId !== undefined
           ? [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username, eventId]
           : [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username])
       );
@@ -107,7 +112,7 @@ router.get('/', async (req: AuthRequest, res) => {
         `SELECT * FROM expenses
          WHERE ${visibleExpensesWhereMonth}${eventFilter}
          ORDER BY date DESC, created_at DESC`,
-        ...(eventId
+        ...(eventId !== undefined
           ? [`${month}%`, req.user!.id, req.user!.username, eventId]
           : [`${month}%`, req.user!.id, req.user!.username])
       );
@@ -117,7 +122,7 @@ router.get('/', async (req: AuthRequest, res) => {
         `SELECT * FROM expenses
          WHERE (type = 'shared' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))${eventFilter}
          ORDER BY date DESC, created_at DESC`,
-        ...(eventId
+        ...(eventId !== undefined
           ? [req.user!.id, req.user!.username, eventId]
           : [req.user!.id, req.user!.username])
       );
@@ -131,12 +136,11 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // Export expenses as CSV
-router.get('/export', async (req: AuthRequest, res) => {
+router.get('/export', validateQuery(expenseExportQuerySchema), async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const startDate = req.query.start_date as string | undefined;
-    const endDate = req.query.end_date as string | undefined;
-    const context = req.query.context as string | undefined;
+    const { start_date: startDate, end_date: endDate, context } =
+      (req as AuthRequest & { validatedQuery: ExpenseExportQuery }).validatedQuery;
 
     let where = '(type = \'shared\' OR paid_by_user_id = ? OR (paid_by_user_id IS NULL AND paid_by = ?))';
     const params: (string | number)[] = [req.user!.id, req.user!.username];
@@ -354,10 +358,9 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 // Get dashboard summary — supports month (legacy) or date range (cycle-based)
-router.get('/summary', async (req: AuthRequest, res) => {
-  const startDate = req.query.start_date as string | undefined;
-  const endDate = req.query.end_date as string | undefined;
-  const month = req.query.month as string | undefined;
+router.get('/summary', validateQuery(expenseSummaryQuerySchema), async (req: AuthRequest, res) => {
+  const { start_date: startDate, end_date: endDate, month } =
+    (req as AuthRequest & { validatedQuery: ExpenseSummaryQuery }).validatedQuery;
 
   try {
     const db = getDatabase();
