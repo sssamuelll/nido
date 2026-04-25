@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
+import {
+  validate,
+  eventCreateSchema,
+  eventUpdateSchema,
+  EventCreateInput,
+  EventUpdateInput,
+} from '../validation.js';
 
 const router = Router();
 
@@ -139,7 +146,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST / — Create event
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', validate(eventCreateSchema), async (req: AuthRequest, res) => {
   const {
     name,
     emoji,
@@ -149,20 +156,7 @@ router.post('/', async (req: AuthRequest, res) => {
     goal_id,
     context,
     subcategories,
-  } = req.body as {
-    name: string;
-    emoji?: string;
-    budget_amount?: number;
-    start_date: string;
-    end_date: string;
-    goal_id?: number | null;
-    context?: string;
-    subcategories?: Array<{ name: string; emoji: string; color: string }>;
-  };
-
-  if (!name || !start_date || !end_date) {
-    return res.status(400).json({ error: 'Nombre, fecha de inicio y fecha de fin son requeridos' });
-  }
+  } = req.validatedData as EventCreateInput;
 
   try {
     const db = getDatabase();
@@ -175,8 +169,7 @@ router.post('/', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    const eventContext = context === 'personal' ? 'personal' : 'shared';
-    const ownerUserId = eventContext === 'personal' ? req.user!.id : null;
+    const ownerUserId = context === 'personal' ? req.user!.id : null;
 
     const result = await db.run(
       `INSERT INTO events (household_id, name, emoji, budget_amount, start_date, end_date, goal_id, context, owner_user_id, created_by)
@@ -188,27 +181,24 @@ router.post('/', async (req: AuthRequest, res) => {
       start_date,
       end_date,
       goal_id ?? null,
-      eventContext,
+      context,
       ownerUserId,
       req.user!.id
     );
 
     const eventId = result.lastID;
 
-    // Insert subcategories / event_categories
-    if (Array.isArray(subcategories) && subcategories.length > 0) {
+    if (subcategories && subcategories.length > 0) {
       for (const sub of subcategories) {
-        if (sub.name && sub.emoji && sub.color) {
-          await db.run(
-            `INSERT INTO event_categories (event_id, name, emoji, color)
-             VALUES (?, ?, ?, ?)
-             ON CONFLICT(event_id, name) DO UPDATE SET emoji = excluded.emoji, color = excluded.color`,
-            eventId,
-            sub.name,
-            sub.emoji,
-            sub.color
-          );
-        }
+        await db.run(
+          `INSERT INTO event_categories (event_id, name, emoji, color)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(event_id, name) DO UPDATE SET emoji = excluded.emoji, color = excluded.color`,
+          eventId,
+          sub.name,
+          sub.emoji,
+          sub.color
+        );
       }
     }
 
@@ -226,7 +216,7 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // PUT /:id — Update event (partial, COALESCE pattern)
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', validate(eventUpdateSchema), async (req: AuthRequest, res) => {
   const { id } = req.params;
   const {
     name,
@@ -236,15 +226,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     end_date,
     goal_id,
     subcategories,
-  } = req.body as {
-    name?: string;
-    emoji?: string;
-    budget_amount?: number;
-    start_date?: string;
-    end_date?: string;
-    goal_id?: number | null;
-    subcategories?: Array<{ name: string; emoji: string; color: string }>;
-  };
+  } = req.validatedData as EventUpdateInput;
 
   try {
     const db = getDatabase();
@@ -292,18 +274,16 @@ router.put('/:id', async (req: AuthRequest, res) => {
     );
 
     // Update subcategories if provided: replace all for this event
-    if (Array.isArray(subcategories)) {
+    if (subcategories) {
       await db.run('DELETE FROM event_categories WHERE event_id = ?', id);
       for (const sub of subcategories) {
-        if (sub.name && sub.emoji && sub.color) {
-          await db.run(
-            `INSERT INTO event_categories (event_id, name, emoji, color) VALUES (?, ?, ?, ?)`,
-            id,
-            sub.name,
-            sub.emoji,
-            sub.color
-          );
-        }
+        await db.run(
+          `INSERT INTO event_categories (event_id, name, emoji, color) VALUES (?, ?, ?, ?)`,
+          id,
+          sub.name,
+          sub.emoji,
+          sub.color
+        );
       }
     }
 
