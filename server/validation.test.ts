@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+  analyticsQuerySchema,
   dateSchema,
   expenseCreateSchema,
   expenseUpdateSchema,
@@ -445,6 +446,154 @@ describe('Validation Schemas', () => {
 
     it('accepts missing context (route falls back to a safe default)', () => {
       expect(expenseExportQuerySchema.safeParse({}).success).toBe(true);
+    });
+  });
+
+  describe('analyticsQuerySchema', () => {
+    it('accepts an empty query and defaults context to shared', () => {
+      const result = analyticsQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.context).toBe('shared');
+        expect(result.data.start_date).toBeUndefined();
+        expect(result.data.end_date).toBeUndefined();
+      }
+    });
+
+    it('accepts a fully populated valid query and yields a strong type', () => {
+      const result = analyticsQuerySchema.safeParse({
+        context: 'personal',
+        start_date: '2025-01-01',
+        end_date: '2025-03-31',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const ctx: 'shared' | 'personal' = result.data.context;
+        expect(ctx).toBe('personal');
+        expect(result.data.start_date).toBe('2025-01-01');
+        expect(result.data.end_date).toBe('2025-03-31');
+      }
+    });
+
+    // Paso 1.c.1: ?context=personal&context=shared → qs collapses to an array.
+    // The pre-parser cast `as string` was a lie and the ternary fell to the
+    // default 'shared', silently returning the wrong household context.
+    it('rejects context as an array (?context=a&context=b)', () => {
+      const result = analyticsQuerySchema.safeParse({ context: ['shared', 'personal'] });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects context as a number (typeof mismatch)', () => {
+      expect(analyticsQuerySchema.safeParse({ context: 1 }).success).toBe(false);
+    });
+
+    it('rejects an unknown context enum value', () => {
+      expect(analyticsQuerySchema.safeParse({ context: 'household' }).success).toBe(false);
+      expect(analyticsQuerySchema.safeParse({ context: '__proto__' }).success).toBe(false);
+    });
+
+    // Paso 1.c.2: ?start_date[$gt]=zzz → qs collapses to a nested object.
+    // The pre-parser cast `as string | undefined` lied and sqlite3 bindings
+    // threw TypeError 30 frames later, surfaced as a contextless 500.
+    it('rejects start_date as a nested object (?start_date[$gt]=zzz)', () => {
+      const result = analyticsQuerySchema.safeParse({ start_date: { $gt: 'zzz' } });
+      expect(result.success).toBe(false);
+    });
+
+    // Paso 1.c.3: ?start_date=foo → SQL did `WHERE date >= 'foo'` (lex compare)
+    // and `new Date('foo')` produced NaN that propagated into periodDays /
+    // dailyRate / vsPrevPeriod and rendered as €NaN insights.
+    it('rejects malformed start_date string (foo)', () => {
+      expect(analyticsQuerySchema.safeParse({ start_date: 'foo' }).success).toBe(false);
+    });
+
+    it('rejects start_date with valid YYYY-MM-DD shape but invalid calendar date', () => {
+      expect(analyticsQuerySchema.safeParse({ start_date: '2025-13-01' }).success).toBe(false);
+      expect(analyticsQuerySchema.safeParse({ start_date: '2025-02-31' }).success).toBe(false);
+    });
+
+    it('rejects empty start_date string (qs collapses ?start_date= to "")', () => {
+      expect(analyticsQuerySchema.safeParse({ start_date: '' }).success).toBe(false);
+    });
+
+    it('rejects start_date longer than the YYYY-MM-DD regex (DoS / log-poisoning)', () => {
+      const oversized = '2025-01-01' + 'x'.repeat(10000);
+      expect(analyticsQuerySchema.safeParse({ start_date: oversized }).success).toBe(false);
+    });
+
+    it('rejects start_date containing a null byte', () => {
+      expect(analyticsQuerySchema.safeParse({ start_date: '2025-01- 1' }).success).toBe(false);
+    });
+
+    // Paso 1.c.4: ?start_date=2025-01-31&end_date=2025-01-01 → SQL returns 0
+    // rows, periodDays goes negative, dailyRate goes negative — KPIs silently
+    // wrong with no telemetry.
+    it('rejects when end_date precedes start_date (semantically impossible)', () => {
+      const result = analyticsQuerySchema.safeParse({
+        start_date: '2025-01-31',
+        end_date: '2025-01-01',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts a single date side without invoking the cross-field check', () => {
+      expect(analyticsQuerySchema.safeParse({ start_date: '2025-01-01' }).success).toBe(true);
+      expect(analyticsQuerySchema.safeParse({ end_date: '2025-01-01' }).success).toBe(true);
+    });
+
+    it('rejects null, undefined, and array as the whole query', () => {
+      expect(analyticsQuerySchema.safeParse(null).success).toBe(false);
+      expect(analyticsQuerySchema.safeParse(undefined).success).toBe(false);
+      expect(analyticsQuerySchema.safeParse([]).success).toBe(false);
+    });
+
+    // Decision (Paso 2.d): default zod strip — unknown keys silently dropped.
+    // Forward-compat for client params we may add later (?range=last30 etc.)
+    // without coordinating a server deploy first. Strip is laxer than strict
+    // but does NOT reach the handler with unknown keys.
+    it('strips unknown extra fields silently (forward-compat)', () => {
+      const result = analyticsQuerySchema.safeParse({
+        context: 'shared',
+        utm_source: 'newsletter',
+        range: 'last30',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect((result.data as Record<string, unknown>).utm_source).toBeUndefined();
+        expect((result.data as Record<string, unknown>).range).toBeUndefined();
+      }
+    });
+
+    // No numeric fields in this schema, so NaN/Infinity/-0 input attacks land
+    // on dateSchema and queryContextSchema instead — they are typed `string`
+    // / enum and reject all three by failing the typeof check before regex.
+    it('rejects NaN / Infinity / -0 in any field (none are number-typed)', () => {
+      expect(analyticsQuerySchema.safeParse({ start_date: NaN }).success).toBe(false);
+      expect(analyticsQuerySchema.safeParse({ end_date: Infinity }).success).toBe(false);
+      expect(analyticsQuerySchema.safeParse({ context: -0 }).success).toBe(false);
+    });
+
+    it('does not mutate the input', () => {
+      const input = { context: 'personal', start_date: '2025-01-01', extra: 'x' };
+      const snapshot = JSON.stringify(input);
+      analyticsQuerySchema.safeParse(input);
+      expect(JSON.stringify(input)).toBe(snapshot);
+    });
+
+    it('is deterministic for identical inputs', () => {
+      const a = analyticsQuerySchema.safeParse({ context: 'personal', start_date: '2025-01-01' });
+      const b = analyticsQuerySchema.safeParse({ context: 'personal', start_date: '2025-01-01' });
+      expect(a).toEqual(b);
+    });
+
+    it('error path includes field name but no input value (no PII leak)', () => {
+      const result = analyticsQuerySchema.safeParse({ start_date: 'super-secret-token-1234' });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const messages = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+        expect(messages.some(m => m.startsWith('start_date:'))).toBe(true);
+        expect(messages.some(m => m.includes('super-secret-token-1234'))).toBe(false);
+      }
     });
   });
 
