@@ -1,3 +1,5 @@
+import { parseCycleList, type CycleInfo } from './api-types/cycles';
+
 const API_BASE = '/api';
 
 interface ApiOptions {
@@ -365,11 +367,9 @@ export class Api {
   static async togglePauseRecurring(id: number) { return this.request(`/recurring/${id}/pause`, { method: 'PUT' }); }
 
   // Billing cycles
-  static async listCycles(): Promise<Array<{
-    id: number; month: string; status: string; start_date: string | null;
-    end_date: string | null; started_at: string | null;
-  }>> {
-    return this.request('/cycles/list');
+  static async listCycles(): Promise<CycleInfo[]> {
+    const raw = await this.request('/cycles/list');
+    return parseCycleList(raw);
   }
   static async getCurrentCycle() { return this.request('/cycles/current'); }
   static async requestCycle() { return this.request('/cycles/request', { method: 'POST' }); }
