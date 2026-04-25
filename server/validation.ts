@@ -218,3 +218,29 @@ export const expenseExportQuerySchema = z.object({
 export type ExpenseListQuery = z.infer<typeof expenseListQuerySchema>;
 export type ExpenseSummaryQuery = z.infer<typeof expenseSummaryQuerySchema>;
 export type ExpenseExportQuery = z.infer<typeof expenseExportQuerySchema>;
+
+// Household budget mutation schemas.
+//
+// PUT /api/household/budget and POST /api/household/budget/approve previously
+// destructured req.body without any schema. total_amount / personal_budget
+// reached SQLite UPDATE/INSERT bindings as whatever shape the client sent
+// (string "100", NaN, Infinity, negative, object, undefined). Numeric columns
+// with NUMERIC affinity coerce silently and persist garbage that later reads
+// (server/routes/expenses.ts:379) propagate as NaN/null into the dashboards
+// of every household member. These schemas reject those inputs at the boundary.
+const MAX_HOUSEHOLD_BUDGET = 1_000_000_000;
+
+export const householdBudgetUpdateSchema = z.object({
+  total_amount: z.number().finite().nonnegative().max(MAX_HOUSEHOLD_BUDGET).optional(),
+  personal_budget: z.number().finite().nonnegative().max(MAX_HOUSEHOLD_BUDGET).optional(),
+}).strict().refine(
+  data => data.total_amount !== undefined || data.personal_budget !== undefined,
+  { message: 'total_amount or personal_budget is required', path: ['total_amount'] },
+);
+
+export const householdBudgetApproveSchema = z.object({
+  approval_id: z.number().finite().int().positive(),
+}).strict();
+
+export type HouseholdBudgetUpdateInput = z.infer<typeof householdBudgetUpdateSchema>;
+export type HouseholdBudgetApproveInput = z.infer<typeof householdBudgetApproveSchema>;
