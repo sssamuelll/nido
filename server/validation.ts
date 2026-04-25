@@ -219,6 +219,29 @@ export type ExpenseListQuery = z.infer<typeof expenseListQuerySchema>;
 export type ExpenseSummaryQuery = z.infer<typeof expenseSummaryQuerySchema>;
 export type ExpenseExportQuery = z.infer<typeof expenseExportQuerySchema>;
 
+// GET /api/analytics is the dashboard's hot read. The handler used to do
+// `req.query.context as string`, `req.query.start_date as string | undefined`,
+// `req.query.end_date as string | undefined` — each cast is a lie because qs
+// expands `?a=x&a=y` into an array and `?a[b]=c` into a nested object. The
+// real failure modes were:
+//   - context array → cast still passes, ternary defaults to 'shared' silently,
+//     user that asked for personal sees shared spend.
+//   - start_date object → bound directly to sqlite3, throws TypeError 30 frames
+//     later inside db.js, surfaced as a contextless 500.
+//   - start_date='foo' → SQL does WHERE date >= 'foo' (lexicographic, garbage
+//     results), then `new Date('foo')` produces NaN that propagates through
+//     periodDays / dailyRate / vsPrevPeriod and renders as €NaN in insights.
+//   - end_date < start_date → 0 rows, negative periodDays, negative dailyRate.
+// This schema rejects all four at the boundary, returns 400 with a `details`
+// path, and yields a strong type the handler can trust by construction.
+export const analyticsQuerySchema = z.object({
+  context: queryContextSchema.default('shared'),
+  start_date: dateSchema.optional(),
+  end_date: dateSchema.optional(),
+}).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
+
+export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>;
+
 // Household budget mutation schemas.
 //
 // PUT /api/household/budget and POST /api/household/budget/approve previously

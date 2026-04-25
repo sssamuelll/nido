@@ -2,6 +2,11 @@ import { Router } from 'express';
 import { getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { getLegacyPaidBy as getLegacyPersonKey, getPersonalBudget } from '../user-utils.js';
+import {
+  AnalyticsQuery,
+  analyticsQuerySchema,
+  validateQuery,
+} from '../validation.js';
 
 const router = Router();
 
@@ -43,16 +48,13 @@ interface HouseholdBudgetRow {
   personal_maria: number;
 }
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', validateQuery(analyticsQuerySchema), async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
+    const { context, start_date: startDate, end_date: endDate } =
+      (req as AuthRequest & { validatedQuery: AnalyticsQuery }).validatedQuery;
     const currentUser = req.user!;
     const userId = req.user!.id;
-
-    // Accept start_date / end_date (same pattern as expenses endpoint)
-    const startDate = req.query.start_date as string | undefined;
-    const endDate = req.query.end_date as string | undefined;
 
     let dateFilter = '';
     let dateParams: string[] = [];

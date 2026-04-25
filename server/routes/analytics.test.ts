@@ -30,9 +30,14 @@ const createResponse = () => {
 // Freeze current date for deterministic tests
 const NOW = new Date('2026-03-15T12:00:00Z');
 
+// The handler reads `req.validatedQuery` (populated by validateQuery middleware
+// in the real route stack). Tests grab the inner handler directly via
+// getRouteHandler(...) so the middleware never runs — we have to set
+// validatedQuery on the request manually.
 const createRequest = (overrides: any = {}): any => ({
   user: { id: 1, username: 'samuel', household_id: 1 },
   query: { months: '6', context: 'shared' },
+  validatedQuery: { context: 'shared' },
   ...overrides,
 });
 
@@ -231,7 +236,7 @@ describe('analytics routes', () => {
       // Shared request
       setupDefaultMocks({ currentMonthTotal: 1000, currentMonthCount: 30 });
       const handler = getRouteHandler('/', 'get');
-      const reqShared = createRequest({ query: { months: '6', context: 'shared' } });
+      const reqShared = createRequest({ validatedQuery: { context: 'shared' } });
       const resShared = createResponse();
       await handler(reqShared, resShared);
 
@@ -242,7 +247,7 @@ describe('analytics routes', () => {
       // Reset for personal request
       vi.clearAllMocks();
       setupDefaultMocks({ currentMonthTotal: 200, currentMonthCount: 5 });
-      const reqPersonal = createRequest({ query: { months: '6', context: 'personal' } });
+      const reqPersonal = createRequest({ validatedQuery: { context: 'personal' } });
       const resPersonal = createResponse();
       await handler(reqPersonal, resPersonal);
 
