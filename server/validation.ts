@@ -110,3 +110,47 @@ export const recurringExpenseUpdateSchema = z.object({
 
 export type RecurringExpenseInput = z.infer<typeof recurringExpenseCreateSchema>;
 export type RecurringExpenseUpdateInput = z.infer<typeof recurringExpenseUpdateSchema>;
+
+const noNullByte = (s: string) => !s.includes("\u0000");
+
+const eventNameSchema = z.string().min(1).max(100).refine(noNullByte, 'name must not contain null bytes');
+const eventEmojiSchema = z.string().min(1).max(20).refine(noNullByte, 'emoji must not contain null bytes');
+
+const eventSubcategorySchema = z.object({
+  name: eventNameSchema,
+  emoji: eventEmojiSchema,
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'color must be #RRGGBB'),
+});
+
+const MAX_SUBCATEGORIES = 50;
+const MAX_BUDGET_AMOUNT = 1_000_000_000;
+
+export const eventCreateSchema = z.object({
+  name: eventNameSchema,
+  emoji: eventEmojiSchema.optional(),
+  budget_amount: z.coerce.number().finite().nonnegative().max(MAX_BUDGET_AMOUNT).optional(),
+  start_date: dateSchema,
+  end_date: dateSchema,
+  goal_id: z.coerce.number().int().positive().nullable().optional(),
+  context: z.enum(['shared', 'personal']).default('shared'),
+  subcategories: z.array(eventSubcategorySchema).max(MAX_SUBCATEGORIES).optional(),
+}).refine(data => data.end_date >= data.start_date, {
+  message: 'end_date must be on or after start_date',
+  path: ['end_date'],
+});
+
+export const eventUpdateSchema = z.object({
+  name: eventNameSchema.optional(),
+  emoji: eventEmojiSchema.optional(),
+  budget_amount: z.coerce.number().finite().nonnegative().max(MAX_BUDGET_AMOUNT).optional(),
+  start_date: dateSchema.optional(),
+  end_date: dateSchema.optional(),
+  goal_id: z.coerce.number().int().positive().nullable().optional(),
+  subcategories: z.array(eventSubcategorySchema).max(MAX_SUBCATEGORIES).optional(),
+}).refine(
+  data => data.start_date == null || data.end_date == null || data.end_date >= data.start_date,
+  { message: 'end_date must be on or after start_date', path: ['end_date'] },
+);
+
+export type EventCreateInput = z.infer<typeof eventCreateSchema>;
+export type EventUpdateInput = z.infer<typeof eventUpdateSchema>;
