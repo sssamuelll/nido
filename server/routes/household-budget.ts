@@ -2,6 +2,13 @@ import { Router } from 'express';
 import { getDatabase, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { getPersonalBudgetKey, getPersonalBudgetField } from '../user-utils.js';
+import {
+  validate,
+  householdBudgetUpdateSchema,
+  householdBudgetApproveSchema,
+  HouseholdBudgetUpdateInput,
+  HouseholdBudgetApproveInput,
+} from '../validation.js';
 
 const router = Router();
 
@@ -86,8 +93,9 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // PUT / — update household budget (personal direct, total requires approval)
-router.put('/', async (req: AuthRequest, res) => {
-  const { total_amount, personal_budget } = req.body;
+router.put('/', validate(householdBudgetUpdateSchema), async (req: AuthRequest, res) => {
+  const { total_amount, personal_budget } =
+    (req as AuthRequest & { validatedData: HouseholdBudgetUpdateInput }).validatedData;
 
   try {
     const db = getDatabase();
@@ -190,9 +198,9 @@ router.put('/', async (req: AuthRequest, res) => {
 });
 
 // POST /approve — approve a pending total_amount change
-router.post('/approve', async (req: AuthRequest, res) => {
-  const { approval_id } = req.body;
-  if (!approval_id) return res.status(400).json({ error: 'Se requiere approval_id' });
+router.post('/approve', validate(householdBudgetApproveSchema), async (req: AuthRequest, res) => {
+  const { approval_id } =
+    (req as AuthRequest & { validatedData: HouseholdBudgetApproveInput }).validatedData;
 
   try {
     const db = getDatabase();
