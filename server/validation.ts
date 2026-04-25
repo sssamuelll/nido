@@ -79,6 +79,30 @@ export function validate(schema: z.ZodSchema) {
   };
 }
 
+// Same as validate(), but parses req.query and stores the result on req.validatedQuery.
+// Needed because Express types req.query.X as `string`, but at runtime it is
+// `string | string[] | ParsedQs | ParsedQs[] | undefined` (qs parses ?a=x&a=y into an array,
+// and ?a[b]=c into a nested object). The cast `as string` lies; a hostile or stale URL
+// crashes downstream sqlite3 bindings or LIKE patterns.
+export function validateQuery(schema: z.ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = schema.safeParse(req.query);
+      if (!result.success) {
+        return res.status(400).json({
+          error: 'Error de validación',
+          details: result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
+      }
+      (req as Request & { validatedQuery?: unknown }).validatedQuery = result.data;
+      next();
+    } catch (error) {
+      console.error('Query validation middleware error:', error);
+      res.status(500).json({ error: 'Error interno de validación' });
+    }
+  };
+}
+
 export type ExpenseInput = z.infer<typeof expenseCreateSchema>;
 export type PinInput = z.infer<typeof pinSchema>;
 export const expenseSchema = expenseCreateSchema;
@@ -154,3 +178,43 @@ export const eventUpdateSchema = z.object({
 
 export type EventCreateInput = z.infer<typeof eventCreateSchema>;
 export type EventUpdateInput = z.infer<typeof eventUpdateSchema>;
+
+// Query-string schemas for GET routes in expenses.ts. The handlers consume
+// start_date / end_date / month / event_id / context that today are read as
+// `req.query.X as string | undefined` — that cast is false: req.query values are
+// `string | string[] | ParsedQs | ParsedQs[] | undefined`. These schemas turn the
+// raw ParsedQs into typed values or 400 at the boundary.
+
+const monthSchema = z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM');
+const queryContextSchema = z.enum(['shared', 'personal']);
+const queryEventIdSchema = z.coerce.number().finite().int().positive();
+
+const startBeforeOrEqualEnd = (data: { start_date?: string; end_date?: string }) =>
+  !data.start_date || !data.end_date || data.end_date >= data.start_date;
+const startBeforeOrEqualEndError: { message: string; path: (string | number)[] } = {
+  message: 'end_date must be on or after start_date',
+  path: ['end_date'],
+};
+
+export const expenseListQuerySchema = z.object({
+  start_date: dateSchema.optional(),
+  end_date: dateSchema.optional(),
+  month: monthSchema.optional(),
+  event_id: queryEventIdSchema.optional(),
+}).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
+
+export const expenseSummaryQuerySchema = z.object({
+  start_date: dateSchema.optional(),
+  end_date: dateSchema.optional(),
+  month: monthSchema.optional(),
+}).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
+
+export const expenseExportQuerySchema = z.object({
+  start_date: dateSchema.optional(),
+  end_date: dateSchema.optional(),
+  context: queryContextSchema.optional(),
+}).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
+
+export type ExpenseListQuery = z.infer<typeof expenseListQuerySchema>;
+export type ExpenseSummaryQuery = z.infer<typeof expenseSummaryQuerySchema>;
+export type ExpenseExportQuery = z.infer<typeof expenseExportQuerySchema>;

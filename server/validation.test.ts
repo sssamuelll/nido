@@ -1,10 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   dateSchema,
   expenseCreateSchema,
   expenseUpdateSchema,
   eventCreateSchema,
   eventUpdateSchema,
+  expenseListQuerySchema,
+  expenseSummaryQuerySchema,
+  expenseExportQuerySchema,
+  validateQuery,
 } from './validation.js';
 
 describe('Validation Schemas', () => {
@@ -281,6 +285,225 @@ describe('Validation Schemas', () => {
     it('rejects subcategory array beyond the cap on update', () => {
       const huge = Array(51).fill({ name: 'x', emoji: 'x', color: '#FFFFFF' });
       expect(eventUpdateSchema.safeParse({ subcategories: huge }).success).toBe(false);
+    });
+  });
+
+  describe('expenseListQuerySchema', () => {
+    it('accepts an empty query (no filter)', () => {
+      const result = expenseListQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({});
+      }
+    });
+
+    it('accepts a fully populated valid query and yields a strong type', () => {
+      const result = expenseListQuerySchema.safeParse({
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+        month: '2024-06',
+        event_id: '7',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.start_date).toBe('2024-01-01');
+        expect(result.data.end_date).toBe('2024-12-31');
+        expect(result.data.month).toBe('2024-06');
+        expect(result.data.event_id).toBe(7);
+      }
+    });
+
+    it('rejects start_date as an array (?start_date=a&start_date=b)', () => {
+      const result = expenseListQuerySchema.safeParse({ start_date: ['2024-01-01', '2024-12-31'] });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects start_date as a nested object (?start_date[$gt]=zzz)', () => {
+      const result = expenseListQuerySchema.safeParse({ start_date: { $gt: 'zzz' } });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects malformed start_date string', () => {
+      expect(expenseListQuerySchema.safeParse({ start_date: 'hola' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ start_date: '2024/01/01' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ start_date: '2024-13-01' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ start_date: '2024-02-30' }).success).toBe(false);
+    });
+
+    it('rejects malformed month (must be YYYY-MM)', () => {
+      expect(expenseListQuerySchema.safeParse({ month: '2024-1' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ month: '2024-01-01' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ month: 'foo' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ month: '' }).success).toBe(false);
+    });
+
+    it('rejects event_id = "abc" (would silently match 0 in SQLite TEXT/INT comparison)', () => {
+      expect(expenseListQuerySchema.safeParse({ event_id: 'abc' }).success).toBe(false);
+    });
+
+    it('rejects event_id = NaN, Infinity, -Infinity, -0, 0, negative, float', () => {
+      expect(expenseListQuerySchema.safeParse({ event_id: NaN }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ event_id: Infinity }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ event_id: -Infinity }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ event_id: -0 }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ event_id: 0 }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ event_id: -5 }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ event_id: 1.5 }).success).toBe(false);
+    });
+
+    it('rejects event_id = empty string (qs collapses ?event_id= to "")', () => {
+      // Number('') === 0, fails .positive() — would otherwise quietly select event_id = 0
+      expect(expenseListQuerySchema.safeParse({ event_id: '' }).success).toBe(false);
+    });
+
+    it('rejects event_id as an array', () => {
+      expect(expenseListQuerySchema.safeParse({ event_id: ['1', '2'] }).success).toBe(false);
+    });
+
+    it('rejects month containing a null byte', () => {
+      expect(expenseListQuerySchema.safeParse({ month: '2024- ' }).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse({ month: ' 2024-06' }).success).toBe(false);
+    });
+
+    it('rejects month longer than the YYYY-MM regex (DoS / log-poisoning hostile string)', () => {
+      const long = 'x'.repeat(10_000);
+      expect(expenseListQuerySchema.safeParse({ month: long }).success).toBe(false);
+    });
+
+    it('strips unknown extra fields silently (forward-compat: ?utm_source=…)', () => {
+      const result = expenseListQuerySchema.safeParse({
+        start_date: '2024-01-01',
+        utm_source: 'newsletter',
+        fbclid: 'abc',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect((result.data as Record<string, unknown>).utm_source).toBeUndefined();
+        expect((result.data as Record<string, unknown>).fbclid).toBeUndefined();
+        expect(result.data.start_date).toBe('2024-01-01');
+      }
+    });
+
+    it('rejects null, undefined, and array as the whole query', () => {
+      expect(expenseListQuerySchema.safeParse(null).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse(undefined).success).toBe(false);
+      expect(expenseListQuerySchema.safeParse([]).success).toBe(false);
+    });
+
+    it('rejects when end_date precedes start_date (semantically impossible)', () => {
+      const result = expenseListQuerySchema.safeParse({
+        start_date: '2024-12-15',
+        end_date: '2024-12-01',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts only one date side without invoking the cross-field check', () => {
+      expect(expenseListQuerySchema.safeParse({ start_date: '2024-12-15' }).success).toBe(true);
+      expect(expenseListQuerySchema.safeParse({ end_date: '2024-12-01' }).success).toBe(true);
+    });
+  });
+
+  describe('expenseSummaryQuerySchema', () => {
+    it('accepts the same date+month shape as the list schema', () => {
+      const result = expenseSummaryQuerySchema.safeParse({
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('strips event_id silently (summary route does not consume it)', () => {
+      const result = expenseSummaryQuerySchema.safeParse({ event_id: '7' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect((result.data as Record<string, unknown>).event_id).toBeUndefined();
+      }
+    });
+
+    it('still rejects invalid dates', () => {
+      expect(expenseSummaryQuerySchema.safeParse({ start_date: 'nope' }).success).toBe(false);
+    });
+  });
+
+  describe('expenseExportQuerySchema', () => {
+    it('accepts a valid context and date range', () => {
+      const result = expenseExportQuerySchema.safeParse({
+        start_date: '2024-01-01',
+        end_date: '2024-06-30',
+        context: 'shared',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.context).toBe('shared');
+    });
+
+    it('rejects an unknown context value', () => {
+      expect(expenseExportQuerySchema.safeParse({ context: 'household' }).success).toBe(false);
+      expect(expenseExportQuerySchema.safeParse({ context: 1 }).success).toBe(false);
+      expect(expenseExportQuerySchema.safeParse({ context: ['shared'] }).success).toBe(false);
+    });
+
+    it('accepts missing context (route falls back to a safe default)', () => {
+      expect(expenseExportQuerySchema.safeParse({}).success).toBe(true);
+    });
+  });
+
+  describe('validateQuery middleware', () => {
+    const buildReq = (query: unknown) =>
+      ({ query, body: {} }) as unknown as Parameters<ReturnType<typeof validateQuery>>[0];
+    const buildRes = () => {
+      const res = {
+        status: vi.fn(),
+        json: vi.fn(),
+      } as unknown as Parameters<ReturnType<typeof validateQuery>>[1] & {
+        status: ReturnType<typeof vi.fn>;
+        json: ReturnType<typeof vi.fn>;
+      };
+      (res.status as ReturnType<typeof vi.fn>).mockReturnValue(res);
+      (res.json as ReturnType<typeof vi.fn>).mockReturnValue(res);
+      return res;
+    };
+
+    it('attaches validatedQuery to the request and calls next on success', () => {
+      const req = buildReq({ start_date: '2024-01-01', event_id: '7' });
+      const res = buildRes();
+      const next = vi.fn();
+
+      validateQuery(expenseListQuerySchema)(req, res, next);
+
+      expect(next).toHaveBeenCalledOnce();
+      expect((res.status as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+      const validatedQuery = (req as unknown as { validatedQuery: { start_date: string; event_id: number } }).validatedQuery;
+      expect(validatedQuery).toEqual({ start_date: '2024-01-01', event_id: 7 });
+    });
+
+    it('responds 400 with structured details and does NOT call next on failure', () => {
+      const req = buildReq({ start_date: ['2024-01-01', '2024-12-31'] });
+      const res = buildRes();
+      const next = vi.fn();
+
+      validateQuery(expenseListQuerySchema)(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(400);
+      const payload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(payload.error).toBe('Error de validación');
+      expect(Array.isArray(payload.details)).toBe(true);
+      expect(payload.details.some((d: string) => d.startsWith('start_date:'))).toBe(true);
+    });
+
+    it('does not mutate req.query', () => {
+      const original = { start_date: '2024-01-01' };
+      const req = buildReq(original);
+      const res = buildRes();
+      validateQuery(expenseListQuerySchema)(req, res, vi.fn());
+      expect(original).toEqual({ start_date: '2024-01-01' });
+    });
+
+    it('is deterministic for identical inputs', () => {
+      const a = expenseListQuerySchema.safeParse({ start_date: '2024-01-01', event_id: '7' });
+      const b = expenseListQuerySchema.safeParse({ start_date: '2024-01-01', event_id: '7' });
+      expect(a).toEqual(b);
     });
   });
 
