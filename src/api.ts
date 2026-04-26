@@ -1,4 +1,5 @@
 import { parseCycleList, type CycleInfo } from './api-types/cycles';
+import { parseNotificationList, type Notification } from './api-types/notifications';
 
 const API_BASE = '/api';
 
@@ -339,8 +340,9 @@ export class Api {
     return this.request(`/analytics?${qs}`);
   }
 
-  static async getNotifications() {
-    return this.request('/notifications');
+  static async getNotifications(): Promise<Notification[]> {
+    const raw = await this.request('/notifications');
+    return parseNotificationList(raw);
   }
 
   static async markNotificationAsRead(id: number) {
