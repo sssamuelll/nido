@@ -53,8 +53,14 @@ const visibleExpensesWhereMonth = `
   )
 `;
 const visibleExpensesWhereRange = `
-  date >= ?
-  AND (? IS NULL OR date < ?)
+  (
+    expenses.cycle_id = ?
+    OR (
+      expenses.cycle_id IS NULL
+      AND date >= ?
+      AND (? IS NULL OR date < ?)
+    )
+  )
   AND (
     type = 'shared'
     OR paid_by_user_id = ?
@@ -121,7 +127,7 @@ export const resolveCycleIdForExpense = async (
 
 // Get expenses — supports both month (legacy) and date range (cycle-based)
 router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, res) => {
-  const { start_date: startDate, end_date: endDate, month, event_id: eventId } =
+  const { start_date: startDate, end_date: endDate, month, event_id: eventId, cycle_id: cycleId } =
     (req as AuthRequest & { validatedQuery: ExpenseListQuery }).validatedQuery;
 
   try {
@@ -135,8 +141,8 @@ router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, 
          WHERE ${visibleExpensesWhereRange}${eventFilter}
          ORDER BY date DESC, created_at DESC`,
         ...(eventId !== undefined
-          ? [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username, eventId]
-          : [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username])
+          ? [cycleId ?? -1, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username, eventId]
+          : [cycleId ?? -1, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username])
       );
     } else if (month) {
       expenses = await db.all(
@@ -391,7 +397,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
 // Get dashboard summary — supports month (legacy) or date range (cycle-based)
 router.get('/summary', validateQuery(expenseSummaryQuerySchema), async (req: AuthRequest, res) => {
-  const { start_date: startDate, end_date: endDate, month } =
+  const { start_date: startDate, end_date: endDate, month, cycle_id: cycleId } =
     (req as AuthRequest & { validatedQuery: ExpenseSummaryQuery }).validatedQuery;
 
   try {
@@ -418,7 +424,7 @@ router.get('/summary', validateQuery(expenseSummaryQuerySchema), async (req: Aut
     if (startDate) {
       expenses = await db.all<ExpenseRow[]>(
         `SELECT * FROM expenses WHERE ${visibleExpensesWhereRange}`,
-        startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
+        cycleId ?? -1, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
       );
     } else if (month) {
       expenses = await db.all<ExpenseRow[]>(
