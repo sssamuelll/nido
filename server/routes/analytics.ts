@@ -51,18 +51,16 @@ interface HouseholdBudgetRow {
 router.get('/', validateQuery(analyticsQuerySchema), async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
-    const { context, start_date: startDate, end_date: endDate } =
+    const { context, start_date: startDate, end_date: endDate, cycle_id: cycleId } =
       (req as AuthRequest & { validatedQuery: AnalyticsQuery }).validatedQuery;
     const currentUser = req.user!;
     const userId = req.user!.id;
 
     let dateFilter = '';
-    let dateParams: string[] = [];
+    let dateParams: (string | number | null)[] = [];
     if (startDate) {
-      dateFilter = endDate
-        ? 'AND date >= ? AND date < ?'
-        : 'AND date >= ?';
-      dateParams = endDate ? [startDate, endDate] : [startDate];
+      dateFilter = 'AND (expenses.cycle_id = ? OR (expenses.cycle_id IS NULL AND date >= ? AND (? IS NULL OR date < ?)))';
+      dateParams = [cycleId ?? -1, startDate, endDate ?? null, endDate ?? null];
     }
 
     // Context filter

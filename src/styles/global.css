@@ -1963,6 +1963,13 @@ input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cu
 }
 .expense-date-close:hover { background: var(--surface2) }
 
+/* Cycle attribution toggle (AddExpense, History edit) */
+.cycle-attribution { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.cycle-attribution__hint { font-size: 12px; color: var(--tm); }
+.cycle-attribution__toggle { display: flex; gap: 8px; }
+.cycle-attribution__toggle .type-sel { flex: 1; font-size: 13px; padding: 8px 12px; }
+.cycle-attribution__toggle .type-sel:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* Repeat expense stepper */
 .expense-repeat-stepper {
   display: inline-flex; align-items: center; gap: 4px;

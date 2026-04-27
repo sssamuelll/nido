@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { resolveCycleForDate, type Cycle } from '../lib/resolveCycleForDate';
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -41,6 +42,28 @@ export const AddExpense: React.FC = () => {
   const [expenseDate, setExpenseDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const isToday = expenseDate === format(new Date(), 'yyyy-MM-dd');
+
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [targetCycleId, setTargetCycleId] = useState<number | null>(null);
+  const activeCycle = cycles.find(c => c.status === 'active');
+  const cycleResolution = useMemo(
+    () => resolveCycleForDate(expenseDate, cycles),
+    [expenseDate, cycles]
+  );
+  useEffect(() => {
+    Api.listCycles()
+      .then(d => setCycles(Array.isArray(d) ? d : []))
+      .catch(() => setCycles([]));
+  }, []);
+  useEffect(() => {
+    if (cycleResolution.kind === 'in-active') {
+      setTargetCycleId(null);
+    } else if (cycleResolution.kind === 'in-closed') {
+      setTargetCycleId(cycleResolution.cycle.id);
+    } else {
+      setTargetCycleId(activeCycle?.id ?? null);
+    }
+  }, [cycleResolution.kind, cycleResolution.kind === 'in-closed' ? cycleResolution.cycle.id : null, activeCycle?.id]);
 
   const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const formatDateLabel = (dateStr: string) => {
@@ -219,6 +242,7 @@ export const AddExpense: React.FC = () => {
         date: expenseDate,
         type,
         event_id: selectedEventId || undefined,
+        cycle_id: targetCycleId,
       };
       for (let i = 0; i < repeatCount; i++) {
         await Api.createExpense(expenseData);
@@ -369,6 +393,38 @@ export const AddExpense: React.FC = () => {
                     </svg>
                   </button>
                 </div>
+                {cycleResolution.kind !== 'in-active' && activeCycle && (
+                  <div className="cycle-attribution">
+                    <div className="cycle-attribution__hint">
+                      {cycleResolution.kind === 'in-closed'
+                        ? 'Esta fecha cae fuera del ciclo actual'
+                        : 'No hay ciclo registrado en esa fecha'}
+                    </div>
+                    <div className="cycle-attribution__toggle">
+                      <button
+                        type="button"
+                        className={`type-sel ${targetCycleId !== activeCycle.id ? 'type-sel--active' : ''}`}
+                        disabled={cycleResolution.kind === 'no-cycle'}
+                        onClick={() => {
+                          if (cycleResolution.kind === 'in-closed') {
+                            setTargetCycleId(cycleResolution.cycle.id);
+                          }
+                        }}
+                      >
+                        {cycleResolution.kind === 'in-closed'
+                          ? `Ciclo ${cycleResolution.cycle.month ?? cycleResolution.cycle.start_date}`
+                          : 'Ciclo de esa fecha (sin datos)'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`type-sel ${targetCycleId === activeCycle.id ? 'type-sel--active' : ''}`}
+                        onClick={() => setTargetCycleId(activeCycle.id)}
+                      >
+                        Ciclo actual
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

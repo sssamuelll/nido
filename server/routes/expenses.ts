@@ -53,8 +53,14 @@ const visibleExpensesWhereMonth = `
   )
 `;
 const visibleExpensesWhereRange = `
-  date >= ?
-  AND (? IS NULL OR date < ?)
+  (
+    expenses.cycle_id = ?
+    OR (
+      expenses.cycle_id IS NULL
+      AND date >= ?
+      AND (? IS NULL OR date < ?)
+    )
+  )
   AND (
     type = 'shared'
     OR paid_by_user_id = ?
@@ -88,9 +94,40 @@ const resolveCategoryId = async (
   }
 };
 
+export const resolveCycleIdForExpense = async (
+  db: ReturnType<typeof getDatabase>,
+  rawCycleId: number | null | undefined,
+  date: string,
+  householdId: number
+): Promise<{ ok: true; cycleId: number | null } | { ok: false; error: string }> => {
+  if (rawCycleId === undefined || rawCycleId === null) return { ok: true, cycleId: null };
+
+  const cycle = await db.get<{ id: number; household_id: number; start_date: string | null }>(
+    `SELECT id, household_id, start_date FROM billing_cycles WHERE id = ?`,
+    rawCycleId
+  );
+  if (!cycle || cycle.household_id !== householdId) {
+    return { ok: false, error: 'Ciclo no válido' };
+  }
+
+  const next = await db.get<{ start_date: string | null }>(
+    `SELECT start_date FROM billing_cycles
+     WHERE household_id = ? AND start_date > COALESCE(?, '0000-00-00') AND id != ?
+     ORDER BY start_date ASC LIMIT 1`,
+    cycle.household_id, cycle.start_date, cycle.id
+  );
+
+  const inRange =
+    cycle.start_date !== null &&
+    date >= cycle.start_date &&
+    (next?.start_date == null || date < next.start_date);
+
+  return { ok: true, cycleId: inRange ? null : rawCycleId };
+};
+
 // Get expenses — supports both month (legacy) and date range (cycle-based)
 router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, res) => {
-  const { start_date: startDate, end_date: endDate, month, event_id: eventId } =
+  const { start_date: startDate, end_date: endDate, month, event_id: eventId, cycle_id: cycleId } =
     (req as AuthRequest & { validatedQuery: ExpenseListQuery }).validatedQuery;
 
   try {
@@ -104,8 +141,8 @@ router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, 
          WHERE ${visibleExpensesWhereRange}${eventFilter}
          ORDER BY date DESC, created_at DESC`,
         ...(eventId !== undefined
-          ? [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username, eventId]
-          : [startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username])
+          ? [cycleId ?? -1, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username, eventId]
+          : [cycleId ?? -1, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username])
       );
     } else if (month) {
       expenses = await db.all(
@@ -187,7 +224,7 @@ router.get('/export', validateQuery(expenseExportQuerySchema), async (req: AuthR
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
   const data = req.validatedData as ExpenseInput;
-  const { description, amount, date, type, status = 'paid', event_id } = data;
+  const { description, amount, date, type, status = 'paid', event_id, cycle_id } = data;
   // DEPRECATED: paid_by TEXT column — use paid_by_user_id instead.
   // Still written because of CHECK (paid_by IN ('samuel','maria')) constraint.
   const paid_by = getLegacyPaidBy(req.user);
@@ -196,18 +233,25 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
     const db = getDatabase();
     const paidByUserId = req.user!.id;
 
+    const userRow = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    if (!userRow) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const householdId = userRow.household_id;
+
     // Validate event_id if provided
     if (event_id) {
-      const household = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
       const event = await db.get(
         'SELECT id FROM events WHERE id = ? AND household_id = ?',
-        event_id, household!.household_id
+        event_id, householdId
       );
       if (!event) return res.status(400).json({ error: 'Evento no encontrado' });
     }
+
+    const resolved = await resolveCycleIdForExpense(db, cycle_id, date, householdId);
+    if (!resolved.ok) return res.status(400).json({ error: resolved.error });
+    const cycleIdToPersist = resolved.cycleId;
 
     // Resolve category_id
     let categoryId: number | null = data.category_id ?? null;
@@ -219,20 +263,14 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
       categoryName = catRow?.name ?? '';
     } else if (categoryName && !categoryId) {
       // Resolve id from name
-      const user = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
-      if (user) {
-        categoryId = await resolveCategoryId(db, categoryName, type, user.household_id, req.user!.id);
-      }
+      categoryId = await resolveCategoryId(db, categoryName, type, householdId, req.user!.id);
     }
 
     // DEPRECATED: paid_by is legacy; paid_by_user_id is the real FK.
     const result = await db.run(
-      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status, event_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status, event_id ?? null
+      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status, event_id, cycle_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status, event_id ?? null, cycleIdToPersist
     );
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
@@ -268,34 +306,34 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Solo puedes editar tus propios gastos personales' });
     }
 
+    const userRow = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    if (!userRow) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const householdId = userRow.household_id;
+
     // Validate event_id if provided
     const event_id = validatedData.event_id;
     if (event_id) {
-      const household = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
       const event = await db.get(
         'SELECT id FROM events WHERE id = ? AND household_id = ?',
-        event_id, household!.household_id
+        event_id, householdId
       );
       if (!event) return res.status(400).json({ error: 'Evento no encontrado' });
     }
+
+    const resolvedCycle = await resolveCycleIdForExpense(db, validatedData.cycle_id, validatedData.date, householdId);
+    if (!resolvedCycle.ok) return res.status(400).json({ error: resolvedCycle.error });
 
     // Resolve category_id if category name changed
     let categoryId = validatedData.category_id ?? existing.category_id;
     const categoryName = validatedData.category ?? existing.category;
 
     if (validatedData.category && !validatedData.category_id) {
-      const user = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
+      categoryId = await resolveCategoryId(
+        db, categoryName, validatedData.type ?? existing.type, householdId, req.user!.id
       );
-      if (user) {
-        categoryId = await resolveCategoryId(
-          db, categoryName, validatedData.type ?? existing.type, user.household_id, req.user!.id
-        );
-      }
     }
 
     const updated = { ...existing, ...validatedData, category_id: categoryId };
@@ -305,10 +343,10 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
 
     await db.run(
       `UPDATE expenses
-       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?, event_id = ?
+       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?, event_id = ?, cycle_id = ?
        WHERE id = ?`,
       updated.description, updated.amount, updated.category, updated.category_id,
-      updated.date, updated.paid_by, updated.type, updated.status, updatedEventId, id
+      updated.date, updated.paid_by, updated.type, updated.status, updatedEventId, resolvedCycle.cycleId, id
     );
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);
@@ -359,7 +397,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
 // Get dashboard summary — supports month (legacy) or date range (cycle-based)
 router.get('/summary', validateQuery(expenseSummaryQuerySchema), async (req: AuthRequest, res) => {
-  const { start_date: startDate, end_date: endDate, month } =
+  const { start_date: startDate, end_date: endDate, month, cycle_id: cycleId } =
     (req as AuthRequest & { validatedQuery: ExpenseSummaryQuery }).validatedQuery;
 
   try {
@@ -386,7 +424,7 @@ router.get('/summary', validateQuery(expenseSummaryQuerySchema), async (req: Aut
     if (startDate) {
       expenses = await db.all<ExpenseRow[]>(
         `SELECT * FROM expenses WHERE ${visibleExpensesWhereRange}`,
-        startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
+        cycleId ?? -1, startDate, endDate ?? null, endDate ?? null, req.user!.id, req.user!.username
       );
     } else if (month) {
       expenses = await db.all<ExpenseRow[]>(

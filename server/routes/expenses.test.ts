@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveCycleIdForExpense } from './expenses.js';
 
 const mockDb = {
   all: vi.fn(),
@@ -225,5 +226,41 @@ describe('expenses routes privacy', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'Forbidden: You can only delete your own personal expenses'
     });
+  });
+});
+
+describe('resolveCycleIdForExpense', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns null when cycle_id is omitted', async () => {
+    const r = await resolveCycleIdForExpense(mockDb as any, undefined, '2026-04-24', 1);
+    expect(r).toEqual({ ok: true, cycleId: null });
+  });
+
+  it('rejects cycle from another household', async () => {
+    // mockDb.get returns a cycle belonging to household 2, not 1
+    mockDb.get.mockResolvedValueOnce({ id: 99, household_id: 2, start_date: '2026-03-01' });
+    const r = await resolveCycleIdForExpense(mockDb as any, 99, '2026-03-15', 1);
+    expect(r.ok).toBe(false);
+  });
+
+  it('normalizes to null when date falls naturally in the chosen cycle', async () => {
+    // cycle belongs to household 1, starts 2026-04-01; next cycle starts after date
+    mockDb.get
+      .mockResolvedValueOnce({ id: 10, household_id: 1, start_date: '2026-04-01' }) // cycle lookup
+      .mockResolvedValueOnce(undefined); // no next cycle
+    const r = await resolveCycleIdForExpense(mockDb as any, 10, '2026-04-15', 1);
+    expect(r).toEqual({ ok: true, cycleId: null });
+  });
+
+  it('keeps cycle_id when date is outside the chosen cycle range', async () => {
+    // cycle starts 2026-04-27; expense date is 2026-04-24 (before cycle start)
+    mockDb.get
+      .mockResolvedValueOnce({ id: 11, household_id: 1, start_date: '2026-04-27' }) // cycle lookup
+      .mockResolvedValueOnce(undefined); // no next cycle
+    const r = await resolveCycleIdForExpense(mockDb as any, 11, '2026-04-24', 1);
+    expect(r).toEqual({ ok: true, cycleId: 11 });
   });
 });

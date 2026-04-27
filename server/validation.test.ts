@@ -656,4 +656,40 @@ describe('Validation Schemas', () => {
     });
   });
 
+  describe('cycle_id support', () => {
+    it('expenseCreateSchema accepts a positive integer cycle_id', () => {
+      const r = expenseCreateSchema.safeParse({
+        description: 'x', amount: 1, category: 'a', date: '2026-04-24', type: 'shared', cycle_id: 7,
+      });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.cycle_id).toBe(7);
+    });
+
+    it('expenseCreateSchema accepts omitted cycle_id', () => {
+      const r = expenseCreateSchema.safeParse({
+        description: 'x', amount: 1, category: 'a', date: '2026-04-24', type: 'shared',
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it('expenseCreateSchema accepts null cycle_id', () => {
+      const r = expenseCreateSchema.safeParse({
+        description: 'x', amount: 1, category: 'a', date: '2026-04-24', type: 'shared', cycle_id: null,
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it('expenseListQuerySchema accepts cycle_id', () => {
+      const r = expenseListQuerySchema.safeParse({ cycle_id: '5' });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.cycle_id).toBe(5);
+    });
+
+    it('expenseSummaryQuerySchema accepts cycle_id', () => {
+      const r = expenseSummaryQuerySchema.safeParse({ cycle_id: '5' });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.cycle_id).toBe(5);
+    });
+  });
+
 });

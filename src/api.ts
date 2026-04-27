@@ -199,8 +199,8 @@ export class Api {
 
   static async getExpenses(): Promise<Expense[]>;
   static async getExpenses(month: string): Promise<Expense[]>;
-  static async getExpenses(opts: { start_date: string; end_date?: string | null }): Promise<Expense[]>;
-  static async getExpenses(arg?: string | { start_date: string; end_date?: string | null }): Promise<Expense[]> {
+  static async getExpenses(opts: { start_date: string; end_date?: string | null; cycle_id?: number }): Promise<Expense[]>;
+  static async getExpenses(arg?: string | { start_date: string; end_date?: string | null; cycle_id?: number }): Promise<Expense[]> {
     let raw: unknown;
     if (!arg) {
       raw = await this.request('/expenses');
@@ -209,6 +209,7 @@ export class Api {
     } else {
       const params = new URLSearchParams({ start_date: arg.start_date });
       if (arg.end_date) params.set('end_date', arg.end_date);
+      if (arg.cycle_id !== undefined) params.set('cycle_id', String(arg.cycle_id));
       raw = await this.request(`/expenses?${params}`);
     }
     return parseExpenseList(raw);
@@ -223,6 +224,7 @@ export class Api {
     paid_by?: string;
     type: string;
     status?: string;
+    cycle_id?: number | null;
   }) {
     return this.request('/expenses', {
       method: 'POST',
@@ -237,6 +239,7 @@ export class Api {
     date: string;
     type: string;
     status?: string;
+    cycle_id?: number | null;
   }) {
     return this.request(`/expenses/${id}`, {
       method: 'PUT',
