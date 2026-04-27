@@ -638,6 +638,7 @@ export const initDatabase = async () => {
 
   await dropLegacyCategoriesUnique(database);
   await materializeLegacyRecurringExpenses(database);
+  await addCycleIdToExpenses(database);
 
   console.log('Database initialized');
 };
@@ -694,6 +695,16 @@ const materializeLegacyRecurringExpenses = async (database: Database) => {
   if (materialized > 0) {
     console.log(`Migration recurring_materialize_legacy complete (${materialized} expenses materialized)`);
   }
+};
+
+const addCycleIdToExpenses = async (database: Database) => {
+  const ran = await database.get(`SELECT name FROM migrations WHERE name = 'expenses_add_cycle_id'`);
+  if (ran) return;
+
+  await ensureColumn(database, 'expenses', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id) ON DELETE SET NULL');
+  await database.exec(`CREATE INDEX IF NOT EXISTS idx_expenses_cycle_id ON expenses(cycle_id)`);
+  await database.run(`INSERT INTO migrations (name) VALUES ('expenses_add_cycle_id')`);
+  console.log('Migration expenses_add_cycle_id complete');
 };
 
 const dropLegacyCategoriesUnique = async (database: Database) => {

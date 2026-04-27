@@ -196,3 +196,38 @@ describe('Database bootstrap', () => {
     );
   });
 });
+
+describe('cycle_id migration', () => {
+  let tempDir: string;
+  let databasePath: string;
+  let dbModule: typeof import('./db.js') | undefined;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'test');
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'nido-db-cycleid-'));
+    databasePath = path.join(tempDir, 'nido.test.db');
+    vi.stubEnv('DATABASE_URL', databasePath);
+  });
+
+  afterEach(async () => {
+    if (dbModule) {
+      await dbModule.closeDatabase();
+      dbModule = undefined;
+    }
+    vi.unstubAllEnvs();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('adds cycle_id column to expenses table', async () => {
+    dbModule = await import('./db.js');
+    await dbModule.initDatabase();
+    const db = dbModule.getDatabase();
+    const cols = await db.all<{ name: string }[]>(`PRAGMA table_info(expenses)`);
+    expect(cols.some(c => c.name === 'cycle_id')).toBe(true);
+    const idx = await db.all<{ name: string }[]>(
+      `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='expenses'`
+    );
+    expect(idx.some(i => i.name === 'idx_expenses_cycle_id')).toBe(true);
+  });
+});
