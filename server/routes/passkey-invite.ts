@@ -22,14 +22,16 @@ import {
   loginLimiter,
   deriveDeviceName,
 } from './passkey-shared.js';
+import { validate, inviteCreateSchema, InviteCreateInput } from '../validation.js';
 
 const router = Router();
 
 // ===== POST /invite -- create invitation =====
-router.post('/invite', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/invite', authenticateToken, validate(inviteCreateSchema), async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { relink_user_id } = req.body;
+    const { relink_user_id } =
+      (req as AuthRequest & { validatedData: InviteCreateInput }).validatedData;
 
     const db = getDatabase();
     const appUser = await db.get<{ household_id: number }>(

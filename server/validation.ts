@@ -267,3 +267,45 @@ export const householdBudgetApproveSchema = z.object({
 
 export type HouseholdBudgetUpdateInput = z.infer<typeof householdBudgetUpdateSchema>;
 export type HouseholdBudgetApproveInput = z.infer<typeof householdBudgetApproveSchema>;
+
+// POST /api/categories — until this PR the route in server/index.ts destructured
+// req.body without a schema. typeof NaN === 'number' let NaN slip past the
+// `typeof === 'number'` guard into INSERT INTO categories(budget_amount, ...);
+// SQLite REAL accepted it and every later SUM(budget_amount) returned NaN,
+// permanently breaking the overflow validation for the household. The schema
+// rejects NaN/Infinity/strings/over-cap at the boundary with a structured 400.
+const categoryNameSchema = z.string().min(1).max(100).refine(noNullByte, 'name must not contain null bytes');
+const categoryEmojiSchema = z.string().min(1).max(20).refine(noNullByte, 'emoji must not contain null bytes');
+const categoryColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'color must be #RRGGBB');
+
+export const categoryUpsertSchema = z.object({
+  id: z.number().finite().int().positive().optional(),
+  name: categoryNameSchema,
+  emoji: categoryEmojiSchema,
+  color: categoryColorSchema,
+  budget_amount: z.number().finite().nonnegative().max(MAX_BUDGET_AMOUNT).optional(),
+  context: z.enum(['shared', 'personal']).optional(),
+}).strict();
+
+export type CategoryUpsertInput = z.infer<typeof categoryUpsertSchema>;
+
+// POST /api/cycles/approve — sibling of POST /api/household/budget/approve
+// (commit 55c3422). Same shape, same risk: a missing schema let an object
+// or array reach sqlite3 binding and surface a contextless 500 thirty
+// frames later. .strict() rejects typos like `cycleId`.
+export const cycleApproveSchema = z.object({
+  cycle_id: z.number().finite().int().positive(),
+}).strict();
+
+export type CycleApproveInput = z.infer<typeof cycleApproveSchema>;
+
+// POST /auth/invite — relink_user_id is optional but, when present, must be
+// a positive int. The legacy `if (!relink_user_id)` falsy guard treated 0
+// as "no relink" and silently created a fresh-device invitation; objects
+// crashed the lookup with TypeError surfaced as 500. .positive() rules out
+// the 0 drift; .strict() catches typos like `relinkUserId`.
+export const inviteCreateSchema = z.object({
+  relink_user_id: z.number().finite().int().positive().optional(),
+}).strict();
+
+export type InviteCreateInput = z.infer<typeof inviteCreateSchema>;
