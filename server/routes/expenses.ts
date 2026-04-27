@@ -88,6 +88,37 @@ const resolveCategoryId = async (
   }
 };
 
+export const resolveCycleIdForExpense = async (
+  db: ReturnType<typeof getDatabase>,
+  rawCycleId: number | null | undefined,
+  date: string,
+  householdId: number
+): Promise<{ ok: true; cycleId: number | null } | { ok: false; error: string }> => {
+  if (rawCycleId === undefined || rawCycleId === null) return { ok: true, cycleId: null };
+
+  const cycle = await db.get<{ id: number; household_id: number; start_date: string | null }>(
+    `SELECT id, household_id, start_date FROM billing_cycles WHERE id = ?`,
+    rawCycleId
+  );
+  if (!cycle || cycle.household_id !== householdId) {
+    return { ok: false, error: 'Ciclo no válido' };
+  }
+
+  const next = await db.get<{ start_date: string | null }>(
+    `SELECT start_date FROM billing_cycles
+     WHERE household_id = ? AND start_date > COALESCE(?, '0000-00-00') AND id != ?
+     ORDER BY start_date ASC LIMIT 1`,
+    cycle.household_id, cycle.start_date, cycle.id
+  );
+
+  const inRange =
+    cycle.start_date !== null &&
+    date >= cycle.start_date &&
+    (next?.start_date == null || date < next.start_date);
+
+  return { ok: true, cycleId: inRange ? null : rawCycleId };
+};
+
 // Get expenses — supports both month (legacy) and date range (cycle-based)
 router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, res) => {
   const { start_date: startDate, end_date: endDate, month, event_id: eventId } =
