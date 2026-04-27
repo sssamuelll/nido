@@ -637,8 +637,63 @@ export const initDatabase = async () => {
   }
 
   await dropLegacyCategoriesUnique(database);
+  await materializeLegacyRecurringExpenses(database);
 
   console.log('Database initialized');
+};
+
+const materializeLegacyRecurringExpenses = async (database: Database) => {
+  const ran = await database.get(`SELECT name FROM migrations WHERE name = 'recurring_materialize_legacy'`);
+  if (ran) return;
+
+  // For each household with an active cycle, materialize unregistered recurrings
+  // (last_registered_cycle_id IS NULL, paused = 0) so existing fixed costs
+  // start counting against their category in the current cycle.
+  const activeCycles = await database.all<{ id: number; household_id: number }[]>(
+    `SELECT id, household_id FROM billing_cycles WHERE status = 'active'`
+  );
+
+  const today = new Date().toISOString().slice(0, 10);
+  let materialized = 0;
+
+  for (const cycle of activeCycles) {
+    const items = await database.all<Array<{
+      id: number;
+      name: string;
+      amount: number;
+      category: string;
+      category_id: number | null;
+      type: string;
+      created_by_user_id: number;
+      creator_username: string;
+    }>>(
+      `SELECT re.id, re.name, re.amount, re.category, re.category_id, re.type,
+              re.created_by_user_id, au.username AS creator_username
+       FROM recurring_expenses re
+       LEFT JOIN app_users au ON au.id = re.created_by_user_id
+       WHERE re.household_id = ? AND re.paused = 0 AND re.last_registered_cycle_id IS NULL`,
+      cycle.household_id
+    );
+
+    for (const item of items) {
+      await database.run(
+        `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid')`,
+        item.name, item.amount, item.category, item.category_id, today,
+        item.creator_username || 'unknown', item.created_by_user_id, item.type
+      );
+      await database.run(
+        `UPDATE recurring_expenses SET last_registered_cycle_id = ? WHERE id = ?`,
+        cycle.id, item.id
+      );
+      materialized++;
+    }
+  }
+
+  await database.run(`INSERT INTO migrations (name) VALUES ('recurring_materialize_legacy')`);
+  if (materialized > 0) {
+    console.log(`Migration recurring_materialize_legacy complete (${materialized} expenses materialized)`);
+  }
 };
 
 const dropLegacyCategoriesUnique = async (database: Database) => {

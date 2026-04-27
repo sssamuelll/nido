@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { format } from 'date-fns';
 import { getDatabase, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import {
@@ -93,6 +94,28 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
       every_n_cycles,
       req.user!.id
     );
+
+    // Materialize for the current active cycle so the expense counts immediately.
+    // Without this, recurrings only show up after the NEXT cycle activation —
+    // meaning a fixed cost added mid-cycle doesn't deduct from its category.
+    const activeCycle = await db.get<{ id: number }>(
+      `SELECT id FROM billing_cycles
+       WHERE household_id = ? AND status = 'active'
+       ORDER BY COALESCE(start_date, created_at) DESC LIMIT 1`,
+      user.household_id
+    );
+    if (activeCycle) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      await db.run(
+        `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid')`,
+        name, amount, categoryName, categoryId, today, req.user!.username, req.user!.id, type
+      );
+      await db.run(
+        `UPDATE recurring_expenses SET last_registered_cycle_id = ? WHERE id = ?`,
+        activeCycle.id, result.lastID
+      );
+    }
 
     const newItem = await db.get('SELECT * FROM recurring_expenses WHERE id = ?', result.lastID);
 
