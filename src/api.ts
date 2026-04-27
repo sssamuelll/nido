@@ -1,5 +1,6 @@
 import { parseCycleList, type CycleInfo } from './api-types/cycles';
 import { parseNotificationList, type Notification } from './api-types/notifications';
+import { parseExpenseList, type Expense } from './api-types/expenses';
 
 const API_BASE = '/api';
 
@@ -196,15 +197,21 @@ export class Api {
     }
   }
 
-  static async getExpenses(): Promise<any[]>;
-  static async getExpenses(month: string): Promise<any[]>;
-  static async getExpenses(opts: { start_date: string; end_date?: string | null }): Promise<any[]>;
-  static async getExpenses(arg?: string | { start_date: string; end_date?: string | null }) {
-    if (!arg) return this.request('/expenses');
-    if (typeof arg === 'string') return this.request(`/expenses?month=${arg}`);
-    const params = new URLSearchParams({ start_date: arg.start_date });
-    if (arg.end_date) params.set('end_date', arg.end_date);
-    return this.request(`/expenses?${params}`);
+  static async getExpenses(): Promise<Expense[]>;
+  static async getExpenses(month: string): Promise<Expense[]>;
+  static async getExpenses(opts: { start_date: string; end_date?: string | null }): Promise<Expense[]>;
+  static async getExpenses(arg?: string | { start_date: string; end_date?: string | null }): Promise<Expense[]> {
+    let raw: unknown;
+    if (!arg) {
+      raw = await this.request('/expenses');
+    } else if (typeof arg === 'string') {
+      raw = await this.request(`/expenses?month=${arg}`);
+    } else {
+      const params = new URLSearchParams({ start_date: arg.start_date });
+      if (arg.end_date) params.set('end_date', arg.end_date);
+      raw = await this.request(`/expenses?${params}`);
+    }
+    return parseExpenseList(raw);
   }
 
   static async createExpense(expense: {

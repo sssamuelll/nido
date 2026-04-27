@@ -26,7 +26,7 @@ import recurringRouter from './routes/recurring.js';
 import cyclesRouter from './routes/cycles.js';
 import eventsRouter from './routes/events.js';
 import { port, appSessionCookieName, allowedOrigins, isProduction } from './config.js';
-import { pinSchema } from './validation.js';
+import { pinSchema, validate, categoryUpsertSchema, CategoryUpsertInput } from './validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,9 +175,9 @@ app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthReques
   }
 });
 
-app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
-  const { name, emoji, color, id, budget_amount, context } = req.body;
-  if (!name || !emoji || !color) return res.status(400).json({ error: 'Nombre, emoji y color son requeridos' });
+app.post('/api/categories', authenticateToken, apiLimiter, validate(categoryUpsertSchema), async (req: AuthRequest, res) => {
+  const { name, emoji, color, id, budget_amount, context } =
+    (req as AuthRequest & { validatedData: CategoryUpsertInput }).validatedData;
 
   try {
     const db = getDatabase();
@@ -187,9 +187,9 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
     );
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    const nextContext = context === 'personal' ? 'personal' : 'shared';
+    const nextContext = context ?? 'shared';
     const ownerUserId = nextContext === 'personal' ? req.user!.id : null;
-    const budgetAmt = typeof budget_amount === 'number' ? budget_amount : 0;
+    const budgetAmt = budget_amount ?? 0;
 
     // Validate budget overflow for shared categories
     if (nextContext === 'shared' && budgetAmt > 0) {

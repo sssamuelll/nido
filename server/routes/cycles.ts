@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getDatabase, createNotification, notifyPartner } from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { validate, cycleApproveSchema, CycleApproveInput } from '../validation.js';
 import { format } from 'date-fns';
 
 interface RecurringExpenseRow {
@@ -289,12 +290,9 @@ router.post('/request', async (req: AuthRequest, res) => {
 });
 
 // Approve a pending billing cycle
-router.post('/approve', async (req: AuthRequest, res) => {
-  const { cycle_id } = req.body;
-
-  if (!cycle_id) {
-    return res.status(400).json({ error: 'Se requiere cycle_id' });
-  }
+router.post('/approve', validate(cycleApproveSchema), async (req: AuthRequest, res) => {
+  const { cycle_id } =
+    (req as AuthRequest & { validatedData: CycleApproveInput }).validatedData;
 
   try {
     const db = getDatabase();
