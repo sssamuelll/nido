@@ -310,11 +310,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                           cada {item.every_n_cycles} ciclos
                         </span>
                       )}
-                      {item.paused && (
+                      {item.paused ? (
                         <span className="recurring-card__pill recurring-card__pill--paused">
                           pausado
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <span className="recurring-card__amount">
                       €{item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
