@@ -175,7 +175,22 @@ describe('goals routes', () => {
       mockDb.get
         .mockResolvedValueOnce({ household_id: 1 }) // user lookup
         .mockResolvedValueOnce({ id: 3, household_id: 1, owner_type: 'shared', owner_user_id: null }); // existing goal
-      mockDb.run.mockResolvedValue({ changes: 1 });
+
+      // Sequence log captures both ordering AND await-honoring: each db.run
+      // pushes start:<tag> on call, yields to the microtask queue, then pushes
+      // end:<tag> on resolution. Without await on a db.run, the next
+      // start:<tag> appears before the previous end:<tag>.
+      const sequence: string[] = [];
+      const tag = (sql: string) =>
+        sql === 'DELETE FROM goal_contributions WHERE goal_id = ?' ? 'contributions'
+        : sql === 'DELETE FROM goals WHERE id = ?' ? 'goals'
+        : `unknown(${sql})`;
+      mockDb.run.mockImplementation(async (sql: string, ...rest: unknown[]) => {
+        sequence.push(`start:${tag(sql)}:${JSON.stringify(rest)}`);
+        await Promise.resolve();
+        sequence.push(`end:${tag(sql)}`);
+        return { changes: 1 };
+      });
 
       const handler = getRouteHandler('/:id', 'delete');
       const req: any = {
@@ -186,16 +201,12 @@ describe('goals routes', () => {
 
       await handler(req, res);
 
-      // First call: delete contributions
-      expect(mockDb.run).toHaveBeenCalledWith(
-        'DELETE FROM goal_contributions WHERE goal_id = ?',
-        '3'
-      );
-      // Second call: delete goal
-      expect(mockDb.run).toHaveBeenCalledWith(
-        'DELETE FROM goals WHERE id = ?',
-        '3'
-      );
+      expect(sequence).toEqual([
+        'start:contributions:["3"]',
+        'end:contributions',
+        'start:goals:["3"]',
+        'end:goals',
+      ]);
       expect(res.status).toHaveBeenCalledWith(204);
     });
   });
