@@ -657,3 +657,35 @@ describe('Validation Schemas', () => {
   });
 
 });
+
+describe('cycle_id support', () => {
+  it('expenseCreateSchema accepts optional cycle_id', () => {
+    const ok = expenseCreateSchema.safeParse({
+      description: 'x', amount: 1, category: 'a', date: '2026-04-24', type: 'shared', cycle_id: 7,
+    });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data.cycle_id).toBe(7);
+
+    const omitted = expenseCreateSchema.safeParse({
+      description: 'x', amount: 1, category: 'a', date: '2026-04-24', type: 'shared',
+    });
+    expect(omitted.success).toBe(true);
+
+    const nullVal = expenseCreateSchema.safeParse({
+      description: 'x', amount: 1, category: 'a', date: '2026-04-24', type: 'shared', cycle_id: null,
+    });
+    expect(nullVal.success).toBe(true);
+  });
+
+  it('expenseListQuerySchema accepts cycle_id', () => {
+    const r = expenseListQuerySchema.safeParse({ cycle_id: '5' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.cycle_id).toBe(5);
+  });
+
+  it('expenseSummaryQuerySchema accepts cycle_id', () => {
+    const r = expenseSummaryQuerySchema.safeParse({ cycle_id: '5' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.cycle_id).toBe(5);
+  });
+});

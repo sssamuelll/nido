@@ -21,6 +21,7 @@ export const expenseCreateSchema = z.object({
   }),
   status: z.enum(['paid', 'pending']).optional().default('paid'),
   event_id: z.coerce.number().int().positive().optional(),
+  cycle_id: z.coerce.number().int().positive().nullable().optional(),
 }).refine(data => data.category || data.category_id, {
   message: 'category or category_id is required',
   path: ['category'],
@@ -201,12 +202,14 @@ export const expenseListQuerySchema = z.object({
   end_date: dateSchema.optional(),
   month: monthSchema.optional(),
   event_id: queryEventIdSchema.optional(),
+  cycle_id: z.coerce.number().int().positive().optional(),
 }).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
 
 export const expenseSummaryQuerySchema = z.object({
   start_date: dateSchema.optional(),
   end_date: dateSchema.optional(),
   month: monthSchema.optional(),
+  cycle_id: z.coerce.number().int().positive().optional(),
 }).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
 
 export const expenseExportQuerySchema = z.object({
