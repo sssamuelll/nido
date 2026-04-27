@@ -170,7 +170,7 @@ export const Dashboard: React.FC = () => {
         const range = { start_date: activeCycle.start_date, end_date: activeCycle.end_date ?? undefined };
         [summary, nextExpenses] = await Promise.all([
           Api.getSummary({ ...range, cycle_id: activeCycle.id }),
-          Api.getExpenses(range),
+          Api.getExpenses({ ...range, cycle_id: activeCycle.id }),
         ]);
       } else {
         // No active cycle: show all expenses (budget lives in categories, not months)
