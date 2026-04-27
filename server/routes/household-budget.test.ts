@@ -245,7 +245,7 @@ describe('PUT /api/household/budget — middleware integration', () => {
     expect(typeof req.validatedData.personal_budget).toBe('number');
   });
 
-  it('validated payload reaches the SQL UPDATE as a real number (not a string)', async () => {
+  it("writes validated personal_budget to the requesting user's column (samuel → personal_samuel) as a number", async () => {
     mockDb.get
       .mockResolvedValueOnce({ household_id: 3 })
       .mockResolvedValueOnce({
@@ -270,6 +270,7 @@ describe('PUT /api/household/budget — middleware integration', () => {
       (c: any[]) => typeof c[0] === 'string' && c[0].startsWith('UPDATE household_budget SET'),
     );
     expect(updateCall).toBeDefined();
+    expect(updateCall![0]).toContain('SET personal_samuel = ?');
     expect(updateCall![1]).toBe(600);
     expect(typeof updateCall![1]).toBe('number');
     expect(res.json).toHaveBeenCalledWith({ success: true, pending_approval: false });
