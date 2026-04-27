@@ -8,6 +8,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
 import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
+import { resolveCycleForDate, type Cycle as RC } from '../lib/resolveCycleForDate';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -32,6 +33,7 @@ type Expense = {
   paid_by: string;
   type: 'shared' | 'personal';
   status?: 'paid' | 'pending';
+  cycle_id?: number | null;
 };
 
 type CycleInfo = {
@@ -98,6 +100,7 @@ export const History: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editTargetCycleId, setEditTargetCycleId] = useState<number | null>(null);
   const [editDescription, setEditDescription] = useState('');
   const [editAmount, setEditAmount] = useState('0');
   const [editCategory, setEditCategory] = useState('');
@@ -150,6 +153,7 @@ export const History: React.FC = () => {
         data = await Api.getExpenses({
           start_date: currentCycle.start_date,
           end_date: currentCycle.end_date ?? undefined,
+          cycle_id: currentCycle.id,
         });
       } else {
         data = await Api.getExpenses();
@@ -229,6 +233,7 @@ export const History: React.FC = () => {
     setEditCategory(expense.category);
     setEditDate(expense.date);
     setEditType(expense.type);
+    setEditTargetCycleId(expense.cycle_id ?? null);
     setEditError('');
     setCategorySearch('');
     setCmdOpen(false);
@@ -313,6 +318,7 @@ export const History: React.FC = () => {
         date: editDate,
         type: editType,
         status: editingExpense.status ?? 'paid',
+        cycle_id: editTargetCycleId,
       });
       showToast('Gasto actualizado ✔');
       closeEditModal();
@@ -749,6 +755,43 @@ export const History: React.FC = () => {
                   onChange={(e) => setEditDate(e.target.value)}
                 />
               </div>
+
+              {(() => {
+                const cyclesAsCycle = cycles.map(c => ({ id: c.id, status: c.status, start_date: c.start_date, end_date: c.end_date, month: c.month })) as RC[];
+                const resolution = resolveCycleForDate(editDate, cyclesAsCycle);
+                const active = cycles.find(c => c.status === 'active');
+                if (resolution.kind === 'in-active' || !active) return null;
+                return (
+                  <div className="cycle-attribution" style={{ marginBottom: 16 }}>
+                    <div className="cycle-attribution__hint">
+                      {resolution.kind === 'in-closed'
+                        ? 'Esta fecha cae fuera del ciclo actual'
+                        : 'No hay ciclo registrado en esa fecha'}
+                    </div>
+                    <div className="cycle-attribution__toggle">
+                      <button
+                        type="button"
+                        className={`type-sel ${editTargetCycleId !== active.id ? 'type-sel--active' : ''}`}
+                        disabled={resolution.kind === 'no-cycle'}
+                        onClick={() => {
+                          if (resolution.kind === 'in-closed') setEditTargetCycleId(resolution.cycle.id);
+                        }}
+                      >
+                        {resolution.kind === 'in-closed'
+                          ? `Ciclo ${resolution.cycle.month ?? resolution.cycle.start_date}`
+                          : 'Ciclo de esa fecha (sin datos)'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`type-sel ${editTargetCycleId === active.id ? 'type-sel--active' : ''}`}
+                        onClick={() => setEditTargetCycleId(active.id)}
+                      >
+                        Ciclo actual
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div style={{ marginBottom: 16 }}>
                 <div className="label">Tipo de gasto</div>
