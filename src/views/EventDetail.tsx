@@ -3,16 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { ChevronLeft } from 'lucide-react';
 
-interface EventCategory {
-  name: string; emoji: string; color: string; amount: number; pct: number;
+interface EventCategoryRow {
+  category: string;
+  total: number;
+  emoji: string | null;
+  color: string | null;
 }
 
 interface EventExpense {
   id: number; description: string; amount: number; category: string; date: string; paid_by: string;
 }
 
-const EventDonut: React.FC<{ categories: EventCategory[] }> = ({ categories }) => {
-  const total = categories.reduce((s, c) => s + c.amount, 0);
+const FALLBACK_CATEGORY_COLOR = '#60A5FA';
+
+const EventDonut: React.FC<{ categories: EventCategoryRow[] }> = ({ categories }) => {
+  const total = categories.reduce((s, c) => s + (c.total ?? 0), 0);
   if (total === 0) return null;
   const size = 200, cx = size / 2, cy = size / 2, r = 70;
   const circumference = 2 * Math.PI * r;
@@ -22,13 +27,14 @@ const EventDonut: React.FC<{ categories: EventCategory[] }> = ({ categories }) =
     <div className="ev-donut-section">
       <svg viewBox={`0 0 ${size} ${size}`} className="ev-donut-svg">
         {categories.map((cat, i) => {
-          const pct = cat.amount / total;
+          const amount = cat.total ?? 0;
+          const pct = amount / total;
           const dash = pct * circumference;
           const gap = circumference - dash;
           const currentOffset = offset;
           offset += dash;
           return (
-            <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={cat.color} strokeWidth="24"
+            <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={cat.color ?? FALLBACK_CATEGORY_COLOR} strokeWidth="24"
               strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-currentOffset}
               style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
           );
@@ -39,15 +45,19 @@ const EventDonut: React.FC<{ categories: EventCategory[] }> = ({ categories }) =
         <text x={cx} y={cy + 14} textAnchor="middle" fill="var(--ts)" fontSize="11">gastado</text>
       </svg>
       <div className="ev-donut-legend">
-        {categories.map((cat, i) => (
-          <div key={i} className="ev-donut-legend__item">
-            <span className="ev-donut-legend__emoji">{cat.emoji}</span>
-            <span className="ev-donut-legend__name">{cat.name}:</span>
-            <span className="ev-donut-legend__amount">€{cat.amount.toLocaleString('es-ES')}</span>
-            <span className="ev-donut-legend__pct">({cat.pct}%)</span>
-            <div className="ev-donut-legend__bar" style={{ '--bar-color': cat.color } as React.CSSProperties} />
-          </div>
-        ))}
+        {categories.map((cat, i) => {
+          const amount = cat.total ?? 0;
+          const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
+          return (
+            <div key={i} className="ev-donut-legend__item">
+              <span className="ev-donut-legend__emoji">{cat.emoji ?? '📂'}</span>
+              <span className="ev-donut-legend__name">{cat.category}:</span>
+              <span className="ev-donut-legend__amount">€{amount.toLocaleString('es-ES')}</span>
+              <span className="ev-donut-legend__pct">({pct}%)</span>
+              <div className="ev-donut-legend__bar" style={{ '--bar-color': cat.color ?? FALLBACK_CATEGORY_COLOR } as React.CSSProperties} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -75,7 +85,7 @@ export const EventDetail: React.FC = () => {
 
   const { event, kpis, categories, expenses } = data;
   // The API may return categories as "categories" or "categoryBreakdown" — handle both
-  const cats: EventCategory[] = categories || data.categoryBreakdown || [];
+  const cats: EventCategoryRow[] = categories || data.categoryBreakdown || [];
   const exps: EventExpense[] = expenses || [];
   const pctUsed = kpis.budget > 0 ? Math.round((kpis.spent / kpis.budget) * 100) : 0;
 
