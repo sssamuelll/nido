@@ -239,6 +239,7 @@ app.post('/api/categories', authenticateToken, apiLimiter, async (req: AuthReque
 
     res.json({ success: true });
   } catch (error) {
+    console.error('POST /api/categories error:', error);
     res.status(500).json({ error: 'Error al guardar categoría' });
   }
 });
@@ -269,6 +270,7 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
 
     res.json({ success: true });
   } catch (error) {
+    console.error('DELETE /api/categories error:', error);
     res.status(500).json({ error: 'Error al eliminar categoría' });
   }
 });
