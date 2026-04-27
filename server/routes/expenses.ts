@@ -218,7 +218,7 @@ router.get('/export', validateQuery(expenseExportQuerySchema), async (req: AuthR
 // Create new expense
 router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) => {
   const data = req.validatedData as ExpenseInput;
-  const { description, amount, date, type, status = 'paid', event_id } = data;
+  const { description, amount, date, type, status = 'paid', event_id, cycle_id } = data;
   // DEPRECATED: paid_by TEXT column — use paid_by_user_id instead.
   // Still written because of CHECK (paid_by IN ('samuel','maria')) constraint.
   const paid_by = getLegacyPaidBy(req.user);
@@ -227,18 +227,25 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
     const db = getDatabase();
     const paidByUserId = req.user!.id;
 
+    const userRow = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    if (!userRow) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const householdId = userRow.household_id;
+
     // Validate event_id if provided
     if (event_id) {
-      const household = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
       const event = await db.get(
         'SELECT id FROM events WHERE id = ? AND household_id = ?',
-        event_id, household!.household_id
+        event_id, householdId
       );
       if (!event) return res.status(400).json({ error: 'Evento no encontrado' });
     }
+
+    const resolved = await resolveCycleIdForExpense(db, cycle_id, date, householdId);
+    if (!resolved.ok) return res.status(400).json({ error: resolved.error });
+    const cycleIdToPersist = resolved.cycleId;
 
     // Resolve category_id
     let categoryId: number | null = data.category_id ?? null;
@@ -250,20 +257,14 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
       categoryName = catRow?.name ?? '';
     } else if (categoryName && !categoryId) {
       // Resolve id from name
-      const user = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
-      if (user) {
-        categoryId = await resolveCategoryId(db, categoryName, type, user.household_id, req.user!.id);
-      }
+      categoryId = await resolveCategoryId(db, categoryName, type, householdId, req.user!.id);
     }
 
     // DEPRECATED: paid_by is legacy; paid_by_user_id is the real FK.
     const result = await db.run(
-      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status, event_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status, event_id ?? null
+      `INSERT INTO expenses (description, amount, category, category_id, date, paid_by, paid_by_user_id, type, status, event_id, cycle_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      description, amount, categoryName, categoryId, date, paid_by, paidByUserId, type, status, event_id ?? null, cycleIdToPersist
     );
 
     const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', result.lastID);
@@ -299,34 +300,34 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Solo puedes editar tus propios gastos personales' });
     }
 
+    const userRow = await db.get<{ household_id: number }>(
+      'SELECT household_id FROM app_users WHERE id = ?',
+      req.user!.id
+    );
+    if (!userRow) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const householdId = userRow.household_id;
+
     // Validate event_id if provided
     const event_id = validatedData.event_id;
     if (event_id) {
-      const household = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
-      );
       const event = await db.get(
         'SELECT id FROM events WHERE id = ? AND household_id = ?',
-        event_id, household!.household_id
+        event_id, householdId
       );
       if (!event) return res.status(400).json({ error: 'Evento no encontrado' });
     }
+
+    const resolvedCycle = await resolveCycleIdForExpense(db, validatedData.cycle_id, validatedData.date, householdId);
+    if (!resolvedCycle.ok) return res.status(400).json({ error: resolvedCycle.error });
 
     // Resolve category_id if category name changed
     let categoryId = validatedData.category_id ?? existing.category_id;
     const categoryName = validatedData.category ?? existing.category;
 
     if (validatedData.category && !validatedData.category_id) {
-      const user = await db.get<{ household_id: number }>(
-        'SELECT household_id FROM app_users WHERE id = ?',
-        req.user!.id
+      categoryId = await resolveCategoryId(
+        db, categoryName, validatedData.type ?? existing.type, householdId, req.user!.id
       );
-      if (user) {
-        categoryId = await resolveCategoryId(
-          db, categoryName, validatedData.type ?? existing.type, user.household_id, req.user!.id
-        );
-      }
     }
 
     const updated = { ...existing, ...validatedData, category_id: categoryId };
@@ -336,10 +337,10 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
 
     await db.run(
       `UPDATE expenses
-       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?, event_id = ?
+       SET description = ?, amount = ?, category = ?, category_id = ?, date = ?, paid_by = ?, type = ?, status = ?, event_id = ?, cycle_id = ?
        WHERE id = ?`,
       updated.description, updated.amount, updated.category, updated.category_id,
-      updated.date, updated.paid_by, updated.type, updated.status, updatedEventId, id
+      updated.date, updated.paid_by, updated.type, updated.status, updatedEventId, resolvedCycle.cycleId, id
     );
 
     const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', id);
