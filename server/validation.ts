@@ -241,6 +241,7 @@ export const analyticsQuerySchema = z.object({
   context: queryContextSchema.default('shared'),
   start_date: dateSchema.optional(),
   end_date: dateSchema.optional(),
+  cycle_id: z.coerce.number().int().positive().optional(),
 }).refine(startBeforeOrEqualEnd, startBeforeOrEqualEndError);
 
 export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>;
