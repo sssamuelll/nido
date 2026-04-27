@@ -639,8 +639,65 @@ export const initDatabase = async () => {
   await dropLegacyCategoriesUnique(database);
   await materializeLegacyRecurringExpenses(database);
   await addCycleIdToExpenses(database);
+  await backfillExpenseCategoryIds(database);
 
   console.log('Database initialized');
+};
+
+const backfillExpenseCategoryIds = async (database: Database) => {
+  const ran = await database.get(`SELECT name FROM migrations WHERE name = 'backfill_expense_category_ids'`);
+  if (ran) return;
+
+  // Re-link expenses where category_id IS NULL but a matching categories row exists.
+  // Shared category: any expense in the household with type='shared' and matching name.
+  const sharedResult = await database.run(
+    `UPDATE expenses
+     SET category_id = (
+       SELECT c.id FROM categories c
+       WHERE c.name = expenses.category
+         AND c.context = 'shared'
+         AND c.owner_user_id IS NULL
+         AND c.household_id = (SELECT household_id FROM app_users WHERE id = expenses.paid_by_user_id)
+     )
+     WHERE category_id IS NULL
+       AND type = 'shared'
+       AND category IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM categories c
+         WHERE c.name = expenses.category
+           AND c.context = 'shared'
+           AND c.owner_user_id IS NULL
+           AND c.household_id = (SELECT household_id FROM app_users WHERE id = expenses.paid_by_user_id)
+       )`
+  );
+
+  // Personal category: must match owner_user_id.
+  const personalResult = await database.run(
+    `UPDATE expenses
+     SET category_id = (
+       SELECT c.id FROM categories c
+       WHERE c.name = expenses.category
+         AND c.context = 'personal'
+         AND c.owner_user_id = expenses.paid_by_user_id
+     )
+     WHERE category_id IS NULL
+       AND type = 'personal'
+       AND category IS NOT NULL
+       AND paid_by_user_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM categories c
+         WHERE c.name = expenses.category
+           AND c.context = 'personal'
+           AND c.owner_user_id = expenses.paid_by_user_id
+       )`
+  );
+
+  await database.run(`INSERT INTO migrations (name) VALUES ('backfill_expense_category_ids')`);
+  const sharedChanges = sharedResult.changes ?? 0;
+  const personalChanges = personalResult.changes ?? 0;
+  if (sharedChanges + personalChanges > 0) {
+    console.log(`Migration backfill_expense_category_ids: linked ${sharedChanges} shared + ${personalChanges} personal expenses`);
+  }
 };
 
 const materializeLegacyRecurringExpenses = async (database: Database) => {

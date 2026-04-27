@@ -229,6 +229,31 @@ app.post('/api/categories', authenticateToken, apiLimiter, validate(categoryUpse
          DO UPDATE SET emoji = excluded.emoji, color = excluded.color, budget_amount = excluded.budget_amount`,
         user.household_id, name, emoji, color, budgetAmt, nextContext, ownerUserId
       );
+
+      // Re-link any orphaned expenses (category_id IS NULL but category name matches).
+      // AddExpense saves the expense before the category exists, leaving category_id NULL;
+      // this UPDATE heals that gap so the breakdown sees one unified row.
+      const newCat = await db.get<{ id: number }>(
+        `SELECT id FROM categories
+         WHERE household_id = ? AND name = ? AND context = ? AND COALESCE(owner_user_id, -1) = COALESCE(?, -1)`,
+        user.household_id, name, nextContext, ownerUserId
+      );
+      if (newCat) {
+        if (nextContext === 'shared') {
+          await db.run(
+            `UPDATE expenses SET category_id = ?
+             WHERE category_id IS NULL AND category = ? AND type = 'shared'
+               AND paid_by_user_id IN (SELECT id FROM app_users WHERE household_id = ?)`,
+            newCat.id, name, user.household_id
+          );
+        } else {
+          await db.run(
+            `UPDATE expenses SET category_id = ?
+             WHERE category_id IS NULL AND category = ? AND type = 'personal' AND paid_by_user_id = ?`,
+            newCat.id, name, ownerUserId
+          );
+        }
+      }
     }
 
     await notifyPartner(req.user!.id, req.user!.username,
