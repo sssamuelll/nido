@@ -636,7 +636,63 @@ export const initDatabase = async () => {
     console.log('Migration recurring_cycle_frequency complete');
   }
 
+  await dropLegacyCategoriesUnique(database);
+
   console.log('Database initialized');
+};
+
+const dropLegacyCategoriesUnique = async (database: Database) => {
+  const ran = await database.get(`SELECT name FROM migrations WHERE name = 'categories_drop_legacy_unique'`);
+  if (ran) return;
+
+  const tableInfo = await database.get<{ sql: string }>(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'categories'`
+  );
+  if (!tableInfo?.sql.includes('UNIQUE(household_id, name)')) {
+    await database.run(`INSERT INTO migrations (name) VALUES ('categories_drop_legacy_unique')`);
+    return;
+  }
+
+  console.log('Running migration: categories_drop_legacy_unique');
+  await database.run(`PRAGMA foreign_keys=OFF`);
+  try {
+    await database.run(`BEGIN TRANSACTION`);
+    await database.run(`
+      CREATE TABLE categories_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        household_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        emoji TEXT NOT NULL,
+        color TEXT NOT NULL,
+        budget_amount REAL NOT NULL DEFAULT 0,
+        context TEXT NOT NULL DEFAULT 'shared',
+        owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE
+      )
+    `);
+    await database.run(`
+      INSERT INTO categories_new (id, household_id, name, emoji, color, budget_amount, context, owner_user_id, created_at)
+        SELECT id, household_id, name, emoji, color, budget_amount, context, owner_user_id, created_at FROM categories
+    `);
+    await database.run(`DROP TABLE categories`);
+    await database.run(`ALTER TABLE categories_new RENAME TO categories`);
+    await database.run(`CREATE INDEX idx_categories_household_id ON categories(household_id)`);
+    await database.run(`CREATE INDEX idx_categories_household_context_owner ON categories(household_id, context, owner_user_id)`);
+    await database.run(`CREATE UNIQUE INDEX uq_categories_identity ON categories(household_id, name, context, COALESCE(owner_user_id, -1))`);
+    const fkCheck = await database.all<{ table: string }[]>(`PRAGMA foreign_key_check`);
+    if (fkCheck.length > 0) {
+      throw new Error(`categories rebuild left dangling FKs: ${JSON.stringify(fkCheck)}`);
+    }
+    await database.run(`COMMIT`);
+    await database.run(`INSERT INTO migrations (name) VALUES ('categories_drop_legacy_unique')`);
+    console.log('Migration categories_drop_legacy_unique complete');
+  } catch (error) {
+    await database.run(`ROLLBACK`).catch(() => {});
+    throw error;
+  } finally {
+    await database.run(`PRAGMA foreign_keys=ON`);
+  }
 };
 
 export const findAppUserIdByUsername = async (username: string) => {
