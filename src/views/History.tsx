@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
+import { CACHE_KEYS } from '../lib/cacheBus';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
@@ -145,7 +146,10 @@ export const History: React.FC = () => {
   }, [currentCycle?.id, currentCycle?.start_date, currentCycle?.end_date]);
 
   const { data: expensesData, loading, error, reload: loadExpenses } =
-    useResource<Expense[]>(loadExpensesFn, { fallbackMessage: 'Error al cargar movimientos' });
+    useResource<Expense[]>(loadExpensesFn, {
+      fallbackMessage: 'Error al cargar movimientos',
+      invalidationKey: CACHE_KEYS.expenses,
+    });
   const expenses = expensesData ?? [];
 
   const navigateCycle = (dir: -1 | 1) => {

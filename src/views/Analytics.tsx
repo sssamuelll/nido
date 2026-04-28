@@ -3,6 +3,7 @@ import { createChart, ColorType, AreaData, Time, AreaSeries } from 'lightweight-
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
+import { CACHE_KEYS } from '../lib/cacheBus';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
@@ -435,7 +436,10 @@ export const Analytics: React.FC = () => {
   }, [activeContext, currentCycle?.id, currentCycle?.start_date, currentCycle?.end_date]);
 
   const { data, loading, error, reload: fetchData } =
-    useResource<AnalyticsData>(loadAnalytics, { fallbackMessage: 'Error al cargar analíticas' });
+    useResource<AnalyticsData>(loadAnalytics, {
+      fallbackMessage: 'Error al cargar analíticas',
+      invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.budget, CACHE_KEYS.categories],
+    });
 
   // Reset chart animation + insight visibility when params change (deps mirror loadAnalytics).
   useEffect(() => {
