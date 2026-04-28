@@ -1,5 +1,6 @@
 import React from 'react';
 import { OWNER_THEMES, type BalanceData } from '../types';
+import { formatMoneyExact } from '../lib/money';
 
 interface BalanceCardProps extends BalanceData {
   className?: string;
@@ -50,11 +51,11 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
       </div>
 
       <div className="balance-card__amount">
-        €{balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+        {formatMoneyExact(balance)}
       </div>
 
       <div className="balance-card__change">
-        {monthChange >= 0 ? '↑ +' : '↓ '}€{Math.abs(monthChange).toLocaleString('es-ES')} este ciclo
+        {monthChange >= 0 ? '↑ +' : '↓ '}{formatMoneyExact(Math.abs(monthChange))} este ciclo
       </div>
 
       <div className="balance-card__progress">

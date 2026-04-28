@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { ChevronLeft } from 'lucide-react';
+import { formatMoney, formatMoneyExact } from '../lib/money';
 
 interface EventCategoryRow {
   category: string;
@@ -40,7 +41,7 @@ const EventDonut: React.FC<{ categories: EventCategoryRow[] }> = ({ categories }
           );
         })}
         <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--text)" fontSize="20" fontWeight="700">
-          €{total.toLocaleString('es-ES')}
+          {formatMoney(total)}
         </text>
         <text x={cx} y={cy + 14} textAnchor="middle" fill="var(--ts)" fontSize="11">gastado</text>
       </svg>
@@ -52,7 +53,7 @@ const EventDonut: React.FC<{ categories: EventCategoryRow[] }> = ({ categories }
             <div key={i} className="ev-donut-legend__item">
               <span className="ev-donut-legend__emoji">{cat.emoji ?? '📂'}</span>
               <span className="ev-donut-legend__name">{cat.category}:</span>
-              <span className="ev-donut-legend__amount">€{amount.toLocaleString('es-ES')}</span>
+              <span className="ev-donut-legend__amount">{formatMoney(amount)}</span>
               <span className="ev-donut-legend__pct">({pct}%)</span>
               <div className="ev-donut-legend__bar" style={{ '--bar-color': cat.color ?? FALLBACK_CATEGORY_COLOR } as React.CSSProperties} />
             </div>
@@ -110,18 +111,18 @@ export const EventDetail: React.FC = () => {
       <div className="ev-kpis">
         <div className="card ev-kpi">
           <div className="ev-kpi__label">Presupuesto Total</div>
-          <div className="ev-kpi__value">€{kpis.budget.toLocaleString('es-ES')}</div>
+          <div className="ev-kpi__value">{formatMoney(kpis.budget)}</div>
           <div className="ev-kpi__bar"><div className="ev-kpi__bar-fill ev-kpi__bar-fill--neutral" style={{ width: `${pctUsed}%` }} /></div>
           <div className="ev-kpi__sub">{pctUsed}%</div>
         </div>
         <div className="card ev-kpi">
           <div className="ev-kpi__label">Gastado</div>
-          <div className="ev-kpi__value" style={{ color: 'var(--green)' }}>€{kpis.spent.toLocaleString('es-ES')}</div>
+          <div className="ev-kpi__value" style={{ color: 'var(--green)' }}>{formatMoney(kpis.spent)}</div>
           <div className="ev-kpi__bar"><div className="ev-kpi__bar-fill ev-kpi__bar-fill--green" style={{ width: `${pctUsed}%` }} /></div>
         </div>
         <div className="card ev-kpi">
           <div className="ev-kpi__label">Restante</div>
-          <div className="ev-kpi__value" style={{ color: kpis.remaining < 0 ? 'var(--red)' : 'var(--orange)' }}>€{Math.abs(kpis.remaining).toLocaleString('es-ES')}</div>
+          <div className="ev-kpi__value" style={{ color: kpis.remaining < 0 ? 'var(--red)' : 'var(--orange)' }}>{formatMoney(Math.abs(kpis.remaining))}</div>
           <div className="ev-kpi__bar"><div className="ev-kpi__bar-fill ev-kpi__bar-fill--orange" style={{ width: `${Math.max(0, 100 - pctUsed)}%` }} /></div>
         </div>
       </div>
@@ -139,7 +140,7 @@ export const EventDetail: React.FC = () => {
                   <div className="ev-expense-row__cat">{exp.category}</div>
                 </div>
                 <div className="ev-expense-row__right">
-                  <div className="ev-expense-row__amount">−€{exp.amount.toFixed(2)}</div>
+                  <div className="ev-expense-row__amount">−{formatMoneyExact(exp.amount)}</div>
                   <div className="ev-expense-row__who">{exp.paid_by}</div>
                 </div>
               </div>

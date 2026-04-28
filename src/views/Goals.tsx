@@ -7,6 +7,7 @@ import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
 import { formatDateLabel } from '../lib/dates';
+import { formatMoney } from '../lib/money';
 
 
 interface GoalFormData {
@@ -165,7 +166,7 @@ export const Goals: React.FC = () => {
     .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))[0]?.deadline || '-';
 
   const summaryStats = [
-    { label: 'TOTAL AHORRADO', value: `€${totalSaved.toLocaleString('es-ES')}`, color: 'var(--green)' },
+    { label: 'TOTAL AHORRADO', value: formatMoney(totalSaved), color: 'var(--green)' },
     { label: 'OBJ. ACTIVOS', value: String(activeGoals), color: undefined },
     { label: 'MEJOR RACHA', value: filteredGoals.length > 0 ? `${filteredGoals.length} obj` : '-', color: 'var(--orange)' },
     { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
@@ -383,7 +384,7 @@ export const Goals: React.FC = () => {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>Contribuir a {contributeGoal.name}</h3>
             <p>
-              Progreso actual: €{contributeGoal.current.toLocaleString('es-ES')} de €{contributeGoal.target.toLocaleString('es-ES')}
+              Progreso actual: {formatMoney(contributeGoal.current)} de {formatMoney(contributeGoal.target)}
               {' '}({contributeGoal.target > 0 ? Math.round((contributeGoal.current / contributeGoal.target) * 100) : 0}%)
             </p>
 
