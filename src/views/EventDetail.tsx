@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { ChevronLeft } from 'lucide-react';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorView } from '../components/ErrorView';
+import { useResource } from '../hooks/useResource';
 
 interface EventCategoryRow {
   category: string;
@@ -69,19 +70,8 @@ const EventDonut: React.FC<{ categories: EventCategoryRow[] }> = ({ categories }
 export const EventDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const detail = await Api.getEventDetail(Number(id));
-        setData(detail);
-      } catch (err) { console.error('Error loading event:', err); }
-      finally { setLoading(false); }
-    };
-    void load();
-  }, [id]);
+  const loadEvent = useCallback(() => Api.getEventDetail(Number(id)), [id]);
+  const { data, loading } = useResource<any>(loadEvent);
 
   if (loading) return <LoadingScreen />;
   if (!data) return <ErrorView message="Evento no encontrado" />;

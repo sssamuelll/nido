@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { format } from 'date-fns';
 import { GoalCard } from '../components/GoalCard';
 import { EmojiPicker } from '../components/EmojiPicker';
@@ -9,6 +9,7 @@ import { showToast } from '../components/Toast';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
+import { useResource } from '../hooks/useResource';
 
 
 interface GoalFormData {
@@ -34,9 +35,11 @@ const EMPTY_FORM: GoalFormData = {
 };
 
 export const Goals: React.FC = () => {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const loadGoals = useCallback(() => Api.getGoals(), []);
+  const { data: goalsData, loading, error, reload: fetchGoals } =
+    useResource<Goal[]>(loadGoals, { fallbackMessage: 'Error al cargar objetivos' });
+  const goals = goalsData ?? [];
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>(EMPTY_FORM);
@@ -46,21 +49,6 @@ export const Goals: React.FC = () => {
   const [contributeGoal, setContributeGoal] = useState<Goal | null>(null);
   const [contributeAmount, setContributeAmount] = useState('');
   const [contributing, setContributing] = useState(false);
-
-  const fetchGoals = async () => {
-    try {
-      const data = await Api.getGoals();
-      setGoals(data);
-      setError('');
-    } catch (err) {
-      console.error('Failed to load goals:', err);
-      setError('Error al cargar objetivos');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchGoals(); }, []);
 
   const openContributeModal = (goal: Goal) => {
     setContributeGoal(goal);

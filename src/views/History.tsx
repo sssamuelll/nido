@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
+import { useResource } from '../hooks/useResource';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
@@ -73,9 +74,7 @@ export const History: React.FC = () => {
   // Cycle-based navigation state
   const [cycles, setCycles] = useState<CycleInfo[]>([]);
   const [cycleIndex, setCycleIndex] = useState(0); // 0 = most recent
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(incomingState.initialCategory ?? '');
 
@@ -124,11 +123,6 @@ export const History: React.FC = () => {
     loadCycles();
   }, []);
 
-  // Load expenses when cycle changes
-  useEffect(() => {
-    loadExpenses();
-  }, [currentCycle?.id, cycles.length]);
-
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (cmdRef.current && !cmdRef.current.contains(e.target as Node)) {
@@ -139,28 +133,20 @@ export const History: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadExpenses = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      let data;
-      if (currentCycle?.start_date) {
-        data = await Api.getExpenses({
+  const loadExpensesFn = useCallback(async (): Promise<Expense[]> => {
+    const data = currentCycle?.start_date
+      ? await Api.getExpenses({
           start_date: currentCycle.start_date,
           end_date: currentCycle.end_date ?? undefined,
           cycle_id: currentCycle.id,
-        });
-      } else {
-        data = await Api.getExpenses();
-      }
-      setExpenses(Array.isArray(data) ? data : []);
-    } catch {
-      console.error('Failed to load expenses');
-      setError('Error al cargar movimientos');
-    } finally {
-      setLoading(false);
-    }
-  };
+        })
+      : await Api.getExpenses();
+    return Array.isArray(data) ? data : [];
+  }, [currentCycle?.id, currentCycle?.start_date, currentCycle?.end_date]);
+
+  const { data: expensesData, loading, error, reload: loadExpenses } =
+    useResource<Expense[]>(loadExpensesFn, { fallbackMessage: 'Error al cargar movimientos' });
+  const expenses = expensesData ?? [];
 
   const navigateCycle = (dir: -1 | 1) => {
     setCycleIndex(prev => Math.max(0, Math.min(cycles.length - 1, prev + dir)));
@@ -337,7 +323,7 @@ export const History: React.FC = () => {
   const handleBulkDelete = async () => {
     if (!confirm(`¿Eliminar ${selectedIds.size} gastos? Esta acción no se puede deshacer.`)) return;
     try {
-      setLoading(true);
+      setBulkDeleting(true);
       for (const id of selectedIds) {
         await Api.deleteExpense(id);
       }
@@ -348,11 +334,11 @@ export const History: React.FC = () => {
     } catch (err) {
       handleApiError(err, 'Error al eliminar gastos');
     } finally {
-      setLoading(false);
+      setBulkDeleting(false);
     }
   };
 
-  if (loading) {
+  if (loading || bulkDeleting) {
     return (
       <div className="u-flex-gap-16">
         <div className="skeleton skeleton--header" />
