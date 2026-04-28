@@ -150,7 +150,7 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (cycleLoaded) loadDashboardData();
-  }, [cycleLoaded, activeCycle?.id]);
+  }, [cycleLoaded, activeCycle?.id, activeContext]);
 
   useEffect(() => {
     Api.getNotifications()
@@ -196,7 +196,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeCycle, currentMonth]);
+  }, [activeCycle, currentMonth, activeContext]);
 
   const handleCycleChanged = useCallback(async () => {
     // Reload cycle state after approval
