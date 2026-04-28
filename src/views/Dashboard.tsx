@@ -19,6 +19,7 @@ import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
+import type { CycleInfo } from '../api-types/cycles';
 
 interface Notification {
   id: number;
@@ -62,14 +63,6 @@ interface DashboardData {
   recentTransactions: VisibleExpense[];
 }
 
-interface ActiveCycle {
-  id: number;
-  status: 'active' | 'pending';
-  start_date: string | null;
-  end_date: string | null;
-  started_at: string | null;
-}
-
 const toNum = (v: unknown, fallback = 0) =>
   Number.isFinite(Number(v)) ? Number(v) : fallback;
 
@@ -88,7 +81,7 @@ const getRecentExpenseWindow = (expenses: VisibleExpense[], maxItems = 5, maxDay
     .slice(0, maxItems);
 };
 
-const formatCycleLabel = (cycle: ActiveCycle | null) => {
+const formatCycleLabel = (cycle: CycleInfo | null) => {
   if (!cycle?.start_date) return 'Ciclo actual';
   const d = new Date(cycle.start_date + 'T12:00:00');
   const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -98,7 +91,7 @@ const formatCycleLabel = (cycle: ActiveCycle | null) => {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeCycle, setActiveCycle] = useState<ActiveCycle | null>(null);
+  const [activeCycle, setCycleInfo] = useState<CycleInfo | null>(null);
   const [cycleLoaded, setCycleLoaded] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
@@ -145,7 +138,7 @@ export const Dashboard: React.FC = () => {
   // Load cycle first, then data
   useEffect(() => {
     Api.getCurrentCycle().catch(() => null).then((cycle) => {
-      setActiveCycle(cycle);
+      setCycleInfo(cycle);
       setCycleLoaded(true);
     });
   }, []);
@@ -204,10 +197,10 @@ export const Dashboard: React.FC = () => {
     // Reload cycle state after approval
     try {
       const cycle = await Api.getCurrentCycle();
-      setActiveCycle(cycle);
+      setCycleInfo(cycle);
     } catch (err) {
       console.error('Failed to reload cycle state:', err);
-      setActiveCycle(null);
+      setCycleInfo(null);
     }
     loadDashboardData();
   }, [loadDashboardData]);

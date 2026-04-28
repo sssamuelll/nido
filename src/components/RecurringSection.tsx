@@ -5,6 +5,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { formatMoneyExact } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
+import type { CycleInfo } from '../api-types/cycles';
 
 interface RecurringItem {
   id: number;
@@ -16,13 +17,6 @@ interface RecurringItem {
   notes?: string;
   every_n_cycles?: number;
   paused: boolean;
-}
-
-interface Cycle {
-  id: number;
-  status: 'active' | 'pending' | 'completed';
-  requested_by: number;
-  month: string;
 }
 
 interface RecurringSectionProps {
@@ -38,7 +32,7 @@ const TagIcon = () => (
 
 export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved }) => {
   const [items, setItems] = useState<RecurringItem[]>([]);
-  const [cycle, setCycle] = useState<Cycle | null>(null);
+  const [cycle, setCycle] = useState<CycleInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<RecurringItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -112,7 +106,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       ? '#FBBF24'
       : undefined;
 
-  const showApprovalBanner = cycle?.status === 'pending' && cycle.requested_by !== userId;
+  // TODO: see docs/HALLAZGOS.md "Eje G — RecurringSection requested_by mismatch".
+  // The server returns `requested_by_user_id`, not `requested_by`, so this comparison
+  // never matches a real user id and the banner shows for the wrong actor.
+  const showApprovalBanner = cycle?.status === 'pending'
+    && (cycle as unknown as { requested_by?: number }).requested_by !== userId;
   const showStartCycle = !cycle && items.length > 0;
 
   const openEditModal = (item: RecurringItem) => {

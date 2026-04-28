@@ -6,21 +6,13 @@ import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { formatMoney } from '../lib/money';
+import type { CycleInfo } from '../api-types/cycles';
 
 /* ── constants ──────────────────────────────────────────── */
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 /* ── types ──────────────────────────────────────────────── */
-
-type CycleInfo = {
-  id: number;
-  month: string;
-  status: string;
-  start_date: string | null;
-  end_date: string | null;
-  started_at: string | null;
-};
 
 interface KpisData {
   totalSpent: number;

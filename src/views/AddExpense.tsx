@@ -6,7 +6,8 @@ import { useAuth } from '../auth';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
-import { resolveCycleForDate, type Cycle } from '../lib/resolveCycleForDate';
+import { resolveCycleForDate } from '../lib/resolveCycleForDate';
+import type { CycleInfo } from '../api-types/cycles';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
@@ -46,7 +47,7 @@ export const AddExpense: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const isToday = expenseDate === format(new Date(), 'yyyy-MM-dd');
 
-  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [cycles, setCycles] = useState<CycleInfo[]>([]);
   const [targetCycleId, setTargetCycleId] = useState<number | null>(null);
   const activeCycle = cycles.find(c => c.status === 'active');
   const cycleResolution = useMemo(
