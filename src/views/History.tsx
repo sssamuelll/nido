@@ -8,7 +8,8 @@ import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
 import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
-import { resolveCycleForDate, type Cycle as RC } from '../lib/resolveCycleForDate';
+import { resolveCycleForDate } from '../lib/resolveCycleForDate';
+import type { CycleInfo } from '../api-types/cycles';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
@@ -37,15 +38,6 @@ type Expense = {
   type: 'shared' | 'personal';
   status?: 'paid' | 'pending';
   cycle_id?: number | null;
-};
-
-type CycleInfo = {
-  id: number;
-  month: string;
-  status: string;
-  start_date: string | null;
-  end_date: string | null;
-  started_at: string | null;
 };
 
 /* Category color map matching design reference icon-c backgrounds */
@@ -756,8 +748,7 @@ export const History: React.FC = () => {
               </div>
 
               {(() => {
-                const cyclesAsCycle = cycles.map(c => ({ id: c.id, status: c.status, start_date: c.start_date, end_date: c.end_date, month: c.month })) as RC[];
-                const resolution = resolveCycleForDate(editDate, cyclesAsCycle);
+                const resolution = resolveCycleForDate(editDate, cycles);
                 const active = cycles.find(c => c.status === 'active');
                 if (resolution.kind === 'in-active' || !active) return null;
                 return (

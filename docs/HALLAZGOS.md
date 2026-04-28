@@ -56,3 +56,30 @@ Ambos asumen `amount >= 0`; el call site construye el signo.
 ### Sub-hallazgo: `Intl.NumberFormat` cacheado vs `toLocaleString` por llamada
 
 El helper usa instancias `Intl.NumberFormat` cacheadas a nivel módulo. Esto es ~30× más rápido que `toLocaleString` por llamada (cada `toLocaleString` instancia un formatter nuevo). En vistas con 50+ filas (History) la diferencia se nota.
+
+---
+
+## Eje G (Cycle types) — un bug serio descubierto durante la unificación
+
+### `RecurringSection.tsx:113` — `requested_by` no coincide con la respuesta del server
+
+**Archivo:línea**: `src/components/RecurringSection.tsx:113` (`showApprovalBanner`).
+
+**Comportamiento actual**:
+```tsx
+const showApprovalBanner = cycle?.status === 'pending'
+  && (cycle as unknown as { requested_by?: number }).requested_by !== userId;
+```
+El componente lee `cycle.requested_by`, pero el server (`server/routes/cycles.ts:27` `getCycleWithApprovalState`) devuelve el campo como **`requested_by_user_id`**. La comparación queda como `undefined !== userId`, que siempre evalúa a `true`.
+
+**Comportamiento esperado**: el banner debería mostrarse al usuario que **NO** solicitó el ciclo (para que apruebe). Cuando un ciclo está pendiente porque Samuel lo pidió, el banner debe aparecerle a María, no a Samuel.
+
+**Síntoma observable para el usuario**: el banner "Ciclo pendiente de aprobación" + botón "Aprobar" aparece **al usuario que solicitó el ciclo** en vez de al partner. Cuando Samuel solicita un nuevo ciclo, él mismo ve el banner pidiéndole aprobar (que no puede, porque la aprobación es del otro miembro). María no ve nada hasta que abre la app y refresca.
+
+**Test que lo demuestra**: `src/components/RecurringSection.bug.test.ts` — usa `it.fails` para una aserción del comportamiento correcto (que falla hoy) y un test que pin-ea el síntoma actual. Cuando el bug se arregle, ambos tests indicarán que es momento de borrar el archivo.
+
+**Fix en otro PR**: cambiar el campo a `requested_by_user_id`, o (mejor) agregar `requested_by_user_id` al schema Zod en `src/api-types/cycles.ts` y actualizar el call site para usar el nombre correcto sin cast. Adjunta el bug-test deletion en el mismo PR.
+
+### Sub-hallazgo: `'in-closed'` es misnomer para ciclos `pending`
+
+`src/lib/resolveCycleForDate.ts` clasifica cualquier ciclo no-`active` como `'in-closed'`. Pero el schema de `billing_cycles` solo permite estados `'pending'` y `'active'` (ver `server/db.ts:303` CHECK constraint). Un ciclo `'pending'` clasificado como `'in-closed'` semánticamente confuso. Renombrar a `'in-other'` o `'non-active'` sería más correcto pero rompe consumers. Out of scope.

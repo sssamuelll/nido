@@ -1,17 +1,11 @@
-export interface Cycle {
-  id: number;
-  status: string;
-  start_date: string | null;
-  end_date: string | null;
-  month?: string;
-}
+import type { CycleInfo } from '../api-types/cycles';
 
 export type CycleResolution =
-  | { kind: 'in-active'; cycle: Cycle }
-  | { kind: 'in-closed'; cycle: Cycle }
+  | { kind: 'in-active'; cycle: CycleInfo }
+  | { kind: 'in-closed'; cycle: CycleInfo }
   | { kind: 'no-cycle' };
 
-export function resolveCycleForDate(date: string, cycles: Cycle[]): CycleResolution {
+export function resolveCycleForDate(date: string, cycles: CycleInfo[]): CycleResolution {
   for (const c of cycles) {
     if (!c.start_date) continue;
     const startsBefore = date >= c.start_date;
