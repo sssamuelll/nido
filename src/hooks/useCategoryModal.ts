@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Api } from '../api';
 import { showToast } from '../components/Toast';
+import { handleApiError } from '../lib/handleApiError';
 import type { CategoryDef } from './useCategoryManagement';
 
 const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
@@ -62,10 +63,9 @@ export const useCategoryModal = () => {
       });
       setShowModal(false);
       opts.onSuccess();
-      showToast(mode === 'add' ? 'Categoría creada' : 'Categoría actualizada');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error al guardar la categoría';
-      showToast(message);
+      showToast(mode === 'add' ? 'Categoría creada' : 'Categoría actualizada', 'success');
+    } catch (err) {
+      handleApiError(err, 'Error al guardar la categoría');
     }
   };
 
@@ -82,10 +82,9 @@ export const useCategoryModal = () => {
       await Api.deleteCategory(existingCat.id);
       setShowModal(false);
       opts.onSuccess();
-      showToast('Categoría eliminada');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error al eliminar la categoría';
-      showToast(message);
+      showToast('Categoría eliminada', 'success');
+    } catch (err) {
+      handleApiError(err, 'Error al eliminar la categoría');
     }
   };
 

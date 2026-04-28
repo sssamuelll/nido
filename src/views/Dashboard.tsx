@@ -18,6 +18,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
+import { ErrorView } from '../components/ErrorView';
 
 interface Notification {
   id: number;
@@ -233,20 +234,7 @@ export const Dashboard: React.FC = () => {
   }
 
   if (error || !data) {
-    return (
-      <div className="error-view">
-        <div className="error-view__msg">
-          {error || 'Error al cargar'}
-        </div>
-        <button
-          onClick={loadDashboardData}
-          className="btn btn--samuel btn--dynamic"
-          style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
-        >
-          Reintentar
-        </button>
-      </div>
-    );
+    return <ErrorView message={error || 'Error al cargar'} onRetry={loadDashboardData} />;
   }
 
   const sharedCategoryBreakdown = Array.isArray(data.categoryBreakdown) ? data.categoryBreakdown : [];

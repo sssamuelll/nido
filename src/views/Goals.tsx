@@ -8,6 +8,7 @@ import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
+import { handleApiError } from '../lib/handleApiError';
 
 
 interface GoalFormData {
@@ -35,7 +36,7 @@ const EMPTY_FORM: GoalFormData = {
 export const Goals: React.FC = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>(EMPTY_FORM);
@@ -50,7 +51,7 @@ export const Goals: React.FC = () => {
     try {
       const data = await Api.getGoals();
       setGoals(data);
-      setError(null);
+      setError('');
     } catch (err) {
       console.error('Failed to load goals:', err);
       setError('Error al cargar objetivos');
@@ -77,10 +78,9 @@ export const Goals: React.FC = () => {
       await fetchGoals();
       setContributeGoal(null);
       launchConfetti();
-      showToast(`¡€${amount} añadidos a ${contributeGoal.name}! 🚀`);
+      showToast(`¡€${amount} añadidos a ${contributeGoal.name}! 🚀`, 'success');
     } catch (err) {
-      console.error('Failed to contribute:', err);
-      showToast('Error al contribuir');
+      handleApiError(err, 'Error al contribuir');
     } finally {
       setContributing(false);
     }
@@ -107,10 +107,9 @@ export const Goals: React.FC = () => {
       await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
-      showToast('Objetivo eliminado');
+      showToast('Objetivo eliminado', 'success');
     } catch (err) {
-      console.error('Failed to delete goal:', err);
-      showToast('Error al eliminar');
+      handleApiError(err, 'Error al eliminar');
     }
   };
 
@@ -126,7 +125,7 @@ export const Goals: React.FC = () => {
           start_date: formData.start_date || null,
           deadline: formData.deadline || null,
         });
-        showToast('Objetivo actualizado');
+        showToast('Objetivo actualizado', 'success');
       } else {
         await Api.createGoal({
           name: formData.name,
@@ -136,15 +135,14 @@ export const Goals: React.FC = () => {
           deadline: formData.deadline || undefined,
           owner_type: formData.owner_type,
         });
-        showToast('¡Nuevo objetivo creado!');
+        showToast('¡Nuevo objetivo creado!', 'success');
       }
       await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
       setFormData(EMPTY_FORM);
     } catch (err) {
-      console.error('Failed to save goal:', err);
-      showToast('Error al guardar objetivo');
+      handleApiError(err, 'Error al guardar objetivo');
     } finally {
       setSubmitting(false);
     }
