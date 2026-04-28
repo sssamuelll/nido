@@ -26,9 +26,11 @@ router.get('/', async (req: AuthRequest, res) => {
 
     const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
 
+    // total_spent only aggregates expenses of the same type as the event, so a
+    // personal souvenir tagged to a shared trip doesn't consume the shared budget.
     const events = await db.all(
       `SELECT e.*,
-              COALESCE(SUM(ex.amount), 0) AS total_spent
+              COALESCE(SUM(CASE WHEN ex.type = e.context THEN ex.amount ELSE 0 END), 0) AS total_spent
        FROM events e
        LEFT JOIN expenses ex ON ex.event_id = e.id
        WHERE e.household_id = ?
@@ -83,12 +85,13 @@ router.get('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'No tienes acceso a este evento' });
     }
 
-    // KPIs
+    // KPIs — only same-type expenses count against the event's budget so a
+    // personal expense tagged to a shared trip doesn't consume the shared budget.
     const kpiRow = await db.get<{ total_spent: number }>(
       `SELECT COALESCE(SUM(amount), 0) AS total_spent
        FROM expenses
-       WHERE event_id = ?`,
-      id
+       WHERE event_id = ? AND type = ?`,
+      id, event.context
     );
     const totalSpent = kpiRow?.total_spent ?? 0;
     const kpis = {
@@ -116,13 +119,15 @@ router.get('/:id', async (req: AuthRequest, res) => {
          ON c.household_id = ? AND c.name = ex.category
           AND (c.context = 'shared' OR (c.context = 'personal' AND c.owner_user_id = ?))
        WHERE ex.event_id = ?
+         AND ex.type = ?
          AND ex.category IS NOT NULL
        GROUP BY ex.category
        ORDER BY total DESC`,
       id,
       user.household_id,
       req.user!.id,
-      id
+      id,
+      event.context
     );
 
     // Expense list ordered by date DESC
