@@ -21,7 +21,7 @@ import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
 import { useAsyncEffect } from '../hooks/useResource';
-import { CACHE_KEYS } from '../lib/cacheBus';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleInfo } from '../api-types/cycles';
 
 interface Notification {
@@ -592,6 +592,7 @@ export const Dashboard: React.FC = () => {
                 } else {
                   await Api.createEvent(eventData);
                 }
+                cacheBus.invalidate(CACHE_KEYS.events);
               } catch (err) {
                 console.error('Failed to save event:', err);
                 return;
@@ -612,6 +613,7 @@ export const Dashboard: React.FC = () => {
             if (editingEvent) {
               if (!confirm('Los gastos asociados se mantendrán pero ya no estarán vinculados al evento. ¿Eliminar evento?')) return;
               await Api.deleteEvent(editingEvent.id);
+              cacheBus.invalidate(CACHE_KEYS.events);
               setEditingEvent(null);
               setIsEvent(false);
               catModal.close();

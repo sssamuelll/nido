@@ -5,6 +5,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { formatMoneyExact } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleInfo } from '../api-types/cycles';
 
 interface RecurringItem {
@@ -220,6 +221,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     if (!cycle) return;
     try {
       await Api.approveCycle(cycle.id);
+      cacheBus.invalidate(CACHE_KEYS.cycles, CACHE_KEYS.summary);
       showToast('Ciclo aprobado', 'success');
       await loadData();
       onCycleApproved?.();
@@ -231,6 +233,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   const handleStartCycle = async () => {
     try {
       await Api.requestCycle();
+      cacheBus.invalidate(CACHE_KEYS.cycles);
       showToast('Ciclo iniciado', 'success');
       await loadData();
     } catch (err) {
