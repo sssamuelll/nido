@@ -74,8 +74,8 @@ const CATEGORIES: Record<string, string[]> = {
 
 // Search keywords for emojis (Spanish + English)
 const EMOJI_KEYWORDS: Record<string, string> = {
-  '🍽️':'comida restaurante plato cena dinner food','🛒':'compra super mercado carrito shop cart','🏠':'casa hogar home house',
-  '💡':'luz idea light electricidad','🚗':'coche auto car vehiculo','💊':'salud medicina health pill farmacia',
+  '🍽️':'comida restaurante plato cena dinner food','🛒':'compra super mercado carrito shop cart','🏠':'casa hogar home house jardin',
+  '💡':'luz idea light electricidad bombilla bulb','🚗':'coche auto car vehiculo','💊':'salud medicina health pill farmacia',
   '🎉':'fiesta celebracion party','📱':'telefono movil celular phone','💰':'dinero money plata ahorro',
   '✈️':'avion viaje travel flight','☕':'cafe coffee','🎬':'cine pelicula movie film',
   '😀':'feliz happy sonrisa smile','😂':'risa laugh llorar','😍':'amor love corazon',
@@ -99,8 +99,8 @@ const EMOJI_KEYWORDS: Record<string, string> = {
   '🚕':'taxi cab','🚌':'bus autobus','🚲':'bicicleta bike','🏍️':'moto motorcycle',
   '🚄':'tren train','🛩️':'avion avioneta plane','🚢':'barco ship crucero',
   '🏖️':'playa beach','🏔️':'montaña mountain','🏕️':'camping','🏰':'castillo castle',
-  '📱':'telefono phone celular','💻':'computadora laptop computer ordenador','📷':'camara foto camera photo',
-  '📺':'television tv tele','🔋':'bateria battery','💡':'luz bombilla light bulb',
+  '💻':'computadora laptop computer ordenador','📷':'camara foto camera photo',
+  '📺':'television tv tele','🔋':'bateria battery',
   '🔧':'herramienta tool','🔨':'martillo hammer','🔑':'llave key',
   '📦':'paquete caja package box','💼':'maletin trabajo work briefcase','📝':'nota escribir note write',
   '📊':'grafico chart estadistica','📅':'calendario calendar fecha date',
@@ -111,7 +111,7 @@ const EMOJI_KEYWORDS: Record<string, string> = {
   '🧡':'naranja corazon orange heart','💛':'amarillo corazon yellow heart',
   '💚':'verde corazon green heart','💙':'azul corazon blue heart',
   '💜':'morado corazon purple heart','🖤':'negro corazon black heart',
-  '🏠':'casa home','🏡':'casa jardin','🏢':'oficina office edificio',
+  '🏡':'casa jardin','🏢':'oficina office edificio',
   '🎁':'regalo gift present','🎂':'cumpleaños birthday pastel',
   '💳':'tarjeta card credito','💸':'gasto dinero money spend',
   '🏥':'hospital salud health','🏫':'escuela school colegio universidad',
