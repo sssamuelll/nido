@@ -165,6 +165,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           notes: formNotes.trim() || undefined,
           every_n_cycles: everyNCycles,
         });
+        cacheBus.invalidate(CACHE_KEYS.recurring);
         showToast('Gasto fijo actualizado', 'success');
       } else {
         await Api.createRecurring({
@@ -176,6 +177,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           notes: formNotes.trim() || undefined,
           every_n_cycles: everyNCycles,
         });
+        cacheBus.invalidate(CACHE_KEYS.recurring, CACHE_KEYS.expenses);
         showToast('Gasto fijo creado', 'success');
       }
       closeModal();
@@ -192,6 +194,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setSaving(true);
     try {
       await Api.togglePauseRecurring(editItem.id);
+      cacheBus.invalidate(CACHE_KEYS.recurring);
       showToast(editItem.paused ? 'Gasto activado' : 'Gasto pausado', 'success');
       closeModal();
       await loadData();
@@ -207,6 +210,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setSaving(true);
     try {
       await Api.deleteRecurring(editItem.id);
+      cacheBus.invalidate(CACHE_KEYS.recurring);
       showToast('Gasto fijo eliminado', 'success');
       closeModal();
       await loadData();

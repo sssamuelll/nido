@@ -4,6 +4,7 @@ import { X, Bell, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { handleApiError } from '../lib/handleApiError';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 
 interface Notification {
   id: number;
@@ -41,6 +42,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
   const markAsRead = async (id: number) => {
     try {
       await Api.markNotificationAsRead(id);
+      cacheBus.invalidate(CACHE_KEYS.notifications);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
     } catch (err) {
       handleApiError(err, 'Error al marcar como leída', { silent: true });
@@ -50,6 +52,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
   const markAllAsRead = async () => {
     try {
       await Api.markAllNotificationsRead();
+      cacheBus.invalidate(CACHE_KEYS.notifications);
       setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
     } catch (err) {
       handleApiError(err, 'Error al marcar todas como leídas', { silent: true });
