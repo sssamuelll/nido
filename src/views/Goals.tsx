@@ -6,16 +6,8 @@ import { type Goal } from '../types';
 import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
+import { formatDateLabel } from '../lib/dates';
 
-const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-const formatDateLabel = (dateStr: string) => {
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
-  if (dateStr === today) return 'Hoy';
-  if (dateStr === yesterday) return 'Ayer';
-  const d = new Date(dateStr + 'T12:00:00');
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-};
 
 interface GoalFormData {
   name: string;

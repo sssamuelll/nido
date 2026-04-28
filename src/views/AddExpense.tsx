@@ -7,6 +7,7 @@ import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { resolveCycleForDate, type Cycle } from '../lib/resolveCycleForDate';
+import { formatDateLabel } from '../lib/dates';
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -65,13 +66,6 @@ export const AddExpense: React.FC = () => {
     }
   }, [cycleResolution.kind, cycleResolution.kind === 'in-closed' ? cycleResolution.cycle.id : null, activeCycle?.id]);
 
-  const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr + 'T12:00:00');
-    const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
-    if (dateStr === yesterday) return 'Ayer';
-    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-  };
   const { categories, getCategoryDef } = useCategoryManagement(type);
   const [categorySearch, setCategorySearch] = useState('');
   const [cmdOpen, setCmdOpen] = useState(false);
