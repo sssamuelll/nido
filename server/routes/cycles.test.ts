@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createMockDb,
+  createMockResponse,
+  getRouteMiddleware as resolveRouteMiddleware,
+} from '../../test/route-helpers';
 
-const mockDb = {
-  all: vi.fn(),
-  get: vi.fn(),
-  run: vi.fn(),
-};
+const mockDb = createMockDb();
 
 vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
@@ -21,26 +22,10 @@ import { cycleApproveSchema } from '../validation.js';
 // generic 500 thirty frames later. Its sibling /household/budget/approve
 // was already hardened (commit 55c3422); this test brings cycles to parity.
 
-const getRouteLayer = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  cyclesRouter.stack.find(
-    (entry: { route?: { path: string; methods: Record<string, boolean> } }) =>
-      entry.route?.path === path && entry.route?.methods?.[method]
-  );
+const getRouteMiddleware = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
+  resolveRouteMiddleware(cyclesRouter, path, method);
 
-const getRouteMiddleware = (path: string, method: 'get' | 'post' | 'put' | 'delete') => {
-  const layer = getRouteLayer(path, method);
-  if (!layer) throw new Error(`route not found: ${method.toUpperCase()} ${path}`);
-  return layer.route.stack[layer.route.stack.length - 2].handle;
-};
-
-const createResponse = () => {
-  const res: { status: ReturnType<typeof vi.fn>; json: ReturnType<typeof vi.fn>; send: ReturnType<typeof vi.fn> } = {
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-    send: vi.fn().mockReturnThis(),
-  };
-  return res;
-};
+const createResponse = createMockResponse;
 
 const runMiddleware = (
   middleware: (req: unknown, res: unknown, next: unknown) => void,

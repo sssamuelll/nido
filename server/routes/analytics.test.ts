@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createMockDb,
+  createMockResponse,
+  getRouteHandler as resolveRouteHandler,
+} from '../../test/route-helpers';
 
-const mockDb = {
-  all: vi.fn(),
-  get: vi.fn(),
-  run: vi.fn(),
-};
+const mockDb = createMockDb();
 
 vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
@@ -12,20 +13,10 @@ vi.mock('../db.js', () => ({
 
 import analyticsRouter from './analytics.js';
 
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') => {
-  const layer = analyticsRouter.stack.find(
-    (entry: any) => entry.route?.path === path && entry.route?.methods?.[method]
-  );
-  return layer.route.stack[layer.route.stack.length - 1].handle;
-};
+const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
+  resolveRouteHandler(analyticsRouter, path, method);
 
-const createResponse = () => {
-  const res: any = {};
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn().mockReturnValue(res);
-  res.send = vi.fn().mockReturnValue(res);
-  return res;
-};
+const createResponse = createMockResponse;
 
 // Freeze current date for deterministic tests
 const NOW = new Date('2026-03-15T12:00:00Z');

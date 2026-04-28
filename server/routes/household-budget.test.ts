@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createMockDb,
+  createMockResponse,
+  getRouteHandler as resolveRouteHandler,
+  getRouteMiddleware as resolveRouteMiddleware,
+} from '../../test/route-helpers';
 
-const mockDb = {
-  all: vi.fn(),
-  get: vi.fn(),
-  run: vi.fn(),
-};
+const mockDb = createMockDb();
 
 vi.mock('../db.js', () => ({
   getDatabase: vi.fn(() => mockDb),
@@ -18,28 +20,13 @@ import {
   householdBudgetApproveSchema,
 } from '../validation.js';
 
-const getRouteLayer = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  householdBudgetRouter.stack.find(
-    (entry: any) => entry.route?.path === path && entry.route?.methods?.[method]
-  );
+const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
+  resolveRouteHandler(householdBudgetRouter, path, method);
 
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') => {
-  const layer = getRouteLayer(path, method);
-  return layer.route.stack[layer.route.stack.length - 1].handle;
-};
+const getRouteMiddleware = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
+  resolveRouteMiddleware(householdBudgetRouter, path, method);
 
-const getRouteMiddleware = (path: string, method: 'get' | 'post' | 'put' | 'delete') => {
-  const layer = getRouteLayer(path, method);
-  return layer.route.stack[layer.route.stack.length - 2].handle;
-};
-
-const createResponse = () => {
-  const res: any = {};
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn().mockReturnValue(res);
-  res.send = vi.fn().mockReturnValue(res);
-  return res;
-};
+const createResponse = createMockResponse;
 
 const runMiddleware = (
   middleware: (req: any, res: any, next: any) => void,
