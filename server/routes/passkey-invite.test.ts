@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createMockDb,
+  createMockResponse,
+  getRouteLayer as resolveRouteLayer,
+} from '../../test/route-helpers';
 
 vi.mock('../db.js', () => ({
-  getDatabase: vi.fn(() => ({
-    all: vi.fn(),
-    get: vi.fn(),
-    run: vi.fn(),
-  })),
+  getDatabase: vi.fn(() => createMockDb()),
 }));
 
 vi.mock('../config.js', () => ({
@@ -38,27 +39,13 @@ import { inviteCreateSchema } from '../validation.js';
 // TypeError surfaced as a contextless 500. The schema rejects both at
 // the boundary with a structured 400.
 
-const getRouteLayer = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  passkeyInviteRouter.stack.find(
-    (entry: { route?: { path: string; methods: Record<string, boolean> } }) =>
-      entry.route?.path === path && entry.route?.methods?.[method]
-  );
-
 const getRouteMiddleware = (
   path: string,
   method: 'get' | 'post' | 'put' | 'delete',
   index: number,
-) => {
-  const layer = getRouteLayer(path, method);
-  if (!layer) throw new Error(`route not found: ${method.toUpperCase()} ${path}`);
-  return layer.route.stack[index].handle;
-};
+) => resolveRouteLayer(passkeyInviteRouter, path, method).route!.stack[index].handle;
 
-const createResponse = () => ({
-  status: vi.fn().mockReturnThis(),
-  json: vi.fn().mockReturnThis(),
-  send: vi.fn().mockReturnThis(),
-});
+const createResponse = createMockResponse;
 
 const runMiddleware = (
   middleware: (req: unknown, res: unknown, next: unknown) => void,
