@@ -8,6 +8,7 @@ import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import { handleApiError } from '../lib/handleApiError';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleInfo } from '../api-types/cycles';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
@@ -253,6 +254,7 @@ export const AddExpense: React.FC = () => {
       for (let i = 0; i < repeatCount; i++) {
         await Api.createExpense(expenseData);
       }
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
 
       const isNewCategory = !categories.some(
         (c) => c.name.toLowerCase() === category.trim().toLowerCase()
@@ -694,6 +696,7 @@ export const AddExpense: React.FC = () => {
                   try {
                     setSavingCat(true);
                     await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor, context: type });
+                    cacheBus.invalidate(CACHE_KEYS.categories);
                     showToast('Categoría registrada ✔', 'success');
                     navigate('/');
                   } catch (err) {
