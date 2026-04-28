@@ -109,8 +109,14 @@ export const AddExpense: React.FC = () => {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const allEvents = await Api.getEvents(type as 'shared' | 'personal');
-        const activeEvents = allEvents.filter((ev: any) => new Date(ev.end_date) >= new Date());
+        // Shared expense → only shared events.
+        // Personal expense → user can also tag own expenses (e.g. a souvenir during a shared trip)
+        // to a shared event, so include both shared and own personal events.
+        const lists = type === 'shared'
+          ? [await Api.getEvents('shared')]
+          : await Promise.all([Api.getEvents('shared'), Api.getEvents('personal')]);
+        const merged = lists.flat();
+        const activeEvents = merged.filter((ev: any) => new Date(ev.end_date) >= new Date());
         setEvents(activeEvents);
       } catch {
         setEvents([]);
