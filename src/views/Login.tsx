@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { Api } from '../api';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 type ViewState = 'loading' | 'passkey' | 'pin' | 'migration-pin' | 'migration-register';
 
@@ -117,12 +118,7 @@ export const Login: React.FC = () => {
   };
 
   if (view === 'loading') {
-    return (
-      <div className="loading-screen">
-        <div className="loading-screen__logo"><span>N</span></div>
-        <div className="loading-screen__text">Cargando...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const renderRight = () => {
