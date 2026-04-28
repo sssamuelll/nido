@@ -74,7 +74,10 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       setLoading(true);
       const [recurring, currentCycle] = await Promise.all([
         Api.getRecurring(),
-        Api.getCurrentCycle().catch(() => null),
+        Api.getCurrentCycle().catch((err) => {
+          handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
+          return null;
+        }),
       ]);
       setItems(Array.isArray(recurring) ? recurring : []);
       setCycle(currentCycle);

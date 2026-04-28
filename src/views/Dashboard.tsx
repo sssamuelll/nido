@@ -137,10 +137,15 @@ export const Dashboard: React.FC = () => {
 
   // Load cycle first, then data
   useEffect(() => {
-    Api.getCurrentCycle().catch(() => null).then((cycle) => {
-      setActiveCycle(cycle);
-      setCycleLoaded(true);
-    });
+    Api.getCurrentCycle()
+      .catch((err) => {
+        handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
+        return null;
+      })
+      .then((cycle) => {
+        setActiveCycle(cycle);
+        setCycleLoaded(true);
+      });
   }, []);
 
   useEffect(() => {

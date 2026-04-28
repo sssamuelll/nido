@@ -7,6 +7,7 @@ import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
+import { handleApiError } from '../lib/handleApiError';
 import type { CycleInfo } from '../api-types/cycles';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
@@ -57,7 +58,10 @@ export const AddExpense: React.FC = () => {
   useEffect(() => {
     Api.listCycles()
       .then(d => setCycles(Array.isArray(d) ? d : []))
-      .catch(() => setCycles([]));
+      .catch((err) => {
+        handleApiError(err, 'Error al cargar ciclos', { silent: true });
+        setCycles([]);
+      });
   }, []);
   useEffect(() => {
     if (cycleResolution.kind === 'in-active') {

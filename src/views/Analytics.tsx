@@ -7,6 +7,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { formatMoney } from '../lib/money';
+import { handleApiError } from '../lib/handleApiError';
 import type { CycleInfo } from '../api-types/cycles';
 
 /* ── constants ──────────────────────────────────────────── */
@@ -406,7 +407,12 @@ export const Analytics: React.FC = () => {
   const [cycleIndex, setCycleIndex] = useState(0);
 
   useEffect(() => {
-    Api.listCycles().then(data => setCycles(Array.isArray(data) ? data : [])).catch(() => setCycles([]));
+    Api.listCycles()
+      .then(data => setCycles(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        handleApiError(err, 'Error al cargar ciclos', { silent: true });
+        setCycles([]);
+      });
   }, []);
 
   const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;

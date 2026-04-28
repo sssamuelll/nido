@@ -8,6 +8,7 @@ import { OWNER_THEMES } from '../types';
 import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useAsyncEffect } from '../hooks/useResource';
+import { handleApiError } from '../lib/handleApiError';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 
 interface DashboardSummary {
@@ -54,7 +55,10 @@ export const PersonalDashboard: React.FC = () => {
   const { getCategoryDef } = useCategoryManagement('personal');
 
   const loadPersonalDashboard = useCallback(async () => {
-    const cycle = await Api.getCurrentCycle().catch(() => null);
+    const cycle = await Api.getCurrentCycle().catch((err) => {
+      handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
+      return null;
+    });
     let nextSummary, nextExpenses;
     if (cycle?.start_date) {
       const range = { start_date: cycle.start_date, end_date: cycle.end_date ?? undefined };
