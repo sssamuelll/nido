@@ -19,6 +19,7 @@ import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
+import { useAsyncEffect } from '../hooks/useResource';
 import type { CycleInfo } from '../api-types/cycles';
 
 interface Notification {
@@ -95,8 +96,6 @@ export const Dashboard: React.FC = () => {
   const [cycleLoaded, setCycleLoaded] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const { activeContext, setActiveContext } = useContextSelector();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -144,54 +143,47 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (cycleLoaded) loadDashboardData();
-  }, [cycleLoaded, activeCycle?.id, activeContext]);
-
-  useEffect(() => {
     Api.getNotifications()
       .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
       .catch((err) => console.error('Failed to load notifications:', err));
   }, []);
 
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const loadDashboardDataFn = useCallback(async () => {
+    if (!cycleLoaded) return; // wait for the cycle prerequisite before fetching
+    let summary, nextExpenses;
 
-      let summary, nextExpenses;
-
-      if (activeCycle?.start_date) {
-        // Cycle-based: use date range
-        const range = { start_date: activeCycle.start_date, end_date: activeCycle.end_date ?? undefined };
-        [summary, nextExpenses] = await Promise.all([
-          Api.getSummary({ ...range, cycle_id: activeCycle.id }),
-          Api.getExpenses({ ...range, cycle_id: activeCycle.id }),
-        ]);
-      } else {
-        // No active cycle: show all expenses (budget lives in categories, not months)
-        [summary, nextExpenses] = await Promise.all([
-          Api.getSummary(),
-          Api.getExpenses(),
-        ]);
-      }
-
-      setData(summary);
-      setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
-
-      // Load events and goals in parallel
-      const [eventsData, goalsData] = await Promise.all([
-        Api.getEvents(activeContext as 'shared' | 'personal'),
-        Api.getGoals(),
+    if (activeCycle?.start_date) {
+      // Cycle-based: use date range
+      const range = { start_date: activeCycle.start_date, end_date: activeCycle.end_date ?? undefined };
+      [summary, nextExpenses] = await Promise.all([
+        Api.getSummary({ ...range, cycle_id: activeCycle.id }),
+        Api.getExpenses({ ...range, cycle_id: activeCycle.id }),
       ]);
-      setEvents(Array.isArray(eventsData) ? eventsData : []);
-      setGoals(Array.isArray(goalsData) ? goalsData : []);
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err);
-      setError('Error al cargar los datos');
-    } finally {
-      setLoading(false);
+    } else {
+      // No active cycle: show all expenses (budget lives in categories, not months)
+      [summary, nextExpenses] = await Promise.all([
+        Api.getSummary(),
+        Api.getExpenses(),
+      ]);
     }
-  }, [activeCycle, currentMonth, activeContext]);
+
+    setData(summary);
+    setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
+
+    // Load events and goals in parallel
+    const [eventsData, goalsData] = await Promise.all([
+      Api.getEvents(activeContext as 'shared' | 'personal'),
+      Api.getGoals(),
+    ]);
+    setEvents(Array.isArray(eventsData) ? eventsData : []);
+    setGoals(Array.isArray(goalsData) ? goalsData : []);
+  }, [cycleLoaded, activeCycle?.id, activeCycle?.start_date, activeCycle?.end_date, currentMonth, activeContext]);
+
+  const { loading: dataLoading, error, run: loadDashboardData } =
+    useAsyncEffect(loadDashboardDataFn, { fallbackMessage: 'Error al cargar los datos' });
+
+  // Page is loading until both the cycle prerequisite resolves and the data fetch completes.
+  const loading = !cycleLoaded || dataLoading;
 
   const handleCycleChanged = useCallback(async () => {
     // Reload cycle state after approval

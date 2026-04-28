@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { Bell, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
@@ -7,6 +7,7 @@ import { useAuth } from '../auth';
 import { OWNER_THEMES } from '../types';
 import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { useAsyncEffect } from '../hooks/useResource';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 
 interface DashboardSummary {
@@ -50,44 +51,30 @@ export const PersonalDashboard: React.FC = () => {
   const chartGradientId = useId();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const { getCategoryDef } = useCategoryManagement('personal');
 
-  useEffect(() => {
-    const loadPersonalDashboard = async () => {
-      try {
-        setLoading(true);
-        setError('');
-
-        const cycle = await Api.getCurrentCycle().catch(() => null);
-
-        let nextSummary, nextExpenses;
-        if (cycle?.start_date) {
-          const range = { start_date: cycle.start_date, end_date: cycle.end_date ?? undefined };
-          [nextSummary, nextExpenses] = await Promise.all([
-            Api.getSummary({ ...range, cycle_id: cycle.id }),
-            Api.getExpenses(range),
-          ]);
-        } else {
-          [nextSummary, nextExpenses] = await Promise.all([
-            Api.getSummary(),
-            Api.getExpenses(),
-          ]);
-        }
-
-        setSummary(nextSummary);
-        setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
-      } catch (err) {
-        console.error('Failed to load personal dashboard:', err);
-        setError('Error al cargar tu detalle personal');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadPersonalDashboard();
+  const loadPersonalDashboard = useCallback(async () => {
+    const cycle = await Api.getCurrentCycle().catch(() => null);
+    let nextSummary, nextExpenses;
+    if (cycle?.start_date) {
+      const range = { start_date: cycle.start_date, end_date: cycle.end_date ?? undefined };
+      [nextSummary, nextExpenses] = await Promise.all([
+        Api.getSummary({ ...range, cycle_id: cycle.id }),
+        Api.getExpenses(range),
+      ]);
+    } else {
+      [nextSummary, nextExpenses] = await Promise.all([
+        Api.getSummary(),
+        Api.getExpenses(),
+      ]);
+    }
+    setSummary(nextSummary);
+    setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
   }, []);
+
+  const { loading, error } = useAsyncEffect(loadPersonalDashboard, {
+    fallbackMessage: 'Error al cargar tu detalle personal',
+  });
 
   if (loading) {
     return (
