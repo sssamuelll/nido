@@ -141,7 +141,17 @@ Conclusión: **el cliente no se type-checkea en CI/CLI**. Solo el editor (que tr
 
 `src/views/Dashboard.tsx:114` declara `const currentMonth = format(new Date(), 'yyyy-MM');` y la incluye en las deps del `useCallback` de `loadDashboardDataFn` (línea 161). **No se usa en el body del callback**, ni en ninguna otra parte del componente. Es un dep fantasma — heredado del refactor previo cuando el load por mes calendario fue reemplazado por load por ciclo de facturación, y el local quedó sin consumidor. Comportamiento idéntico al de antes (la string es estable dentro del minuto, así que no dispara refetch espurio), pero deuda visible. Cleanup trivial post-audit: borrar la línea y la entrada del array de deps. Fuera del scope de Eje E.a por la regla "cero cambios fuera del eje".
 
-### 5. Eje O — shim aliases locales en cada test file
+### 5. Eje I — comentario justificando `{ silent: true }` no aplicado uniformemente
+
+En `src/auth.tsx:53` y `:94`, los dos sitios silent llevan un comentario en línea explicando **por qué** son silent (bootstrap implícito; logout limpia local state en finally — toast confundiría). En los otros 7 sitios silent migrados en Eje I (RecurringSection.tsx:77, useCategoryManagement.ts:25, Analytics.tsx:409, AddExpense.tsx:60, Settings.tsx:250, PersonalDashboard.tsx:57, Dashboard.tsx:139) **no hay comentario equivalente** — el `{ silent: true }` queda sin justificación textual.
+
+Sin comentario, el siguiente refactor no puede distinguir si la decisión fue deliberada (Cat 3-auto: ciclo activo / lista de ciclos / categorías son ancillary, no page-blocking) o copy-paste mecánico. Un agente futuro podría:
+- Quitar el flag pensando que era un descuido (regresión: toast indeseado para fetches background).
+- O añadir flag a sitios nuevos sin pensar (degradar la observabilidad si era Cat 2 o 3-user-init).
+
+Cleanup post-audit: añadir 1 línea de comentario en cada uno de los 7 sitios explicando qué fetch background-tolerante representa. Trabajo trivial (~7 minutos), pero importante para que el patrón sobreviva a la próxima persona/agente.
+
+### 6. Eje O — shim aliases locales en cada test file
 
 Para preservar literalmente los callsites de las aserciones, cada uno de los 7 archivos migrados en Eje O conserva un par de aliases locales tipo:
 
