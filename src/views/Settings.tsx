@@ -4,6 +4,8 @@ import { Api } from '../api';
 import { format } from 'date-fns';
 import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
 import { Button } from '../components/Button';
+import { showToast } from '../components/Toast';
+import { handleApiError } from '../lib/handleApiError';
 
 /* ── PIN Change Component ── */
 
@@ -16,7 +18,7 @@ const PIN_LABELS: Record<PinStep, { title: string; sub: string }> = {
   confirm: { title: 'Confirmar PIN', sub: 'Repite el nuevo código' },
 };
 
-const PinChangeSection: React.FC<{ onToast: (t: { type: 'success' | 'error'; msg: string }) => void }> = ({ onToast }) => {
+const PinChangeSection: React.FC = () => {
   const [step, setStep] = useState<PinStep>('idle');
   const [pin, setPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -59,17 +61,16 @@ const PinChangeSection: React.FC<{ onToast: (t: { type: 'success' | 'error'; msg
       if (fullPin === newPin) {
         try {
           await Api.updatePin(fullPin);
-          onToast({ type: 'success', msg: 'PIN actualizado' });
+          showToast('PIN actualizado', 'success');
           reset();
         } catch (err) {
-          console.error('Failed to update PIN:', err);
-          onToast({ type: 'error', msg: 'Error al actualizar el PIN' });
+          handleApiError(err, 'Error al actualizar el PIN');
           reset();
         }
       } else {
         triggerShake();
         setTimeout(() => { setPin(''); setStep('new'); setNewPin(''); }, 400);
-        onToast({ type: 'error', msg: 'Los PINs no coinciden. Inténtalo de nuevo.' });
+        showToast('Los PINs no coinciden. Inténtalo de nuevo.', 'error');
       }
     }
   };
@@ -219,18 +220,10 @@ export const Settings: React.FC = () => {
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   useEffect(() => {
     loadData();
   }, []);
-
-  useEffect(() => {
-    if (toast) {
-      const t = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [toast]);
 
   const loadCycle = async () => {
     try {
@@ -275,8 +268,9 @@ export const Settings: React.FC = () => {
       setBudget(budgetData);
       setMembers(membersData);
     } catch (err) {
+      // Cat 3 automático: load on mount, no toast — but ErrorView would be ideal
+      // if budget/members fail to load. Settings page tolerates the failure.
       console.error('Failed to load settings data:', err);
-      setToast({ type: 'error', msg: 'Error al cargar datos' });
     } finally {
       setLoading(false);
     }
@@ -285,11 +279,11 @@ export const Settings: React.FC = () => {
   const handleAddDevice = async () => {
     try {
       await registerPasskey();
-      setToast({ type: 'success', msg: 'Dispositivo registrado' });
+      showToast('Dispositivo registrado', 'success');
       loadPasskeys();
-    } catch (error: any) {
-      if (error?.name === 'NotAllowedError') return; // user cancelled
-      setToast({ type: 'error', msg: error?.message || 'Error al registrar dispositivo' });
+    } catch (err) {
+      if (err && (err as { name?: string }).name === 'NotAllowedError') return; // user cancelled
+      handleApiError(err, 'Error al registrar dispositivo');
     }
   };
 
@@ -299,8 +293,8 @@ export const Settings: React.FC = () => {
       setInviteUrl(result.url);
       setInviteFor('partner');
       setCopied(false);
-    } catch (error: any) {
-      setToast({ type: 'error', msg: error?.message || 'Error al crear invitación' });
+    } catch (err) {
+      handleApiError(err, 'Error al crear invitación');
     }
   };
 
@@ -310,8 +304,8 @@ export const Settings: React.FC = () => {
       setInviteUrl(result.url);
       setInviteFor('relink');
       setCopied(false);
-    } catch (error: any) {
-      setToast({ type: 'error', msg: error?.message || 'Error al crear enlace' });
+    } catch (err) {
+      handleApiError(err, 'Error al crear enlace');
     }
   };
 
@@ -333,14 +327,13 @@ export const Settings: React.FC = () => {
       });
 
       if (res.pending_approval) {
-        setToast({ type: 'success', msg: 'Petición enviada a tu pareja' });
+        showToast('Petición enviada a tu pareja', 'success');
       } else {
-        setToast({ type: 'success', msg: 'Presupuesto guardado' });
+        showToast('Presupuesto guardado', 'success');
       }
       loadData();
     } catch (err) {
-      console.error('Failed to save budget:', err);
-      setToast({ type: 'error', msg: 'Error al guardar' });
+      handleApiError(err, 'Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -351,11 +344,10 @@ export const Settings: React.FC = () => {
     try {
       setSaving(true);
       await Api.approveHouseholdBudget(budget.pending_approval.id);
-      setToast({ type: 'success', msg: 'Presupuesto aprobado' });
+      showToast('Presupuesto aprobado', 'success');
       loadData();
     } catch (err) {
-      console.error('Failed to approve budget:', err);
-      setToast({ type: 'error', msg: 'Error al aprobar' });
+      handleApiError(err, 'Error al aprobar');
     } finally {
       setSaving(false);
     }
@@ -366,10 +358,10 @@ export const Settings: React.FC = () => {
     try {
       setSaving(true);
       await Api.requestCycle();
-      setToast({ type: 'success', msg: 'Ciclo solicitado. Esperando aprobación.' });
+      showToast('Ciclo solicitado. Esperando aprobación.', 'success');
       loadCycle();
-    } catch (error: any) {
-      setToast({ type: 'error', msg: error.message || 'Error al solicitar ciclo' });
+    } catch (err) {
+      handleApiError(err, 'Error al solicitar ciclo');
     } finally {
       setSaving(false);
     }
@@ -381,10 +373,10 @@ export const Settings: React.FC = () => {
     try {
       setSaving(true);
       await Api.approveCycle(currentCycle.id);
-      setToast({ type: 'success', msg: 'Ciclo aprobado. Gastos recurrentes registrados.' });
+      showToast('Ciclo aprobado. Gastos recurrentes registrados.', 'success');
       loadCycle();
-    } catch (error: any) {
-      setToast({ type: 'error', msg: error.message || 'Error al aprobar ciclo' });
+    } catch (err) {
+      handleApiError(err, 'Error al aprobar ciclo');
     } finally {
       setSaving(false);
     }
@@ -415,10 +407,9 @@ export const Settings: React.FC = () => {
       link.href = URL.createObjectURL(blob);
       link.download = filename;
       link.click();
-      setToast({ type: 'success', msg: 'CSV descargado' });
+      showToast('CSV descargado', 'success');
     } catch (err) {
-      console.error('Failed to export CSV:', err);
-      setToast({ type: 'error', msg: 'Error al exportar' });
+      handleApiError(err, 'Error al exportar');
     }
   };
 
@@ -450,13 +441,6 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="settings">
-      {/* Toast */}
-      {toast && (
-        <div className={`settings__toast settings__toast--${toast.type}`}>
-          {toast.msg}
-        </div>
-      )}
-
       {/* Header — topbar pattern matching design reference */}
       <div className="topbar an d1">
         <div>
@@ -537,7 +521,7 @@ export const Settings: React.FC = () => {
               disabled={saving}
               onClick={() => {
                 if (budget.total_amount < 100 || budget.personal_budget < 100) {
-                  setToast({ type: 'error', msg: 'Los montos deben ser de al menos 3 dígitos' });
+                  showToast('Los montos deben ser de al menos 3 dígitos');
                   return;
                 }
                 handleSaveBudget();
@@ -551,7 +535,7 @@ export const Settings: React.FC = () => {
         {/* RIGHT COLUMN: Security + Tools + Danger */}
         <div>
           {/* Security — PIN change */}
-          <PinChangeSection onToast={setToast} />
+          <PinChangeSection />
 
           {/* Devices & Access — passkey management */}
           <div className="card settings-section an d4">

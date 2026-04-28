@@ -9,6 +9,7 @@ import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { resolveCycleForDate, type Cycle } from '../lib/resolveCycleForDate';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
+import { handleApiError } from '../lib/handleApiError';
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -255,11 +256,11 @@ export const AddExpense: React.FC = () => {
 
       const msg = repeatCount > 1 ? `${repeatCount} gastos añadidos ✔` : 'Gasto añadido ✔';
       if (isNewCategory) {
-        showToast(msg);
+        showToast(msg, 'success');
         setShowNewCatModal(true);
       } else {
         setSuccess(true);
-        showToast(msg);
+        showToast(msg, 'success');
         setTimeout(() => navigate('/'), 1500);
       }
     } catch (err) {
@@ -689,11 +690,10 @@ export const AddExpense: React.FC = () => {
                   try {
                     setSavingCat(true);
                     await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor, context: type });
-                    showToast('Categoría registrada ✔');
+                    showToast('Categoría registrada ✔', 'success');
                     navigate('/');
                   } catch (err) {
-                    console.error('Failed to save category:', err);
-                    showToast('Error al guardar la categoría');
+                    handleApiError(err, 'Error al guardar la categoría');
                   } finally {
                     setSavingCat(false);
                   }

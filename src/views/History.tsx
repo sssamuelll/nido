@@ -10,6 +10,8 @@ import { showToast } from '../components/Toast';
 import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
 import { resolveCycleForDate, type Cycle as RC } from '../lib/resolveCycleForDate';
 import { formatMoney, formatMoneyExact } from '../lib/money';
+import { ErrorView } from '../components/ErrorView';
+import { handleApiError } from '../lib/handleApiError';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -267,7 +269,7 @@ export const History: React.FC = () => {
     try {
       setSavingEdit(true);
       await Api.deleteExpense(editingExpense.id);
-      showToast('Gasto eliminado');
+      showToast('Gasto eliminado', 'success');
       closeEditModal();
       loadExpenses();
     } catch (err) {
@@ -290,7 +292,7 @@ export const History: React.FC = () => {
         date: editDate,
         type: editType,
       });
-      showToast('Gasto duplicado');
+      showToast('Gasto duplicado', 'success');
       closeEditModal();
       loadExpenses();
     } catch (err) {
@@ -321,7 +323,7 @@ export const History: React.FC = () => {
         status: editingExpense.status ?? 'paid',
         cycle_id: editTargetCycleId,
       });
-      showToast('Gasto actualizado ✔');
+      showToast('Gasto actualizado ✔', 'success');
       closeEditModal();
       await Promise.all([loadExpenses(), reloadCategories()]);
     } catch (err) {
@@ -347,13 +349,12 @@ export const History: React.FC = () => {
       for (const id of selectedIds) {
         await Api.deleteExpense(id);
       }
-      showToast(`${selectedIds.size} gastos eliminados`);
+      showToast(`${selectedIds.size} gastos eliminados`, 'success');
       setSelectedIds(new Set());
       setSelectMode(false);
       loadExpenses();
     } catch (err) {
-      console.error('Bulk delete error:', err);
-      showToast('Error al eliminar gastos');
+      handleApiError(err, 'Error al eliminar gastos');
     } finally {
       setLoading(false);
     }
@@ -601,10 +602,7 @@ export const History: React.FC = () => {
 
       {error ? (
         <div className="history__error-card">
-          <div className="error-view__msg">{error}</div>
-          <button onClick={loadExpenses} className="btn btn-primary">
-            Reintentar
-          </button>
+          <ErrorView message={error} onRetry={loadExpenses} />
         </div>
       ) : filteredExpenses.length === 0 ? (
         <div className="empty-view">

@@ -4,6 +4,7 @@ import { showToast } from './Toast';
 import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { formatMoneyExact } from '../lib/money';
+import { handleApiError } from '../lib/handleApiError';
 
 interface RecurringItem {
   id: number;
@@ -162,7 +163,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           notes: formNotes.trim() || undefined,
           every_n_cycles: everyNCycles,
         });
-        showToast('Gasto fijo actualizado');
+        showToast('Gasto fijo actualizado', 'success');
       } else {
         await Api.createRecurring({
           name: formName.trim(),
@@ -173,13 +174,12 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           notes: formNotes.trim() || undefined,
           every_n_cycles: everyNCycles,
         });
-        showToast('Gasto fijo creado');
+        showToast('Gasto fijo creado', 'success');
       }
       closeModal();
       await loadData();
     } catch (err) {
-      console.error('Failed to save recurring item:', err);
-      showToast('Error al guardar');
+      handleApiError(err, 'Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -190,12 +190,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setSaving(true);
     try {
       await Api.togglePauseRecurring(editItem.id);
-      showToast(editItem.paused ? 'Gasto activado' : 'Gasto pausado');
+      showToast(editItem.paused ? 'Gasto activado' : 'Gasto pausado', 'success');
       closeModal();
       await loadData();
     } catch (err) {
-      console.error('Failed to toggle recurring pause:', err);
-      showToast('Error al cambiar estado');
+      handleApiError(err, 'Error al cambiar estado');
     } finally {
       setSaving(false);
     }
@@ -206,12 +205,11 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setSaving(true);
     try {
       await Api.deleteRecurring(editItem.id);
-      showToast('Gasto fijo eliminado');
+      showToast('Gasto fijo eliminado', 'success');
       closeModal();
       await loadData();
     } catch (err) {
-      console.error('Failed to delete recurring item:', err);
-      showToast('Error al eliminar');
+      handleApiError(err, 'Error al eliminar');
     } finally {
       setSaving(false);
     }
@@ -221,23 +219,21 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     if (!cycle) return;
     try {
       await Api.approveCycle(cycle.id);
-      showToast('Ciclo aprobado');
+      showToast('Ciclo aprobado', 'success');
       await loadData();
       onCycleApproved?.();
     } catch (err) {
-      console.error('Failed to approve cycle:', err);
-      showToast('Error al aprobar ciclo');
+      handleApiError(err, 'Error al aprobar ciclo');
     }
   };
 
   const handleStartCycle = async () => {
     try {
       await Api.requestCycle();
-      showToast('Ciclo iniciado');
+      showToast('Ciclo iniciado', 'success');
       await loadData();
     } catch (err) {
-      console.error('Failed to start cycle:', err);
-      showToast('Error al iniciar ciclo');
+      handleApiError(err, 'Error al iniciar ciclo');
     }
   };
 

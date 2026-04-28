@@ -4,6 +4,7 @@ import { Api } from '../api';
 import { ChevronLeft } from 'lucide-react';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorView } from '../components/ErrorView';
 
 interface EventCategoryRow {
   category: string;
@@ -83,7 +84,7 @@ export const EventDetail: React.FC = () => {
   }, [id]);
 
   if (loading) return <LoadingScreen />;
-  if (!data) return <div className="error-view"><div className="error-view__msg">Evento no encontrado</div></div>;
+  if (!data) return <ErrorView message="Evento no encontrado" />;
 
   const { event, kpis, categories, expenses } = data;
   // The API may return categories as "categories" or "categoryBreakdown" — handle both
