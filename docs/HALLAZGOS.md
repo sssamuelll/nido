@@ -140,3 +140,15 @@ Conclusión: **el cliente no se type-checkea en CI/CLI**. Solo el editor (que tr
 ### 4. `currentMonth` ghost dep en Dashboard.tsx
 
 `src/views/Dashboard.tsx:114` declara `const currentMonth = format(new Date(), 'yyyy-MM');` y la incluye en las deps del `useCallback` de `loadDashboardDataFn` (línea 161). **No se usa en el body del callback**, ni en ninguna otra parte del componente. Es un dep fantasma — heredado del refactor previo cuando el load por mes calendario fue reemplazado por load por ciclo de facturación, y el local quedó sin consumidor. Comportamiento idéntico al de antes (la string es estable dentro del minuto, así que no dispara refetch espurio), pero deuda visible. Cleanup trivial post-audit: borrar la línea y la entrada del array de deps. Fuera del scope de Eje E.a por la regla "cero cambios fuera del eje".
+
+### 5. Eje O — shim aliases locales en cada test file
+
+Para preservar literalmente los callsites de las aserciones, cada uno de los 7 archivos migrados en Eje O conserva un par de aliases locales tipo:
+
+```ts
+const getRouteHandler = (path: string, method: 'get'|'post'|'put'|'delete') =>
+  resolveRouteHandler(goalsRouter, path, method);
+const createResponse = createMockResponse;
+```
+
+Esto deja ~3 LOC × 7 archivos = ~21 LOC de ceremonia repetida. Decisión defensible para minimizar diff dentro de los tests durante el unify, pero técnicamente drift mínimo: si alguien agrega un test #8 va a copiar el shim del archivo más cercano. **Segundo pase opcional post-audit**: actualizar callsites a `getRouteHandler(router, ...)` directo desde los helpers compartidos y eliminar los shims. Ganancia ~30 LOC y eliminación de la copia ceremonial; riesgo mecánico bajo (cambio sintáctico uniforme). Candidato para cleanup final.
