@@ -136,3 +136,7 @@ Conclusión: **el cliente no se type-checkea en CI/CLI**. Solo el editor (que tr
 ### 3. No hay script `lint` en `package.json`
 
 `package.json` no expone ningún script `lint`. No hay `.eslintrc*` ni `eslint.config.*` en la raíz. El prompt original asumía `pnpm lint`; en este repo no aplica. Si se quiere lint en CI, hay que añadirlo (eslint + plugin-react + plugin-react-hooks). Out of scope del audit.
+
+### 4. `currentMonth` ghost dep en Dashboard.tsx
+
+`src/views/Dashboard.tsx:114` declara `const currentMonth = format(new Date(), 'yyyy-MM');` y la incluye en las deps del `useCallback` de `loadDashboardDataFn` (línea 161). **No se usa en el body del callback**, ni en ninguna otra parte del componente. Es un dep fantasma — heredado del refactor previo cuando el load por mes calendario fue reemplazado por load por ciclo de facturación, y el local quedó sin consumidor. Comportamiento idéntico al de antes (la string es estable dentro del minuto, así que no dispara refetch espurio), pero deuda visible. Cleanup trivial post-audit: borrar la línea y la entrada del array de deps. Fuera del scope de Eje E.a por la regla "cero cambios fuera del eje".
