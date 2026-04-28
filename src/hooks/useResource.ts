@@ -75,14 +75,22 @@ export interface ResourceState<T> {
   reload: () => Promise<void>;
 }
 
-export interface ResourceOptions extends AsyncStateOptions {
-  /**
-   * Subscribe this hook's reload to cacheBus invalidations on the given key.
-   * Mutations elsewhere call `cacheBus.invalidate(key)` to trigger a refetch
-   * here without remount.
-   */
-  invalidationKey?: CacheKey;
-}
+/**
+ * useResource subscribes to the cacheBus via either:
+ *   - `invalidationKey: CacheKey`  — one source entity (Goals → 'goals'),
+ *   - `invalidationKeys: CacheKey[]` — derived from several entities
+ *      (EventDetail reads events + the expenses inside the event),
+ *   - neither — no subscription.
+ *
+ * The discriminated union below makes "passing both at once" a compile-time
+ * error rather than a silent runtime decision (which value wins, are they
+ * merged, etc.). One callable knob per call site, enforced by tsc.
+ */
+export type ResourceOptions = AsyncStateOptions & (
+  | { invalidationKey: CacheKey; invalidationKeys?: never }
+  | { invalidationKey?: never; invalidationKeys: CacheKey[] }
+  | { invalidationKey?: never; invalidationKeys?: never }
+);
 
 /**
  * Single-resource fetch: loader returns one value, the hook stores it in `data`.
@@ -112,10 +120,24 @@ export function useResource<T>(
 
   useEffect(() => { reload(); }, [reload]);
 
+  // Normalise singular + plural into one array internally — the discriminated
+  // union guarantees at most one is set, so this is safe. Same ref+signature
+  // trick as useAsyncEffect so a fresh array literal each render doesn't
+  // churn subscriptions.
+  const normalizedKeys = options.invalidationKey
+    ? [options.invalidationKey]
+    : options.invalidationKeys;
+  const invalidationKeysRef = useRef(normalizedKeys);
+  invalidationKeysRef.current = normalizedKeys;
+  const invalidationKeysSignature = normalizedKeys?.join('|') ?? '';
   useEffect(() => {
-    if (!options.invalidationKey) return;
-    return cacheBus.subscribe(options.invalidationKey, () => { void reload(); });
-  }, [options.invalidationKey, reload]);
+    const keys = invalidationKeysRef.current;
+    if (!keys || keys.length === 0) return;
+    const unsubs = keys.map((key) =>
+      cacheBus.subscribe(key, () => { void reload(); }),
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [invalidationKeysSignature, reload]);
 
   return { data, loading, error, reload };
 }

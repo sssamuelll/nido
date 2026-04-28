@@ -6,6 +6,7 @@ import { formatMoney, formatMoneyExact } from '../lib/money';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorView } from '../components/ErrorView';
 import { useResource } from '../hooks/useResource';
+import { CACHE_KEYS } from '../lib/cacheBus';
 
 interface EventCategoryRow {
   category: string;
@@ -71,7 +72,9 @@ export const EventDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const loadEvent = useCallback(() => Api.getEventDetail(Number(id)), [id]);
-  const { data, loading } = useResource<any>(loadEvent);
+  const { data, loading } = useResource<any>(loadEvent, {
+    invalidationKeys: [CACHE_KEYS.events, CACHE_KEYS.expenses],
+  });
 
   if (loading) return <LoadingScreen />;
   if (!data) return <ErrorView message="Evento no encontrado" />;

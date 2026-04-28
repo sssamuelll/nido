@@ -10,6 +10,7 @@ import { formatDateLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
+import { CACHE_KEYS } from '../lib/cacheBus';
 
 
 interface GoalFormData {
@@ -37,7 +38,10 @@ const EMPTY_FORM: GoalFormData = {
 export const Goals: React.FC = () => {
   const loadGoals = useCallback(() => Api.getGoals(), []);
   const { data: goalsData, loading, error, reload: fetchGoals } =
-    useResource<Goal[]>(loadGoals, { fallbackMessage: 'Error al cargar objetivos' });
+    useResource<Goal[]>(loadGoals, {
+      fallbackMessage: 'Error al cargar objetivos',
+      invalidationKey: CACHE_KEYS.goals,
+    });
   const goals = goalsData ?? [];
 
   const [showCreateModal, setShowCreateModal] = useState(false);
