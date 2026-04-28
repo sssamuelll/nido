@@ -9,6 +9,7 @@ import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { MeshBackground } from './components/MeshBackground';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { LoadingScreen } from './components/LoadingScreen';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -32,12 +33,7 @@ const AppRoutes: React.FC = () => {
   }, [location.pathname]);
 
   if (isLoading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-screen__logo"><span>N</span></div>
-        <div className="loading-screen__text">Cargando...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (location.pathname === '/setup') {

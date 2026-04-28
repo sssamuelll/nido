@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 interface InviteInfo {
   household_name: string;
@@ -62,12 +63,7 @@ export const Invite: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-screen__logo"><span>N</span></div>
-        <div className="loading-screen__text">Cargando...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (

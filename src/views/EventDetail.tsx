@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { ChevronLeft } from 'lucide-react';
 import { formatMoney, formatMoneyExact } from '../lib/money';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 interface EventCategoryRow {
   category: string;
@@ -81,7 +82,7 @@ export const EventDetail: React.FC = () => {
     void load();
   }, [id]);
 
-  if (loading) return <div className="loading-screen"><div className="loading-screen__logo"><span>N</span></div><div className="loading-screen__text">Cargando...</div></div>;
+  if (loading) return <LoadingScreen />;
   if (!data) return <div className="error-view"><div className="error-view__msg">Evento no encontrado</div></div>;
 
   const { event, kpis, categories, expenses } = data;
