@@ -9,6 +9,7 @@ import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useAsyncEffect } from '../hooks/useResource';
 import { handleApiError } from '../lib/handleApiError';
+import { CACHE_KEYS } from '../lib/cacheBus';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 
 interface DashboardSummary {
@@ -78,6 +79,7 @@ export const PersonalDashboard: React.FC = () => {
 
   const { loading, error } = useAsyncEffect(loadPersonalDashboard, {
     fallbackMessage: 'Error al cargar tu detalle personal',
+    invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.budget],
   });
 
   if (loading) {

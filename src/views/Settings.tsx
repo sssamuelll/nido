@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { useAsyncEffect } from '../hooks/useResource';
+import { CACHE_KEYS } from '../lib/cacheBus';
 import { format } from 'date-fns';
 import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -270,7 +271,9 @@ export const Settings: React.FC = () => {
 
   // Cat 3 automático: load on mount, no toast — but ErrorView would be ideal if budget/members fail.
   // Settings page tolerates the failure (render gates on `!budget`).
-  const { loading, run: loadData } = useAsyncEffect(loadDataFn);
+  const { loading, run: loadData } = useAsyncEffect(loadDataFn, {
+    invalidationKeys: [CACHE_KEYS.budget, CACHE_KEYS.cycles],
+  });
 
   const handleAddDevice = async () => {
     try {
