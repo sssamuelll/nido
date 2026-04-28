@@ -79,7 +79,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       setItems(Array.isArray(recurring) ? recurring : []);
       setCycle(currentCycle);
     } catch (err) {
-      console.error('Failed to load recurring data:', err);
+      handleApiError(err, 'Error al cargar recurrentes', { silent: true });
     } finally {
       setLoading(false);
     }

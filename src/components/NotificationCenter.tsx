@@ -3,6 +3,7 @@ import { Api } from '../api';
 import { X, Bell, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { handleApiError } from '../lib/handleApiError';
 
 interface Notification {
   id: number;
@@ -31,7 +32,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
       const data = await Api.getNotifications();
       setNotifications(data);
     } catch (err) {
-      console.error('Error loading notifications', err);
+      handleApiError(err, 'Error al cargar notificaciones', { silent: true });
     } finally {
       setLoading(false);
     }
@@ -42,7 +43,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
       await Api.markNotificationAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
     } catch (err) {
-      console.error('Error marking as read', err);
+      handleApiError(err, 'Error al marcar como leída', { silent: true });
     }
   };
 
@@ -51,7 +52,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
       await Api.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
     } catch (err) {
-      console.error('Error marking all as read', err);
+      handleApiError(err, 'Error al marcar todas como leídas', { silent: true });
     }
   };
 

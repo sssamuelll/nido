@@ -43,4 +43,25 @@ describe('handleApiError', () => {
     handleApiError(new Error('boom'), 'Error al guardar');
     expect(consoleErrorSpy).toHaveBeenCalledWith('Error al guardar', expect.any(Error));
   });
+
+  describe('with { silent: true }', () => {
+    it('logs to console but does not surface a toast', () => {
+      handleApiError(new Error('background fail'), 'Error al cargar ciclos', { silent: true });
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error al cargar ciclos', expect.any(Error));
+      expect(showToast).not.toHaveBeenCalled();
+    });
+
+    it('does not toast even when err has a useful message', () => {
+      handleApiError(new Error('Server is down'), 'Error al cargar', { silent: true });
+      expect(showToast).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('with { silent: false } (explicit default)', () => {
+    it('behaves like the default (toast + log)', () => {
+      handleApiError(new Error('user click failed'), 'Error al guardar', { silent: false });
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error al guardar', expect.any(Error));
+      expect(showToast).toHaveBeenCalledWith('user click failed', 'error');
+    });
+  });
 });
