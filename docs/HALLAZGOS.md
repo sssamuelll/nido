@@ -151,7 +151,48 @@ Sin comentario, el siguiente refactor no puede distinguir si la decisión fue de
 
 Cleanup post-audit: añadir 1 línea de comentario en cada uno de los 7 sitios explicando qué fetch background-tolerante representa. Trabajo trivial (~7 minutos), pero importante para que el patrón sobreviva a la próxima persona/agente.
 
-### 6. Eje O — shim aliases locales en cada test file
+### 6. Deuda de strictness TS — 31 errores latentes tras bump a TS 5.9.3
+
+El bump de TypeScript (4.9 → 5.9) ejecutado pre-Eje-D destapó 44 errores de tipo en código fuente que nunca se chequeó porque `tsc` 4.9 no podía leer el `tsconfig.json` con `moduleResolution: "bundler"`. Se arreglaron 13 (3 bugs reales + 8 jest-dom typing-setup + 2 dup imports). Los 31 restantes quedan como deuda explícita:
+
+| Código | Cuenta | Causa | Carácter |
+|---|---|---|---|
+| `TS6133` | 15 | Unused locals/imports (`noUnusedLocals` strict) | Cleanup mecánico. Dead imports (`Download`, `LogOut`, `CheckCircle`, `AlertCircle`, `Button`, `useEffect`, `vi`, `fetchData`, etc.) y locals (`maxBar`, `emoji`, `user`, `remainingShared`, `sharedProgress`, `personalCard`, `userName`). Borrar línea por línea, ~5 min. |
+| `TS2322` | 10 | Type not assignable | Casi todo en `BudgetCapsule.tsx:6-11` — typing entre `lucide-react` icons (`ForwardRefExoticComponent<LucideProps>`) y un `FC<{size,color}>` propio. Necesita widen-to-FC o assertion. ~15 min. |
+| `TS2345` | 3 | Argument not assignable | Llamadas con args incompatibles. Caso por caso. |
+| `TS2353` | 2 | Unknown property | Prop pasada a componente que no la declara. |
+| `TS2339` | 1 | Property doesn't exist | Ver hallazgo #7 (residuo de Eje G). |
+
+Total ~30-45 min de cleanup mecánico. Candidato a un commit `chore: clean up TS strictness backlog` post-audit.
+
+### 7. Residuo de Eje G — `Settings.tsx` declara `currentCycle` inline en vez de usar `CycleInfo`
+
+`src/views/Settings.tsx:209-219` declara su propio tipo inline para el state `currentCycle`:
+
+```ts
+const [currentCycle, setCurrentCycle] = useState<{
+  id: number;
+  month: string;
+  status: 'pending' | 'active' | 'closed';
+  start_date?: string;
+  requested_by_user_id: number;
+  // ... (no end_date)
+} | null>(null);
+```
+
+Eje G unificó los tipos de ciclo en `src/api-types/cycles.ts` como `CycleInfo`, pero **este caller se le escapó**. El tipo inline está desactualizado: `Api.getCurrentCycle()` devuelve un `end_date` (presente en `CycleInfo`), pero el inline no lo declara. `Settings.tsx:388` lo usa (`currentCycle.end_date ?? undefined`) — el código es defensivo, runtime correcto, pero tsc reporta TS2339.
+
+Fix: reemplazar el tipo inline por `CycleInfo` importado de `api-types/cycles`. Trivial. Es el cleanup explícito que Eje G dejó pendiente.
+
+### 8. `vite ^4.0.0` + `@vitejs/plugin-react ^3.1.0` con TS 5.9 — matriz no oficial
+
+El bump TS 5.9 funciona en este repo porque Vite usa `esbuild` (parser TS independiente) para transpilar. Pero la matriz oficialmente probada es:
+- Vite 4 → TS 4.9 (release-time pair)
+- Vite 5 → TS 5.x (release-time pair)
+
+Hoy estamos cruzados: Vite 4 + TS 5.9. Sin urgencia (el build pasa, los tests pasan), pero próxima vez que se toque tooling: Vite 5 + `@vitejs/plugin-react ^4.x` es la combinación natural. Candidato para limpieza de tooling post-audit.
+
+### 9. Eje O — shim aliases locales en cada test file
 
 Para preservar literalmente los callsites de las aserciones, cada uno de los 7 archivos migrados en Eje O conserva un par de aliases locales tipo:
 
