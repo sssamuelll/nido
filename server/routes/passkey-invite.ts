@@ -166,7 +166,11 @@ router.get('/invite/:token/register-options', async (req: Request, res: Response
     }
 
     let userName: string;
-    let userID: Uint8Array;
+    // TS 5.7+ tightened Uint8Array's generic; @simplewebauthn/server demands
+    // ArrayBuffer-backed (no SharedArrayBuffer). TextEncoder returns the
+    // wider ArrayBufferLike, so wrap with `new Uint8Array(...)` to copy
+    // into a fresh ArrayBuffer.
+    let userID: Uint8Array<ArrayBuffer>;
 
     if (invitation.relink_user_id) {
       const existingUser = await db.get<{ id: number; username: string }>(
@@ -177,11 +181,11 @@ router.get('/invite/:token/register-options', async (req: Request, res: Response
         return res.status(400).json({ error: 'Usuario a revincular no encontrado' });
       }
       userName = existingUser.username;
-      userID = new TextEncoder().encode(String(existingUser.id));
+      userID = new Uint8Array(new TextEncoder().encode(String(existingUser.id)));
     } else {
       // For new users, use a temporary identifier based on the token
       userName = `new-user-${req.params.token.slice(0, 8)}`;
-      userID = new TextEncoder().encode(`invite:${req.params.token}`);
+      userID = new Uint8Array(new TextEncoder().encode(`invite:${req.params.token}`));
     }
 
     const options = await generateRegistrationOptions({
