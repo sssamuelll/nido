@@ -39,7 +39,7 @@ Two orthogonal axes: **sync vs async** × **user-initiated vs automatic**. Five 
 | 1 | Sync validation pre-submit ("Ingresa un monto") | `showToast(msg)` neutral, OR `setError(string)` + inline render for forms |
 | 2 | Async expected-fail (server says no) | `handleApiError(err, fallback)` |
 | 3 user-init | Async unexpected during a button/submit | `handleApiError(err, fallback)` (same as Cat 2 — call site can't distinguish) |
-| 3 auto | Async unexpected during background load/poll | `console.error('contexto:', err)` only — silent |
+| 3 auto | Async unexpected during background load/poll | `handleApiError(err, fallback, { silent: true })` — logs through the central funnel without a toast |
 | 4 | Page's primary fetch failed, page can't render | `<ErrorView message={...} onRetry={...} />` |
 | 5 | User-initiated action succeeded | `showToast(msg, 'success')` |
 

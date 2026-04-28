@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Api, ApiError } from './api';
+import { handleApiError } from './lib/handleApiError';
 
 interface User {
   id: number;
@@ -50,7 +51,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsLocked(false);
       } catch (error) {
         if (!(error instanceof ApiError && error.status === 401)) {
-          console.error('Failed to bootstrap auth session:', error);
+          // Bootstrap is implicit; the visible state (login screen) is the
+          // user's signal. A toast would surface as noise on a screen they
+          // are already looking at for the same reason.
+          handleApiError(error, 'Failed to bootstrap auth session', { silent: true });
         }
         clearSession();
       } finally {
@@ -91,7 +95,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await Api.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      // Logout always clears local state in `finally`. Even if the server
+      // call fails the user's session is gone client-side; a toast would
+      // imply they're still logged in, which is misleading.
+      handleApiError(error, 'Logout error', { silent: true });
     } finally {
       setUser(null);
       setIsLocked(false);

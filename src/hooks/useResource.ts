@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { handleApiError } from '../lib/handleApiError';
 
 const DEFAULT_FALLBACK = 'Error al cargar';
-const DEFAULT_ON_ERROR = (err: unknown) => console.error(err);
 
 export interface AsyncStateOptions {
   fallbackMessage?: string;
@@ -47,15 +47,23 @@ export async function runWithLoadingState<T>(
 // Holds the current options behind a ref so unstable inline values (e.g.
 // `onError: () => {}`) don't change reload/run identity every render and
 // trigger an infinite refetch loop. Only the loader/fn drives refetching.
+//
+// Default onError funnels through handleApiError with `silent: true` —
+// these hooks model Cat 4 in AGENTS.md: the page-load failure is rendered
+// via ErrorView (or equivalent), so a toast on top would be redundant.
+// Callers can pass an explicit onError to override (e.g. for non-page
+// resources that want a toast).
 function useStableOptions(options: AsyncStateOptions) {
-  const ref = useRef({
-    fallbackMessage: options.fallbackMessage ?? DEFAULT_FALLBACK,
-    onError: options.onError ?? DEFAULT_ON_ERROR,
-  });
-  ref.current = {
-    fallbackMessage: options.fallbackMessage ?? DEFAULT_FALLBACK,
-    onError: options.onError ?? DEFAULT_ON_ERROR,
+  const resolve = () => {
+    const fallbackMessage = options.fallbackMessage ?? DEFAULT_FALLBACK;
+    return {
+      fallbackMessage,
+      onError: options.onError ?? ((err: unknown) =>
+        handleApiError(err, fallbackMessage, { silent: true })),
+    };
   };
+  const ref = useRef(resolve());
+  ref.current = resolve();
   return ref;
 }
 
