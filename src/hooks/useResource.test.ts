@@ -218,3 +218,142 @@ describe('useAsyncEffect', () => {
     expect(first).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useResource — invalidationKey integration with cacheBus', () => {
+  it('subscribes to the cacheBus key and refetches when invalidated', async () => {
+    const { CACHE_KEYS, cacheBus, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const loader = vi.fn().mockResolvedValue('first');
+    const { result } = renderHook(() =>
+      useResource(loader, { invalidationKey: CACHE_KEYS.goals }),
+    );
+
+    await waitFor(() => expect(result.current.data).toBe('first'));
+    expect(loader).toHaveBeenCalledTimes(1);
+
+    loader.mockResolvedValueOnce('second');
+    await act(async () => { cacheBus.invalidate(CACHE_KEYS.goals); });
+
+    await waitFor(() => expect(result.current.data).toBe('second'));
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it('unsubscribes on unmount', async () => {
+    const { CACHE_KEYS, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const loader = vi.fn().mockResolvedValue('x');
+    const { unmount } = renderHook(() =>
+      useResource(loader, { invalidationKey: CACHE_KEYS.expenses }),
+    );
+
+    await waitFor(() =>
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(1),
+    );
+    unmount();
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(0);
+  });
+
+  it('does not subscribe when invalidationKey is omitted', async () => {
+    const { CACHE_KEYS, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const loader = vi.fn().mockResolvedValue('x');
+    renderHook(() => useResource(loader));
+
+    // Wait for initial load
+    await waitFor(() => expect(loader).toHaveBeenCalledTimes(1));
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(0);
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.goals)).toBe(0);
+  });
+});
+
+describe('useAsyncEffect — invalidationKeys integration with cacheBus', () => {
+  it('subscribes to every key and re-runs when any of them invalidates', async () => {
+    const { CACHE_KEYS, cacheBus, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const fn = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useAsyncEffect(fn, { invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.summary] }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    await act(async () => { cacheBus.invalidate(CACHE_KEYS.summary); });
+    await waitFor(() => expect(fn).toHaveBeenCalledTimes(2));
+
+    await act(async () => { cacheBus.invalidate(CACHE_KEYS.expenses); });
+    await waitFor(() => expect(fn).toHaveBeenCalledTimes(3));
+  });
+
+  it('does not re-run for keys it did not subscribe to', async () => {
+    const { CACHE_KEYS, cacheBus, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const fn = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useAsyncEffect(fn, { invalidationKeys: [CACHE_KEYS.expenses] }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    await act(async () => { cacheBus.invalidate(CACHE_KEYS.goals); });
+    // Give any spurious effect a chance to fire
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('unsubscribes every key on unmount', async () => {
+    const { CACHE_KEYS, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const fn = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderHook(() =>
+      useAsyncEffect(fn, { invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories] }),
+    );
+
+    await waitFor(() => {
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(1);
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.summary)).toBe(1);
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.categories)).toBe(1);
+    });
+
+    unmount();
+
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(0);
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.summary)).toBe(0);
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.categories)).toBe(0);
+  });
+
+  it('re-subscribes when invalidationKeys content changes (not array reference)', async () => {
+    const { CACHE_KEYS, __cacheBusInternals } = await import('../lib/cacheBus');
+    __cacheBusInternals.reset();
+
+    const fn = vi.fn().mockResolvedValue(undefined);
+    type Keys = import('../lib/cacheBus').CacheKey[];
+    const { rerender } = renderHook(
+      ({ keys }: { keys: Keys }) => useAsyncEffect(fn, { invalidationKeys: keys }),
+      { initialProps: { keys: [CACHE_KEYS.expenses] as Keys } },
+    );
+
+    await waitFor(() => {
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(1);
+    });
+
+    // New array reference, same content — subscriptions should NOT churn.
+    rerender({ keys: [CACHE_KEYS.expenses] });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(1);
+
+    // Different content — subscriptions move.
+    rerender({ keys: [CACHE_KEYS.goals] });
+    await waitFor(() => {
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.expenses)).toBe(0);
+      expect(__cacheBusInternals.subscriberCount(CACHE_KEYS.goals)).toBe(1);
+    });
+  });
+});

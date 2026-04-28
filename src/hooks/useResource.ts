@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { handleApiError } from '../lib/handleApiError';
+import { type CacheKey, cacheBus } from '../lib/cacheBus';
 
 const DEFAULT_FALLBACK = 'Error al cargar';
 
@@ -74,17 +75,27 @@ export interface ResourceState<T> {
   reload: () => Promise<void>;
 }
 
+export interface ResourceOptions extends AsyncStateOptions {
+  /**
+   * Subscribe this hook's reload to cacheBus invalidations on the given key.
+   * Mutations elsewhere call `cacheBus.invalidate(key)` to trigger a refetch
+   * here without remount.
+   */
+  invalidationKey?: CacheKey;
+}
+
 /**
  * Single-resource fetch: loader returns one value, the hook stores it in `data`.
  * Use for views that load a single API resource (e.g. `Api.getGoals()` → goals list).
  * For loads that drive several state pieces in one shot, use {@link useAsyncEffect}.
  *
  * Caller must provide a stable loader (wrap in useCallback). The hook refetches
- * whenever the loader reference changes.
+ * whenever the loader reference changes, or when an invalidationKey is provided
+ * and a mutation calls cacheBus.invalidate(key).
  */
 export function useResource<T>(
   loader: () => Promise<T>,
-  options: AsyncStateOptions = {},
+  options: ResourceOptions = {},
 ): ResourceState<T> {
   const optsRef = useStableOptions(options);
   const [data, setData] = useState<T | null>(null);
@@ -101,6 +112,11 @@ export function useResource<T>(
 
   useEffect(() => { reload(); }, [reload]);
 
+  useEffect(() => {
+    if (!options.invalidationKey) return;
+    return cacheBus.subscribe(options.invalidationKey, () => { void reload(); });
+  }, [options.invalidationKey, reload]);
+
   return { data, loading, error, reload };
 }
 
@@ -110,6 +126,16 @@ export interface AsyncEffectState {
   run: () => Promise<void>;
 }
 
+export interface AsyncEffectOptions extends AsyncStateOptions {
+  /**
+   * Subscribe this hook's run to cacheBus invalidations on each given key.
+   * Multi-resource orchestration typically subscribes to several keys —
+   * Dashboard re-runs when expenses, summary, categories, events, or goals
+   * are invalidated upstream.
+   */
+  invalidationKeys?: CacheKey[];
+}
+
 /**
  * Multi-resource orchestration: callback does its own setX() calls for several
  * pieces of state. Use when a single load drives multiple bits of state
@@ -117,11 +143,12 @@ export interface AsyncEffectState {
  * For single-resource fetches that return one value, prefer {@link useResource}.
  *
  * Caller must provide a stable fn (wrap in useCallback). The hook re-runs
- * whenever the fn reference changes.
+ * whenever the fn reference changes, or when an invalidationKeys entry is
+ * fired by cacheBus.invalidate(...).
  */
 export function useAsyncEffect(
   fn: () => Promise<void>,
-  options: AsyncStateOptions = {},
+  options: AsyncEffectOptions = {},
 ): AsyncEffectState {
   const optsRef = useStableOptions(options);
   const [loading, setLoading] = useState(true);
@@ -136,6 +163,25 @@ export function useAsyncEffect(
   }, [fn, optsRef]);
 
   useEffect(() => { run(); }, [run]);
+
+  // Subscriptions track the *contents* of invalidationKeys, not the array
+  // reference. Callers typically pass a fresh literal each render
+  // (`[CACHE_KEYS.expenses, CACHE_KEYS.summary]`); using the array directly
+  // as a dependency would re-subscribe every render. The string signature
+  // captures content identity; the ref lets us read the latest array inside
+  // the effect without listing it as a dependency. Refs are stable per
+  // React's rules — no eslint disable needed.
+  const invalidationKeysRef = useRef(options.invalidationKeys);
+  invalidationKeysRef.current = options.invalidationKeys;
+  const invalidationKeysSignature = options.invalidationKeys?.join('|') ?? '';
+  useEffect(() => {
+    const keys = invalidationKeysRef.current;
+    if (!keys || keys.length === 0) return;
+    const unsubs = keys.map((key) =>
+      cacheBus.subscribe(key, () => { void run(); }),
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [invalidationKeysSignature, run]);
 
   return { loading, error, run };
 }
