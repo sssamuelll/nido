@@ -5,6 +5,7 @@ import { useContextSelector } from '../hooks/useContextSelector';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { formatMoney } from '../lib/money';
 
 /* ── constants ──────────────────────────────────────────── */
 
@@ -46,11 +47,9 @@ interface AnalyticsData {
 
 /* ── helpers ────────────────────────────────────────────── */
 
-const fmtCurrency = (n: number) =>
-  `€${n.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-const fmtCurrencyDecimal = (n: number) =>
-  `€${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// fmtCurrency removed — all sites in this view are KPIs/aggregates per the
+// "céntimos only on individual rows + balance" convention. avgTicket KPI
+// previously used decimals; now compact to match the convention.
 
 const INSIGHT_ICON: Record<string, React.FC<{ size?: number }>> = {
   positive: CheckCircle,
@@ -106,7 +105,7 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
       },
       localization: {
         locale: 'es-ES',
-        priceFormatter: (price: number) => `€${Math.round(price).toLocaleString('es-ES')}`,
+        priceFormatter: (price: number) => formatMoney(Math.round(price)),
       },
       crosshair: {
         vertLine: {
@@ -140,7 +139,7 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
       priceLineVisible: true,
       priceFormat: {
         type: 'custom',
-        formatter: (price: number) => `€${Math.round(price).toLocaleString('es-ES')}`,
+        formatter: (price: number) => formatMoney(Math.round(price)),
       },
     });
 
@@ -219,7 +218,7 @@ const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hover
               />
             </div>
             <div className="a7-catbar__meta">
-              <span className="a7-catbar__amount">{fmtCurrency(cat.amount)}</span>
+              <span className="a7-catbar__amount">{formatMoney(cat.amount)}</span>
               <span className="a7-catbar__pct" style={{ '--catbar-pct-color': cat.color } as React.CSSProperties}>{cat.pct}%</span>
             </div>
           </div>
@@ -365,7 +364,7 @@ const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hov
           {/* Center total */}
           <text x={CENTER} y={CENTER - 4} textAnchor="middle" dominantBaseline="auto"
             className="a7-donut-center-value">
-            {fmtCurrency(totalSpent)}
+            {formatMoney(totalSpent)}
           </text>
           <text x={CENTER} y={CENTER + 14} textAnchor="middle" dominantBaseline="auto"
             className="a7-donut-center-label">
@@ -465,21 +464,21 @@ export const Analytics: React.FC = () => {
     const { kpis: k } = data;
     return [
       {
-        value: fmtCurrency(k.totalSpent),
+        value: formatMoney(k.totalSpent),
         label: 'Total gastado',
         delta: k.vsPrevPeriod,
         deltaInvert: true, // lower is better
         valueColor: undefined,
       },
       {
-        value: fmtCurrency(k.netSavings),
+        value: formatMoney(k.netSavings),
         label: 'Ahorro neto',
         delta: undefined,
         deltaInvert: false,
         valueColor: k.netSavings >= 0 ? 'var(--green)' : 'var(--red)',
       },
       {
-        value: fmtCurrencyDecimal(k.avgTicket),
+        value: formatMoney(k.avgTicket),
         label: 'Ticket medio',
         delta: undefined,
         deltaInvert: false,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { type Goal } from '../types';
+import { formatMoney } from '../lib/money';
 
 interface GoalCardProps extends Goal {
   onContribute?: () => void;
@@ -43,7 +44,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
       </div>
 
       <div className="goal-card__amounts">
-        €{current.toLocaleString('es-ES')} / €{target.toLocaleString('es-ES')}
+        {formatMoney(current)} / {formatMoney(target)}
       </div>
 
       <div className="goal-card__track">

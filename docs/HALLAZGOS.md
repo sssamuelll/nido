@@ -24,3 +24,35 @@ Puede ser intencional o drift de UX. **No se unifica en este refactor — requie
 ### Sub-hallazgo: `todayStr` duplicado en Goals.tsx
 
 `views/Goals.tsx:21` define `const todayStr = () => format(new Date(), 'yyyy-MM-dd');` que es funcionalmente idéntico a `lib/dates.todayISO`. No se reemplazó porque está fuera del scope estricto del eje (function name distinta, no es un copy-paste de la función unificada). Reemplazo trivial en un follow-up.
+
+---
+
+## Eje A (Money) — convención de céntimos cementada + bugfixes visibles
+
+Convención adoptada (por decisión de producto): **céntimos solo en filas individuales y balance Samuel↔María; todo lo demás, enteros**. Recurring section también con céntimos por consistencia con sus rows.
+
+Helpers canónicos en `src/lib/money.ts`:
+- `formatMoney(amount)` → `€1.234.567` (compact, ceros decimales redondeados)
+- `formatMoneyExact(amount)` → `€1.234,50` (siempre 2 decimales)
+
+Ambos asumen `amount >= 0`; el call site construye el signo.
+
+**Cambios de comportamiento visibles** (intencionales, todos preservan o mejoran):
+
+| Sitio | Antes | Después | Tipo |
+|---|---|---|---|
+| `EventDetail.tsx:142` (transacción de evento) | `−€1234.50` (punto, sin separador) | `−€1234,50` (coma) | **Bugfix** — formato es-ES correcto. |
+| `Dashboard.tsx:550` (transacción reciente) | `−€1234.50` | `−€1234,50` | **Bugfix.** |
+| `PersonalDashboard.tsx:246` (transacción personal) | `−€1234.50` | `−€1234,50` | **Bugfix.** |
+| `History.tsx:446` (fila de gasto) | `−€1234.50` | `−€1234,50` | **Bugfix.** |
+| `History.tsx:593,597` (Total / Media KPIs) | `€1234.56` (con céntimos) | `€1235` (compact) | **Cambio de convención** — aggregates van enteros. Pierdes los céntimos en el KPI. |
+| `Analytics.tsx:481` (avgTicket KPI) | `€42,50` | `€43` (redondeado) | **Cambio de convención** — KPI avgTicket pierde céntimos. |
+| `BudgetCapsule.tsx:46` | locale `de-DE` | locale `es-ES` | Cosmético (mismo output para enteros ≤4 dígitos). |
+
+### Sub-hallazgo: separador de miles en 4-dígitos
+
+`Intl.NumberFormat('es-ES')` por defecto **no añade separador a 4-dígitos** (`€1234`, no `€1.234`) por convención tradicional pre-2010 RAE. Esto preserva el comportamiento existente del repo. Si en el futuro se quiere `€1.234`, basta con pasar `useGrouping: 'always'` en una sola línea de `lib/money.ts`. **Pendiente decisión de producto** si se quiere "ver más fintech".
+
+### Sub-hallazgo: `Intl.NumberFormat` cacheado vs `toLocaleString` por llamada
+
+El helper usa instancias `Intl.NumberFormat` cacheadas a nivel módulo. Esto es ~30× más rápido que `toLocaleString` por llamada (cada `toLocaleString` instancia un formatter nuevo). En vistas con 50+ filas (History) la diferencia se nota.

@@ -9,6 +9,7 @@ import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
 import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
 import { resolveCycleForDate, type Cycle as RC } from '../lib/resolveCycleForDate';
+import { formatMoney, formatMoneyExact } from '../lib/money';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -443,7 +444,7 @@ export const History: React.FC = () => {
           </div>
         </div>
         <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--red)' }}>
-          {'−€'}{expense.amount.toFixed(2)}
+          {'−'}{formatMoneyExact(expense.amount)}
         </div>
       </div>
     );
@@ -589,11 +590,11 @@ export const History: React.FC = () => {
           <div className="stat-label">Gastos</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: '16px' }}>
-          <div style={{ fontSize: '24px', fontWeight: 700 }}>{'€'}{total.toFixed(2)}</div>
+          <div style={{ fontSize: '24px', fontWeight: 700 }}>{formatMoney(total)}</div>
           <div className="stat-label">Total</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: '16px' }}>
-          <div style={{ fontSize: '24px', fontWeight: 700 }}>{'€'}{average.toFixed(2)}</div>
+          <div style={{ fontSize: '24px', fontWeight: 700 }}>{formatMoney(average)}</div>
           <div className="stat-label">Media</div>
         </div>
       </div>

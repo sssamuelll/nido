@@ -3,6 +3,7 @@ import { Api } from '../api';
 import { showToast } from './Toast';
 import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { formatMoneyExact } from '../lib/money';
 
 interface RecurringItem {
   id: number;
@@ -258,7 +259,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
           <div className="recurring-card__title-row">
             <span className="st">Gastos fijos del ciclo</span>
             <span className="recurring-card__total">
-              €{total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatMoneyExact(total)}
             </span>
           </div>
           {cycleStatusLabel ? (
@@ -317,7 +318,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                       ) : null}
                     </div>
                     <span className="recurring-card__amount">
-                      €{item.amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatMoneyExact(item.amount)}
                     </span>
                   </div>
                   <div className="recurring-card__subline">{item.category || 'Sin categoría'}</div>

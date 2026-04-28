@@ -7,6 +7,7 @@ import { useAuth } from '../auth';
 import { OWNER_THEMES } from '../types';
 import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { formatMoney, formatMoneyExact } from '../lib/money';
 
 interface DashboardSummary {
   budget?: {
@@ -17,9 +18,6 @@ interface DashboardSummary {
     budget?: number;
   };
 }
-
-const toCurrency = (value: number) =>
-  `€${value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const buildLinePath = (values: number[], width: number, height: number, padding: number) => {
   const maxVal = Math.max(...values, 1);
@@ -158,9 +156,9 @@ export const PersonalDashboard: React.FC = () => {
       <div className="personal-dashboard__hero">
         <div className="personal-dashboard__hero-copy">
           <span className="personal-dashboard__eyebrow">{displayName}</span>
-          <div className="personal-dashboard__hero-title">{toCurrency(detail.remaining)}</div>
+          <div className="personal-dashboard__hero-title">{formatMoney(detail.remaining)}</div>
           <div className="personal-dashboard__hero-subtitle">
-            {toCurrency(detail.personalSpent)} de {toCurrency(detail.personalBudget)} usados este ciclo
+            {formatMoney(detail.personalSpent)} de {formatMoney(detail.personalBudget)} usados este ciclo
           </div>
         </div>
         <div className="personal-dashboard__hero-stats">
@@ -170,7 +168,7 @@ export const PersonalDashboard: React.FC = () => {
           </div>
           <div className="personal-dashboard__metric">
             <span className="personal-dashboard__metric-label">Ticket medio</span>
-            <span className="personal-dashboard__metric-value">{toCurrency(detail.averageExpense)}</span>
+            <span className="personal-dashboard__metric-value">{formatMoney(detail.averageExpense)}</span>
           </div>
           <div className="personal-dashboard__metric">
             <span className="personal-dashboard__metric-label">Top categoría</span>
@@ -203,7 +201,7 @@ export const PersonalDashboard: React.FC = () => {
                         <span>{category.category}</span>
                       </div>
                       <div className="personal-dashboard__category-meta">
-                        <span>{toCurrency(category.total)}</span>
+                        <span>{formatMoney(category.total)}</span>
                         <span>{category.monthShare}% del gasto</span>
                       </div>
                     </div>
@@ -243,7 +241,7 @@ export const PersonalDashboard: React.FC = () => {
                     emoji={categoryDef?.emoji ?? '🦋'}
                     name={expense.description}
                     payer="Privado"
-                    amount={`-€${expense.amount.toFixed(2)}`}
+                    amount={`-${formatMoneyExact(expense.amount)}`}
                     date={expense.date}
                     indicatorColor={ownerTheme.base}
                     isPositive={false}
@@ -289,7 +287,7 @@ export const PersonalDashboard: React.FC = () => {
               {detail.chart.map((point) => (
                 <div key={point.label} className="personal-dashboard__chart-label">
                   <span>{point.label}</span>
-                  <strong>{toCurrency(point.total)}</strong>
+                  <strong>{formatMoney(point.total)}</strong>
                 </div>
               ))}
             </div>

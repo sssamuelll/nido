@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pencil, Utensils, ShoppingCart, Zap, Smile, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { formatMoney } from '../lib/money';
 
 const CATEGORY_ICON_MAP: Record<string, React.FC<{ size?: number; color?: string }>> = {
   Restaurant: Utensils,
@@ -43,7 +44,7 @@ export const BudgetCapsule: React.FC<BudgetCapsuleProps> = ({
         <div className="budget-capsule__top-row">
           <span className="budget-capsule__name">{categoryName}</span>
           <span className="budget-capsule__amounts">
-            &euro;{current.toLocaleString('de-DE')} / &euro;{max.toLocaleString('de-DE')}
+            {formatMoney(current)} / {formatMoney(max)}
           </span>
           <span className={`budget-capsule__pct ${isWarning ? 'budget-capsule__pct--warning' : ''}`}>
             {pct}%

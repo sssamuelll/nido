@@ -1,5 +1,6 @@
 import React from 'react';
 import { EmojiPicker } from './EmojiPicker';
+import { formatMoney } from '../lib/money';
 
 interface Props {
   isOpen: boolean;
@@ -141,7 +142,7 @@ export const CategoryModal: React.FC<Props> = ({
                 <div className={`cat-budget-bar ${barColorClass}`} style={{ '--cat-budget-pct': `${Math.min(pctAllocated, 100)}%` } as React.CSSProperties} />
               </div>
               <div className="cat-budget-info">
-                {pctAllocated}% asignado · €{remaining.toLocaleString('es-ES', { maximumFractionDigits: 0 })} disponible
+                {pctAllocated}% asignado · {formatMoney(remaining)} disponible
               </div>
             </div>
           ) : (
@@ -181,7 +182,7 @@ export const CategoryModal: React.FC<Props> = ({
                 >
                   <option value="">Presupuesto compartido</option>
                   {goals.map(g => (
-                    <option key={g.id} value={g.id}>{g.icon} {g.name} (€{g.current.toLocaleString('es-ES')})</option>
+                    <option key={g.id} value={g.id}>{g.icon} {g.name} ({formatMoney(g.current)})</option>
                   ))}
                 </select>
               </div>

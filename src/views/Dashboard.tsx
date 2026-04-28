@@ -17,6 +17,7 @@ import { useCategoryModal } from '../hooks/useCategoryModal';
 import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
+import { formatMoney, formatMoneyExact } from '../lib/money';
 
 interface Notification {
   id: number;
@@ -330,10 +331,10 @@ export const Dashboard: React.FC = () => {
           <span>
             {activeContext === 'shared'
               ? (availableShared > 0 && totalSharedSpent > 0
-                  ? <>Llevan <strong>€{totalSharedSpent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</strong> gastados de €{availableShared.toLocaleString('es-ES', { maximumFractionDigits: 0 })} compartidos</>
+                  ? <>Llevan <strong>{formatMoney(totalSharedSpent)}</strong> gastados de {formatMoney(availableShared)} compartidos</>
                   : <>Sin gastos compartidos en este ciclo</>)
               : (toNum(data?.personal?.budget) > 0
-                  ? <>Llevas <strong>€{toNum(data?.personal?.spent).toLocaleString('es-ES', { maximumFractionDigits: 0 })}</strong> gastados de tu presupuesto personal</>
+                  ? <>Llevas <strong>{formatMoney(toNum(data?.personal?.spent))}</strong> gastados de tu presupuesto personal</>
                   : <>Sin gastos personales en este ciclo</>)}
           </span>
         </div>
@@ -344,7 +345,7 @@ export const Dashboard: React.FC = () => {
             <div className="accent-bar" style={{ background: '#60A5FA', boxShadow: '0 0 8px #60A5FA' }} />
             <div className="label">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              €{animBudget.toLocaleString('es-ES')}
+              {formatMoney(animBudget)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               {(() => {
@@ -355,10 +356,10 @@ export const Dashboard: React.FC = () => {
                 return (
                   <>
                     <span style={{ color: 'var(--green)', fontWeight: 600 }}>
-                      €{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })} gastados
+                      {formatMoney(spent)} gastados
                     </span>
                     {' '}· <span style={{ color: remaining >= 0 ? 'var(--ts)' : 'var(--red)', fontWeight: 500 }}>
-                      €{Math.abs(remaining).toLocaleString('es-ES', { maximumFractionDigits: 0 })} {remaining >= 0 ? 'disponible' : 'excedido'}
+                      {formatMoney(Math.abs(remaining))} {remaining >= 0 ? 'disponible' : 'excedido'}
                     </span>
                     {' '}({pct}%)
                   </>
@@ -370,7 +371,7 @@ export const Dashboard: React.FC = () => {
             <div className="accent-bar" style={{ background: '#34D399', boxShadow: '0 0 8px #34D399' }} />
             <div className="label">Gastado este ciclo</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              €{animSpent.toLocaleString('es-ES')}
+              {formatMoney(animSpent)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               {activeContext === 'shared' ? sharedMonthTransactions.length : personalTxCountRaw} gastos este ciclo
@@ -380,7 +381,7 @@ export const Dashboard: React.FC = () => {
             <div className="accent-bar" style={{ background: '#A78BFA', boxShadow: '0 0 8px #A78BFA' }} />
             <div className="label">Ticket medio</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              €{animAvg.toLocaleString('es-ES')}
+              {formatMoney(animAvg)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               {activeContext === 'shared' ? sharedMonthTransactions.length : personalTxCountRaw} gastos registrados
@@ -422,8 +423,8 @@ export const Dashboard: React.FC = () => {
                     <div className="budget-item__bar-fill" style={{ width: `${Math.min(pct, 100)}%`, background: 'var(--green)' }} />
                   </div>
                   <div className="budget-item__amounts">
-                    <span>€{spent.toLocaleString('es-ES')}</span>
-                    <span style={{ color: 'var(--ts)' }}>/ €{ev.budget_amount.toLocaleString('es-ES')}</span>
+                    <span>{formatMoney(spent)}</span>
+                    <span style={{ color: 'var(--ts)' }}>/ {formatMoney(ev.budget_amount)}</span>
                     <button className="budget-edit" type="button" onClick={(e) => {
                       e.stopPropagation();
                       setEditingEvent(ev);
@@ -495,8 +496,8 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'right', minWidth: 90, flexShrink: 0 }}>
-                      <span>€{spent.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</span>
-                      {budget > 0 && <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/€{budget.toLocaleString('es-ES', { maximumFractionDigits: 0 })}</small>}
+                      <span>{formatMoney(spent)}</span>
+                      {budget > 0 && <small style={{ fontWeight: 400, color: 'var(--tm)' }}>/{formatMoney(budget)}</small>}
                     </div>
                     <button className="budget-edit" type="button" onClick={(e) => { e.stopPropagation(); const def = getCategoryDef(cat.category); if (def) catModal.openEdit(def); }}>
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -547,7 +548,7 @@ export const Dashboard: React.FC = () => {
                           emoji={getCategoryDef(tx.category)?.emoji ?? '🦋'}
                           name={tx.description}
                           payer={tx.paid_by}
-                          amount={`-€${toNum(tx.amount).toFixed(2)}`}
+                          amount={`-${formatMoneyExact(toNum(tx.amount))}`}
                           date={tx.date}
                           indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
                           isPositive={false}

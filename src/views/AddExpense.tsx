@@ -8,6 +8,7 @@ import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { resolveCycleForDate, type Cycle } from '../lib/resolveCycleForDate';
 import { formatDateLabel } from '../lib/dates';
+import { formatMoneyExact } from '../lib/money';
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -314,7 +315,7 @@ export const AddExpense: React.FC = () => {
                 fontWeight: 600, fontVariantNumeric: 'tabular-nums',
                 transition: 'opacity .15s', opacity: 0.9,
               }}>
-                = €{computedResult.toFixed(2)}
+                = {formatMoneyExact(computedResult)}
               </div>
             )}
           </div>
