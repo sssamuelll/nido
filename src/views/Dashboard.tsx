@@ -91,7 +91,7 @@ const formatCycleLabel = (cycle: CycleInfo | null) => {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeCycle, setCycleInfo] = useState<CycleInfo | null>(null);
+  const [activeCycle, setActiveCycle] = useState<CycleInfo | null>(null);
   const [cycleLoaded, setCycleLoaded] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
@@ -138,7 +138,7 @@ export const Dashboard: React.FC = () => {
   // Load cycle first, then data
   useEffect(() => {
     Api.getCurrentCycle().catch(() => null).then((cycle) => {
-      setCycleInfo(cycle);
+      setActiveCycle(cycle);
       setCycleLoaded(true);
     });
   }, []);
@@ -197,10 +197,10 @@ export const Dashboard: React.FC = () => {
     // Reload cycle state after approval
     try {
       const cycle = await Api.getCurrentCycle();
-      setCycleInfo(cycle);
+      setActiveCycle(cycle);
     } catch (err) {
       console.error('Failed to reload cycle state:', err);
-      setCycleInfo(null);
+      setActiveCycle(null);
     }
     loadDashboardData();
   }, [loadDashboardData]);
