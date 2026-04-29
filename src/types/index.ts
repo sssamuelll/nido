@@ -17,16 +17,6 @@ export interface OwnerTheme {
   dot: string;
 }
 
-export interface Transaction {
-  id: number;
-  name: string;
-  payer: string;
-  amount: number;
-  date: string;
-  category: string;
-  emoji: string;
-}
-
 export interface BudgetCategory {
   id: string;
   name: string;
