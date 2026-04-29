@@ -138,7 +138,7 @@ export const Login: React.FC = () => {
                 maxLength={6}
                 placeholder="****"
                 value={pin}
-                onChange={e => setPin(e.target.value)}
+                onChange={e => { setPin(e.target.value); if (error) setError(''); }}
                 disabled={isWorking}
                 autoFocus
               />
@@ -191,7 +191,7 @@ export const Login: React.FC = () => {
                 maxLength={6}
                 placeholder="****"
                 value={pin}
-                onChange={e => setPin(e.target.value)}
+                onChange={e => { setPin(e.target.value); if (error) setError(''); }}
                 disabled={isWorking}
                 autoFocus
               />

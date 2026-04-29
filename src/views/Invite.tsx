@@ -107,7 +107,7 @@ export const Invite: React.FC = () => {
                     className="login-input"
                     placeholder="Ej: María"
                     value={username}
-                    onChange={e => setUsername(e.target.value)}
+                    onChange={e => { setUsername(e.target.value); if (error) setError(''); }}
                     disabled={isClaiming}
                   />
                 </div>
