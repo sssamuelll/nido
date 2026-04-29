@@ -37,7 +37,7 @@ const EMPTY_FORM: GoalFormData = {
 
 export const Goals: React.FC = () => {
   const loadGoals = useCallback(() => Api.getGoals(), []);
-  const { data: goalsData, loading, error, reload: fetchGoals } =
+  const { data: goalsData, loading, error } =
     useResource<Goal[]>(loadGoals, {
       fallbackMessage: 'Error al cargar objetivos',
       invalidationKey: CACHE_KEYS.goals,
@@ -68,7 +68,6 @@ export const Goals: React.FC = () => {
       setContributing(true);
       await Api.contributeToGoal(contributeGoal.id, amount);
       cacheBus.invalidate(CACHE_KEYS.goals);
-      await fetchGoals();
       setContributeGoal(null);
       launchConfetti();
       showToast(`¡€${amount} añadidos a ${contributeGoal.name}! 🚀`, 'success');
@@ -98,7 +97,6 @@ export const Goals: React.FC = () => {
     try {
       await Api.deleteGoal(id);
       cacheBus.invalidate(CACHE_KEYS.goals);
-      await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
       showToast('Objetivo eliminado', 'success');
@@ -133,7 +131,6 @@ export const Goals: React.FC = () => {
         cacheBus.invalidate(CACHE_KEYS.goals);
         showToast('¡Nuevo objetivo creado!', 'success');
       }
-      await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
       setFormData(EMPTY_FORM);

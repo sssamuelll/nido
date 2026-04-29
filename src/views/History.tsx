@@ -70,7 +70,7 @@ export const History: React.FC = () => {
   const location = useLocation();
   const incomingState = (location.state ?? {}) as { initialContext?: 'shared' | 'personal'; initialCategory?: string };
   const { activeContext, setActiveContext } = useContextSelector(incomingState.initialContext ?? 'shared');
-  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
+  const { categories, getCategoryDef } = useCategoryManagement(activeContext);
 
   // Cycle-based navigation state
   const [cycles, setCycles] = useState<CycleInfo[]>([]);
@@ -254,7 +254,6 @@ export const History: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto eliminado', 'success');
       closeEditModal();
-      loadExpenses();
     } catch (err) {
       console.error('Failed to delete expense:', err);
       setEditError('Error al eliminar el gasto');
@@ -278,7 +277,6 @@ export const History: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto duplicado', 'success');
       closeEditModal();
-      loadExpenses();
     } catch (err) {
       console.error('Failed to duplicate expense:', err);
       setEditError('Error al duplicar el gasto');
@@ -310,7 +308,6 @@ export const History: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto actualizado ✔', 'success');
       closeEditModal();
-      await Promise.all([loadExpenses(), reloadCategories()]);
     } catch (err) {
       console.error('Failed to update expense:', err);
       setEditError('Error al actualizar el gasto');
@@ -338,7 +335,6 @@ export const History: React.FC = () => {
       showToast(`${selectedIds.size} gastos eliminados`, 'success');
       setSelectedIds(new Set());
       setSelectMode(false);
-      loadExpenses();
     } catch (err) {
       handleApiError(err, 'Error al eliminar gastos');
     } finally {

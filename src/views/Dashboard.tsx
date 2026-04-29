@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
   const { activeContext, setActiveContext } = useContextSelector();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
+  const { categories, getCategoryDef } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
 
   // Events state
@@ -600,13 +600,11 @@ export const Dashboard: React.FC = () => {
               setIsEvent(false); setEventStartDate(''); setEventEndDate('');
               setEventGoalId(null); setEditingEvent(null);
               catModal.close();
-              loadDashboardData();
               return;
             }
             catModal.save({
               context: activeContext,
               categories,
-              onSuccess: () => { reloadCategories(); loadDashboardData(); },
             });
           }}
           onDelete={async () => {
@@ -617,11 +615,9 @@ export const Dashboard: React.FC = () => {
               setEditingEvent(null);
               setIsEvent(false);
               catModal.close();
-              loadDashboardData();
             } else {
               catModal.remove({
                 categories,
-                onSuccess: () => { reloadCategories(); loadDashboardData(); },
               });
             }
           }}
