@@ -11,7 +11,6 @@ import { handleApiError } from '../lib/handleApiError';
 import type { CycleInfo } from '../api-types/cycles';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
-import { handleApiError } from '../lib/handleApiError';
 
 const ChevronLeftIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
