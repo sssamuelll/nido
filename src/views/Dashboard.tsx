@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -19,8 +19,7 @@ import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
-import { handleApiError } from '../lib/handleApiError';
-import { useAsyncEffect } from '../hooks/useResource';
+import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleInfo } from '../api-types/cycles';
 
@@ -94,14 +93,26 @@ const formatCycleLabel = (cycle: CycleInfo | null) => {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeCycle, setActiveCycle] = useState<CycleInfo | null>(null);
-  const [cycleLoaded, setCycleLoaded] = useState(false);
+  const loadCurrentCycleFn = useCallback(() => Api.getCurrentCycle(), []);
+  const { data: activeCycle, loading: cycleLoading } = useResource<CycleInfo | null>(loadCurrentCycleFn, {
+    fallbackMessage: 'Error al cargar ciclo activo',
+    invalidationKey: CACHE_KEYS.cycles,
+  });
+  const cycleLoaded = !cycleLoading;
   const [data, setData] = useState<DashboardData | null>(null);
   const [expenses, setExpenses] = useState<VisibleExpense[]>([]);
   const { activeContext, setActiveContext } = useContextSelector();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
+  const loadUnreadCountFn = useCallback(async () => {
+    const data = await Api.getNotifications();
+    return data.filter((n: Notification) => !n.is_read).length;
+  }, []);
+  const { data: unreadCountData } = useResource<number>(loadUnreadCountFn, {
+    fallbackMessage: 'Error al cargar notificaciones',
+    invalidationKey: CACHE_KEYS.notifications,
+  });
+  const unreadCount = unreadCountData ?? 0;
+  const { categories, getCategoryDef } = useCategoryManagement(activeContext);
   const catModal = useCategoryModal();
 
   // Events state
@@ -135,25 +146,6 @@ export const Dashboard: React.FC = () => {
   const animBudget = useCountUp(metricBudgetTarget);
   const animSpent = useCountUp(metricSpentTarget);
   const animAvg = useCountUp(metricAvgTarget);
-
-  // Load cycle first, then data
-  useEffect(() => {
-    Api.getCurrentCycle()
-      .catch((err) => {
-        handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
-        return null;
-      })
-      .then((cycle) => {
-        setActiveCycle(cycle);
-        setCycleLoaded(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    Api.getNotifications()
-      .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
-      .catch((err) => handleApiError(err, 'Error al cargar notificaciones', { silent: true }));
-  }, []);
 
   const loadDashboardDataFn = useCallback(async () => {
     if (!cycleLoaded) return; // wait for the cycle prerequisite before fetching
@@ -201,18 +193,6 @@ export const Dashboard: React.FC = () => {
 
   // Page is loading until both the cycle prerequisite resolves and the data fetch completes.
   const loading = !cycleLoaded || dataLoading;
-
-  const handleCycleChanged = useCallback(async () => {
-    // Reload cycle state after approval
-    try {
-      const cycle = await Api.getCurrentCycle();
-      setActiveCycle(cycle);
-    } catch (err) {
-      console.error('Failed to reload cycle state:', err);
-      setActiveCycle(null);
-    }
-    loadDashboardData();
-  }, [loadDashboardData]);
 
   if (loading) {
     return (
@@ -507,7 +487,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <RecurringSection userId={user?.id ?? 0} onCycleApproved={handleCycleChanged} />
+          <RecurringSection userId={user?.id ?? 0} />
 
           {/* Recent Transactions section */}
           <div className="card dashboard__section an d5">
@@ -555,12 +535,7 @@ export const Dashboard: React.FC = () => {
 
         {showNotifications && (
           <NotificationCenter
-            onClose={() => {
-              setShowNotifications(false);
-              Api.getNotifications()
-                .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
-                .catch((err) => handleApiError(err, 'Error al refrescar notificaciones', { silent: true }));
-            }}
+            onClose={() => setShowNotifications(false)}
           />
         )}
 
@@ -600,13 +575,11 @@ export const Dashboard: React.FC = () => {
               setIsEvent(false); setEventStartDate(''); setEventEndDate('');
               setEventGoalId(null); setEditingEvent(null);
               catModal.close();
-              loadDashboardData();
               return;
             }
             catModal.save({
               context: activeContext,
               categories,
-              onSuccess: () => { reloadCategories(); loadDashboardData(); },
             });
           }}
           onDelete={async () => {
@@ -617,11 +590,9 @@ export const Dashboard: React.FC = () => {
               setEditingEvent(null);
               setIsEvent(false);
               catModal.close();
-              loadDashboardData();
             } else {
               catModal.remove({
                 categories,
-                onSuccess: () => { reloadCategories(); loadDashboardData(); },
               });
             }
           }}

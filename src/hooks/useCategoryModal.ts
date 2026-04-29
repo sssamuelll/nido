@@ -44,7 +44,7 @@ export const useCategoryModal = () => {
   const save = async (opts: {
     context: 'shared' | 'personal';
     categories: CategoryDef[];
-    onSuccess: () => void;
+    onSuccess?: () => void;
   }) => {
     const trimmedName = name.trim();
     const amount = parseFloat(budget);
@@ -64,7 +64,7 @@ export const useCategoryModal = () => {
       });
       cacheBus.invalidate(CACHE_KEYS.categories);
       setShowModal(false);
-      opts.onSuccess();
+      opts.onSuccess?.();
       showToast(mode === 'add' ? 'Categoría creada' : 'Categoría actualizada', 'success');
     } catch (err) {
       handleApiError(err, 'Error al guardar la categoría');
@@ -73,7 +73,7 @@ export const useCategoryModal = () => {
 
   const remove = async (opts: {
     categories: CategoryDef[];
-    onSuccess: () => void;
+    onSuccess?: () => void;
   }) => {
     const existingCat = opts.categories.find(c => c.name === originalName);
     if (!existingCat) {
@@ -84,7 +84,7 @@ export const useCategoryModal = () => {
       await Api.deleteCategory(existingCat.id);
       cacheBus.invalidate(CACHE_KEYS.categories, CACHE_KEYS.summary);
       setShowModal(false);
-      opts.onSuccess();
+      opts.onSuccess?.();
       showToast('Categoría eliminada', 'success');
     } catch (err) {
       handleApiError(err, 'Error al eliminar la categoría');

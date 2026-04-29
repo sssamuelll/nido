@@ -70,10 +70,17 @@ export const History: React.FC = () => {
   const location = useLocation();
   const incomingState = (location.state ?? {}) as { initialContext?: 'shared' | 'personal'; initialCategory?: string };
   const { activeContext, setActiveContext } = useContextSelector(incomingState.initialContext ?? 'shared');
-  const { categories, getCategoryDef, reloadCategories } = useCategoryManagement(activeContext);
+  const { categories, getCategoryDef } = useCategoryManagement(activeContext);
 
   // Cycle-based navigation state
-  const [cycles, setCycles] = useState<CycleInfo[]>([]);
+  const loadCyclesFn = useCallback(async () => {
+    const data = await Api.listCycles();
+    return Array.isArray(data) ? data : [];
+  }, []);
+  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+    invalidationKey: CACHE_KEYS.cycles,
+  });
+  const cycles = cyclesData ?? [];
   const [cycleIndex, setCycleIndex] = useState(0); // 0 = most recent
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,20 +116,6 @@ export const History: React.FC = () => {
 
   // Current cycle being viewed (null = all expenses)
   const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
-
-  // Load cycles on mount
-  useEffect(() => {
-    const loadCycles = async () => {
-      try {
-        const data = await Api.listCycles();
-        setCycles(Array.isArray(data) ? data : []);
-      } catch {
-        // If listing fails, we still show all expenses
-        setCycles([]);
-      }
-    };
-    loadCycles();
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -254,7 +247,6 @@ export const History: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto eliminado', 'success');
       closeEditModal();
-      loadExpenses();
     } catch (err) {
       console.error('Failed to delete expense:', err);
       setEditError('Error al eliminar el gasto');
@@ -278,7 +270,6 @@ export const History: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto duplicado', 'success');
       closeEditModal();
-      loadExpenses();
     } catch (err) {
       console.error('Failed to duplicate expense:', err);
       setEditError('Error al duplicar el gasto');
@@ -310,7 +301,6 @@ export const History: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto actualizado ✔', 'success');
       closeEditModal();
-      await Promise.all([loadExpenses(), reloadCategories()]);
     } catch (err) {
       console.error('Failed to update expense:', err);
       setEditError('Error al actualizar el gasto');
@@ -338,7 +328,6 @@ export const History: React.FC = () => {
       showToast(`${selectedIds.size} gastos eliminados`, 'success');
       setSelectedIds(new Set());
       setSelectMode(false);
-      loadExpenses();
     } catch (err) {
       handleApiError(err, 'Error al eliminar gastos');
     } finally {

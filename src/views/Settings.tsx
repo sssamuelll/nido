@@ -8,6 +8,7 @@ import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Sma
 import { Button } from '../components/Button';
 import { showToast } from '../components/Toast';
 import { handleApiError } from '../lib/handleApiError';
+import { ErrorView } from '../components/ErrorView';
 
 /* ── PIN Change Component ── */
 
@@ -269,9 +270,7 @@ export const Settings: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Cat 3 automático: load on mount, no toast — but ErrorView would be ideal if budget/members fail.
-  // Settings page tolerates the failure (render gates on `!budget`).
-  const { loading, run: loadData } = useAsyncEffect(loadDataFn, {
+  const { loading, error, run: loadData } = useAsyncEffect(loadDataFn, {
     invalidationKeys: [CACHE_KEYS.budget, CACHE_KEYS.cycles],
   });
 
@@ -431,6 +430,8 @@ export const Settings: React.FC = () => {
       </div>
     );
   }
+
+  if (error) return <ErrorView message={error} onRetry={loadData} />;
 
   const formatDisplayName = (username?: string) => {
     if (!username) return 'Pareja';

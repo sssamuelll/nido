@@ -4,11 +4,11 @@ import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
 import { CACHE_KEYS } from '../lib/cacheBus';
+import { ErrorView } from '../components/ErrorView';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { formatMoney } from '../lib/money';
-import { handleApiError } from '../lib/handleApiError';
 import type { CycleInfo } from '../api-types/cycles';
 
 /* ── constants ──────────────────────────────────────────── */
@@ -404,17 +404,16 @@ export const Analytics: React.FC = () => {
   const [insightDismissed, setInsightDismissed] = useState(false);
 
   // Cycle-based navigation (same pattern as History.tsx)
-  const [cycles, setCycles] = useState<CycleInfo[]>([]);
-  const [cycleIndex, setCycleIndex] = useState(0);
-
-  useEffect(() => {
-    Api.listCycles()
-      .then(data => setCycles(Array.isArray(data) ? data : []))
-      .catch((err) => {
-        handleApiError(err, 'Error al cargar ciclos', { silent: true });
-        setCycles([]);
-      });
+  const loadCyclesFn = useCallback(async () => {
+    const data = await Api.listCycles();
+    return Array.isArray(data) ? data : [];
   }, []);
+  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+    fallbackMessage: 'Error al cargar ciclos',
+    invalidationKey: CACHE_KEYS.cycles,
+  });
+  const cycles = cyclesData ?? [];
+  const [cycleIndex, setCycleIndex] = useState(0);
 
   const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
 
@@ -503,6 +502,8 @@ export const Analytics: React.FC = () => {
       || data.insights.find(i => i.type === 'tip')
       || data.insights[0];
   }, [data?.insights]);
+
+  if (error) return <ErrorView message={error} onRetry={fetchData} />;
 
   return (
     <div className="a7">

@@ -9,6 +9,7 @@ import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useAsyncEffect } from '../hooks/useResource';
 import { handleApiError } from '../lib/handleApiError';
+import { ErrorView } from '../components/ErrorView';
 import { CACHE_KEYS } from '../lib/cacheBus';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 
@@ -77,7 +78,7 @@ export const PersonalDashboard: React.FC = () => {
     setExpenses(Array.isArray(nextExpenses) ? nextExpenses : []);
   }, []);
 
-  const { loading, error } = useAsyncEffect(loadPersonalDashboard, {
+  const { loading, error, run } = useAsyncEffect(loadPersonalDashboard, {
     fallbackMessage: 'Error al cargar tu detalle personal',
     invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.budget],
   });
@@ -102,18 +103,11 @@ export const PersonalDashboard: React.FC = () => {
 
   if (error || !user || !summary) {
     return (
-      <div className="error-view">
-        <div className="error-view__msg">
-          {error || 'No se pudo cargar tu detalle personal'}
-        </div>
-        <button
-          onClick={() => navigate('/')}
-          className="btn btn--samuel btn--dynamic"
-          style={{ '--btn-gradient': 'linear-gradient(180deg, #8bdc6b, #6bc98b)', '--btn-glow': 'rgba(139,220,107,0.25)' } as React.CSSProperties}
-        >
-          Volver al dashboard
-        </button>
-      </div>
+      <ErrorView
+        message={error || 'No se pudo cargar tu detalle personal'}
+        onRetry={run}
+        secondaryAction={{ label: 'Volver al dashboard', onClick: () => navigate('/') }}
+      />
     );
   }
 

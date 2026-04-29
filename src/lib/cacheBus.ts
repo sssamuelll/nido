@@ -46,6 +46,20 @@ const subscribers = new Map<CacheKey, Set<Refetch>>();
 /**
  * Subscribe a refetch callback to a cache key. Returns an unsubscribe
  * function. Typical usage is from inside useResource / useAsyncEffect.
+ *
+ * **Subscriber stability convention** (when calling subscribe directly from
+ * a component or hook, not via useResource): wrap the refetch callback in
+ * `useCallback` with its real dependencies, and put the callback in the
+ * `useEffect` deps — NOT empty deps:
+ *
+ *   const refetch = useCallback(async () => { ... }, [dep1, dep2]);
+ *   useEffect(() => cacheBus.subscribe(KEY, refetch), [refetch]);
+ *
+ * Empty deps capture the first-render reference and never refresh, so when
+ * `refetch` closes over state that changes (filter, page, context, etc.)
+ * the subscription quietly fires the stale closure. The bug is silent —
+ * tsc/eslint won't warn — and only surfaces when someone adds a real
+ * dependency later. Wrap + include the callback in deps from the start.
  */
 function subscribe(key: CacheKey, refetch: Refetch): () => void {
   const set = subscribers.get(key) ?? new Set<Refetch>();

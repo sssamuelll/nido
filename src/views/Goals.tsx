@@ -11,6 +11,7 @@ import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
+import { ErrorView } from '../components/ErrorView';
 
 
 interface GoalFormData {
@@ -68,7 +69,6 @@ export const Goals: React.FC = () => {
       setContributing(true);
       await Api.contributeToGoal(contributeGoal.id, amount);
       cacheBus.invalidate(CACHE_KEYS.goals);
-      await fetchGoals();
       setContributeGoal(null);
       launchConfetti();
       showToast(`¡€${amount} añadidos a ${contributeGoal.name}! 🚀`, 'success');
@@ -98,7 +98,6 @@ export const Goals: React.FC = () => {
     try {
       await Api.deleteGoal(id);
       cacheBus.invalidate(CACHE_KEYS.goals);
-      await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
       showToast('Objetivo eliminado', 'success');
@@ -133,7 +132,6 @@ export const Goals: React.FC = () => {
         cacheBus.invalidate(CACHE_KEYS.goals);
         showToast('¡Nuevo objetivo creado!', 'success');
       }
-      await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
       setFormData(EMPTY_FORM);
@@ -181,6 +179,8 @@ export const Goals: React.FC = () => {
     );
   }
 
+  if (error) return <ErrorView message={error} onRetry={fetchGoals} />;
+
   return (
     <div className="u-flex-gap-24">
       {/* Header — matches design: title left, button right */}
@@ -194,8 +194,6 @@ export const Goals: React.FC = () => {
           Nuevo Objetivo
         </button>
       </div>
-
-      {error && <div style={{ color: 'var(--red)', padding: '12px' }}>{error}</div>}
 
       {/* Context tabs — same as Analytics/Dashboard */}
       <div className="analytics__context-tabs an d1">
