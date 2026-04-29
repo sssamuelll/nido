@@ -4,6 +4,7 @@ import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
 import { CACHE_KEYS } from '../lib/cacheBus';
+import { ErrorView } from '../components/ErrorView';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
@@ -501,6 +502,8 @@ export const Analytics: React.FC = () => {
       || data.insights.find(i => i.type === 'tip')
       || data.insights[0];
   }, [data?.insights]);
+
+  if (error) return <ErrorView message={error} onRetry={fetchData} />;
 
   return (
     <div className="a7">

@@ -11,6 +11,7 @@ import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
+import { ErrorView } from '../components/ErrorView';
 
 
 interface GoalFormData {
@@ -37,7 +38,7 @@ const EMPTY_FORM: GoalFormData = {
 
 export const Goals: React.FC = () => {
   const loadGoals = useCallback(() => Api.getGoals(), []);
-  const { data: goalsData, loading, error } =
+  const { data: goalsData, loading, error, reload: fetchGoals } =
     useResource<Goal[]>(loadGoals, {
       fallbackMessage: 'Error al cargar objetivos',
       invalidationKey: CACHE_KEYS.goals,
@@ -178,6 +179,8 @@ export const Goals: React.FC = () => {
     );
   }
 
+  if (error) return <ErrorView message={error} onRetry={fetchGoals} />;
+
   return (
     <div className="u-flex-gap-24">
       {/* Header — matches design: title left, button right */}
@@ -191,8 +194,6 @@ export const Goals: React.FC = () => {
           Nuevo Objetivo
         </button>
       </div>
-
-      {error && <div style={{ color: 'var(--red)', padding: '12px' }}>{error}</div>}
 
       {/* Context tabs — same as Analytics/Dashboard */}
       <div className="analytics__context-tabs an d1">
