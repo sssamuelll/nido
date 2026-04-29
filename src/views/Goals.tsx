@@ -10,6 +10,7 @@ import { formatDateLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 
 
 interface GoalFormData {
@@ -37,7 +38,10 @@ const EMPTY_FORM: GoalFormData = {
 export const Goals: React.FC = () => {
   const loadGoals = useCallback(() => Api.getGoals(), []);
   const { data: goalsData, loading, error, reload: fetchGoals } =
-    useResource<Goal[]>(loadGoals, { fallbackMessage: 'Error al cargar objetivos' });
+    useResource<Goal[]>(loadGoals, {
+      fallbackMessage: 'Error al cargar objetivos',
+      invalidationKey: CACHE_KEYS.goals,
+    });
   const goals = goalsData ?? [];
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -63,6 +67,7 @@ export const Goals: React.FC = () => {
     try {
       setContributing(true);
       await Api.contributeToGoal(contributeGoal.id, amount);
+      cacheBus.invalidate(CACHE_KEYS.goals);
       await fetchGoals();
       setContributeGoal(null);
       launchConfetti();
@@ -92,6 +97,7 @@ export const Goals: React.FC = () => {
   const handleDelete = async (id: number) => {
     try {
       await Api.deleteGoal(id);
+      cacheBus.invalidate(CACHE_KEYS.goals);
       await fetchGoals();
       setShowCreateModal(false);
       setEditingGoal(null);
@@ -113,6 +119,7 @@ export const Goals: React.FC = () => {
           start_date: formData.start_date || null,
           deadline: formData.deadline || null,
         });
+        cacheBus.invalidate(CACHE_KEYS.goals);
         showToast('Objetivo actualizado', 'success');
       } else {
         await Api.createGoal({
@@ -123,6 +130,7 @@ export const Goals: React.FC = () => {
           deadline: formData.deadline || undefined,
           owner_type: formData.owner_type,
         });
+        cacheBus.invalidate(CACHE_KEYS.goals);
         showToast('¡Nuevo objetivo creado!', 'success');
       }
       await fetchGoals();

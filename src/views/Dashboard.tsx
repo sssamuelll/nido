@@ -21,6 +21,7 @@ import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
 import { useAsyncEffect } from '../hooks/useResource';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleInfo } from '../api-types/cycles';
 
 interface Notification {
@@ -186,7 +187,17 @@ export const Dashboard: React.FC = () => {
   }, [cycleLoaded, activeCycle?.id, activeCycle?.start_date, activeCycle?.end_date, currentMonth, activeContext]);
 
   const { loading: dataLoading, error, run: loadDashboardData } =
-    useAsyncEffect(loadDashboardDataFn, { fallbackMessage: 'Error al cargar los datos' });
+    useAsyncEffect(loadDashboardDataFn, {
+      fallbackMessage: 'Error al cargar los datos',
+      invalidationKeys: [
+        CACHE_KEYS.expenses,
+        CACHE_KEYS.summary,
+        CACHE_KEYS.categories,
+        CACHE_KEYS.events,
+        CACHE_KEYS.goals,
+        CACHE_KEYS.budget,
+      ],
+    });
 
   // Page is loading until both the cycle prerequisite resolves and the data fetch completes.
   const loading = !cycleLoaded || dataLoading;
@@ -581,6 +592,7 @@ export const Dashboard: React.FC = () => {
                 } else {
                   await Api.createEvent(eventData);
                 }
+                cacheBus.invalidate(CACHE_KEYS.events);
               } catch (err) {
                 console.error('Failed to save event:', err);
                 return;
@@ -601,6 +613,7 @@ export const Dashboard: React.FC = () => {
             if (editingEvent) {
               if (!confirm('Los gastos asociados se mantendrán pero ya no estarán vinculados al evento. ¿Eliminar evento?')) return;
               await Api.deleteEvent(editingEvent.id);
+              cacheBus.invalidate(CACHE_KEYS.events);
               setEditingEvent(null);
               setIsEvent(false);
               catModal.close();

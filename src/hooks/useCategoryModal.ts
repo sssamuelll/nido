@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Api } from '../api';
 import { showToast } from '../components/Toast';
 import { handleApiError } from '../lib/handleApiError';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CategoryDef } from './useCategoryManagement';
 
 const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
@@ -61,6 +62,7 @@ export const useCategoryModal = () => {
         budget_amount: amount,
         context: opts.context,
       });
+      cacheBus.invalidate(CACHE_KEYS.categories);
       setShowModal(false);
       opts.onSuccess();
       showToast(mode === 'add' ? 'Categoría creada' : 'Categoría actualizada', 'success');
@@ -80,6 +82,7 @@ export const useCategoryModal = () => {
     }
     try {
       await Api.deleteCategory(existingCat.id);
+      cacheBus.invalidate(CACHE_KEYS.categories, CACHE_KEYS.summary);
       setShowModal(false);
       opts.onSuccess();
       showToast('Categoría eliminada', 'success');

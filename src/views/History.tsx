@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
@@ -145,7 +146,10 @@ export const History: React.FC = () => {
   }, [currentCycle?.id, currentCycle?.start_date, currentCycle?.end_date]);
 
   const { data: expensesData, loading, error, reload: loadExpenses } =
-    useResource<Expense[]>(loadExpensesFn, { fallbackMessage: 'Error al cargar movimientos' });
+    useResource<Expense[]>(loadExpensesFn, {
+      fallbackMessage: 'Error al cargar movimientos',
+      invalidationKey: CACHE_KEYS.expenses,
+    });
   const expenses = expensesData ?? [];
 
   const navigateCycle = (dir: -1 | 1) => {
@@ -247,6 +251,7 @@ export const History: React.FC = () => {
     try {
       setSavingEdit(true);
       await Api.deleteExpense(editingExpense.id);
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto eliminado', 'success');
       closeEditModal();
       loadExpenses();
@@ -270,6 +275,7 @@ export const History: React.FC = () => {
         date: editDate,
         type: editType,
       });
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto duplicado', 'success');
       closeEditModal();
       loadExpenses();
@@ -301,6 +307,7 @@ export const History: React.FC = () => {
         status: editingExpense.status ?? 'paid',
         cycle_id: editTargetCycleId,
       });
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto actualizado ✔', 'success');
       closeEditModal();
       await Promise.all([loadExpenses(), reloadCategories()]);
@@ -327,6 +334,7 @@ export const History: React.FC = () => {
       for (const id of selectedIds) {
         await Api.deleteExpense(id);
       }
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast(`${selectedIds.size} gastos eliminados`, 'success');
       setSelectedIds(new Set());
       setSelectMode(false);

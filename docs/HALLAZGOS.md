@@ -203,3 +203,17 @@ const createResponse = createMockResponse;
 ```
 
 Esto deja ~3 LOC × 7 archivos = ~21 LOC de ceremonia repetida. Decisión defensible para minimizar diff dentro de los tests durante el unify, pero técnicamente drift mínimo: si alguien agrega un test #8 va a copiar el shim del archivo más cercano. **Segundo pase opcional post-audit**: actualizar callsites a `getRouteHandler(router, ...)` directo desde los helpers compartidos y eliminar los shims. Ganancia ~30 LOC y eliminación de la copia ceremonial; riesgo mecánico bajo (cambio sintáctico uniforme). Candidato para cleanup final.
+
+---
+
+## Eje D — follow-ups post-Commit-5
+
+### 1. Refetch manual del badge de notificaciones en Dashboard quedó redundante
+
+Tras Commit 5c, `NotificationCenter` invalida `CACHE_KEYS.notifications` después de `markNotificationAsRead` y `markAllNotificationsRead`. Dashboard ya está suscrito a `notifications` (Commit 4), así que el refetch del badge ocurre vía `cacheBus` automáticamente.
+
+El callback manual que Dashboard pasa al `onClose` del panel para refetchar el unread-count sigue disparándose. Es dead-weight inofensivo (un refetch extra cuando se cierra el panel, no afecta corrección), pero es candidato a borrado en un pase de limpieza dedicado. **Out of scope para Commit 5** por la regla del handoff: no mezclar invalidaciones con cleanup de prop-drilling histórico.
+
+### 2. Entidades fuera del set canónico (sin hallazgos)
+
+Sección reservada por el handoff de Commit 5 para registrar mutaciones cuya entidad estuviera fuera de `CACHE_KEYS` (members, passkeys, household, app_users, sessions). Tras revisar las 27 mutaciones in-scope: **ninguna** quedó fuera del set. Las 3 mutaciones explícitamente fuera de scope (`updatePin`, dos `createInvite`) tocan auth/members, no entidades del bus. Sin acción pendiente.
