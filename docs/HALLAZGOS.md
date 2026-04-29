@@ -217,3 +217,17 @@ El callback manual que Dashboard pasa al `onClose` del panel para refetchar el u
 ### 2. Entidades fuera del set canónico (sin hallazgos)
 
 Sección reservada por el handoff de Commit 5 para registrar mutaciones cuya entidad estuviera fuera de `CACHE_KEYS` (members, passkeys, household, app_users, sessions). Tras revisar las 27 mutaciones in-scope: **ninguna** quedó fuera del set. Las 3 mutaciones explícitamente fuera de scope (`updatePin`, dos `createInvite`) tocan auth/members, no entidades del bus. Sin acción pendiente.
+
+---
+
+### Race latente en `useResource`: in-flight requests sin cancelación
+
+`src/hooks/useResource.ts` (y por extensión `useAsyncEffect`) no cancela fetches in-flight cuando el `loader` cambia o cuando llega un `cacheBus.invalidate(...)`. Si la red es lenta, una promesa vieja puede resolverse **después** de una nueva y sobreescribir el state con datos obsoletos (último-en-resolver gana, no último-en-disparar).
+
+**Ejemplo**: `AddExpense.tsx:110` carga eventos con loader que cierra sobre `type` (`'shared' | 'personal'`). Si el usuario alterna el toggle rápido y la primera petición es lenta, el resultado del `type` viejo puede pisar al del `type` nuevo. Síntoma: lista de eventos del contexto contrario aparece momentáneamente.
+
+**Probabilidad realista**: baja. Toggle UI es rápido, mismo host, payloads pequeños. La siguiente invalidación corrige el state.
+
+**Si surge como bug reproducible**: NO parchear el bus añadiendo `AbortController`, dedup de in-flight, o token-de-fetch — eso violaría las **PROHIBITED FEATURES** documentadas inline en `src/lib/cacheBus.ts:1-10`. La regla del repo es explícita: "if we find ourselves needing 2+ of these, the bus has lost its reason to exist. Migrate. Don't grow the bus into a half-TQ." Escalar a migración a TanStack Query (o equivalente) según la regla del comentario.
+
+**Por qué este hallazgo merece visibilidad propia**: pertenece al canónico cacheBus de Eje D, no es residuo de un eje pasado. Debe ser encontrable buscando "useResource" o "race", no escarbando en handoffs históricos. Sin esta entrada, en 6 meses alguien va a sugerir parchear con AbortController y violar la regla sin saberlo.
