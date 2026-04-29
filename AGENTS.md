@@ -125,3 +125,22 @@ nido/
 - **Don't rename variables for type-naming consistency** (`activeCycle: CycleInfo` is fine; the setter stays `setActiveCycle`, named for what it holds, not its type).
 - **Migrations are idempotent and recorded** — copy the pattern from existing migrations in `server/db.ts`.
 - **For UI/UX changes, test in a browser before claiming done.** Type-check and unit tests verify code correctness, not feature correctness.
+
+---
+
+## Git workflow
+
+**Every change to `main` goes through a pull request. No exceptions.** Solo work, hotfixes, docs, one-line changes — all via PR.
+
+Why: a commit on `main` with `(#NNN)` reads as a deliberate, reviewed unit. A commit without a PR number reads as "single dev hacking." The cost of opening a self-merged PR is ~1 minute; the cost of a recruiter forming a "messy git" impression is much higher. (We learned this the hard way — see `docs/AUDIT-2026-04.md`.)
+
+**Workflow:**
+
+1. Branch off `main` — `feat/X`, `fix/X`, `chore/X`, `docs/X`, `audit/X` are conventional.
+2. Run `npm run build` locally before pushing. **This is the build gate.** It runs `tsc -p server && vite build` — both steps. `npx tsc --noEmit -p tsconfig.json` (client) alone is insufficient because the server tsc step is separate, and Vite's build uses esbuild which doesn't enforce types. CI runs exactly `npm run build`, so mirror it locally.
+3. `gh pr create` with a real title and body. The body is part of the historical record; treat it as documentation, not a checkbox.
+4. Merge with `--squash` (one commit per PR on `main`, linear history). Delete the branch after merge.
+
+**No direct pushes to `main`.** Even if `git push origin main` would succeed, don't. If you find yourself wanting to bypass, that's the moment to slow down and ask why.
+
+**No "process" commits in `main`** — handoff docs between agent sessions, plan files, scratch from brainstorms, etc. These belong in private notes (`.gitignore`d, or in an external memory store), not in the repo. The repo is for the project's history, not the agent's.
