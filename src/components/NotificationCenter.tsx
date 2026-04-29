@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Api } from '../api';
 import { X, Bell, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -23,11 +23,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       setLoading(true);
       const data = await Api.getNotifications();
@@ -37,7 +33,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+
+  useEffect(() => cacheBus.subscribe(CACHE_KEYS.notifications, loadNotifications), [loadNotifications]);
 
   const markAsRead = async (id: number) => {
     try {
