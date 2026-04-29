@@ -9,7 +9,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { formatMoney } from '../lib/money';
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleSummary } from '../api-types/cycles';
 
 /* ── constants ──────────────────────────────────────────── */
 
@@ -408,7 +408,7 @@ export const Analytics: React.FC = () => {
     const data = await Api.listCycles();
     return Array.isArray(data) ? data : [];
   }, []);
-  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+  const { data: cyclesData } = useResource<CycleSummary[]>(loadCyclesFn, {
     fallbackMessage: 'Error al cargar ciclos',
     invalidationKey: CACHE_KEYS.cycles,
   });

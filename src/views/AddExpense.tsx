@@ -10,7 +10,7 @@ import { useResource } from '../hooks/useResource';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleSummary } from '../api-types/cycles';
 import { formatDateLabel } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
 
@@ -53,7 +53,7 @@ export const AddExpense: React.FC = () => {
     const data = await Api.listCycles();
     return Array.isArray(data) ? data : [];
   }, []);
-  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+  const { data: cyclesData } = useResource<CycleSummary[]>(loadCyclesFn, {
     fallbackMessage: 'Error al cargar ciclos',
     invalidationKey: CACHE_KEYS.cycles,
   });

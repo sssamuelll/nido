@@ -7,7 +7,7 @@ import { useAsyncEffect } from '../hooks/useResource';
 import { formatMoneyExact } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleDetail } from '../api-types/cycles';
 
 interface RecurringItem {
   id: number;
@@ -34,7 +34,7 @@ const TagIcon = () => (
 
 export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved }) => {
   const [items, setItems] = useState<RecurringItem[]>([]);
-  const [cycle, setCycle] = useState<CycleInfo | null>(null);
+  const [cycle, setCycle] = useState<CycleDetail | null>(null);
   const [editItem, setEditItem] = useState<RecurringItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -104,11 +104,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       ? '#FBBF24'
       : undefined;
 
-  // TODO: see docs/HALLAZGOS.md "Eje G — RecurringSection requested_by mismatch".
-  // The server returns `requested_by_user_id`, not `requested_by`, so this comparison
-  // never matches a real user id and the banner shows for the wrong actor.
   const showApprovalBanner = cycle?.status === 'pending'
-    && (cycle as unknown as { requested_by?: number }).requested_by !== userId;
+    && cycle.requested_by_user_id !== userId;
   const showStartCycle = !cycle && items.length > 0;
 
   const openEditModal = (item: RecurringItem) => {

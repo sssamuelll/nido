@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 import { showToast } from '../components/Toast';
 import { handleApiError } from '../lib/handleApiError';
 import { ErrorView } from '../components/ErrorView';
+import type { CycleDetail } from '../api-types/cycles';
 
 /* ── PIN Change Component ── */
 
@@ -208,17 +209,7 @@ export const Settings: React.FC = () => {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteFor, setInviteFor] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [currentCycle, setCurrentCycle] = useState<{
-    id: number;
-    month: string;
-    status: 'pending' | 'active' | 'closed';
-    start_date?: string;
-    requested_by_user_id: number;
-    requested_by_username?: string;
-    approved_by_user_id?: number;
-    started_at?: string;
-    approvals?: { approved_count: number; total_members: number; current_user_has_approved: boolean };
-  } | null>(null);
+  const [currentCycle, setCurrentCycle] = useState<CycleDetail | null>(null);
   const [cycleLoading, setCycleLoading] = useState(false);
 
   const [saving, setSaving] = useState(false);

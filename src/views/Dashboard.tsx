@@ -21,7 +21,7 @@ import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleDetail } from '../api-types/cycles';
 
 interface Notification {
   id: number;
@@ -83,7 +83,7 @@ const getRecentExpenseWindow = (expenses: VisibleExpense[], maxItems = 5, maxDay
     .slice(0, maxItems);
 };
 
-const formatCycleLabel = (cycle: CycleInfo | null) => {
+const formatCycleLabel = (cycle: CycleDetail | null) => {
   if (!cycle?.start_date) return 'Ciclo actual';
   const d = new Date(cycle.start_date + 'T12:00:00');
   const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -94,7 +94,7 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const loadCurrentCycleFn = useCallback(() => Api.getCurrentCycle(), []);
-  const { data: activeCycle, loading: cycleLoading } = useResource<CycleInfo | null>(loadCurrentCycleFn, {
+  const { data: activeCycle, loading: cycleLoading } = useResource<CycleDetail | null>(loadCurrentCycleFn, {
     fallbackMessage: 'Error al cargar ciclo activo',
     invalidationKey: CACHE_KEYS.cycles,
   });
