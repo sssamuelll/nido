@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatMoney, formatMoneyExact } from './money';
+import { formatMoney, formatMoneyExact, matchesMoneySearch } from './money';
 
 describe('formatMoney (compact)', () => {
   it('formats whole numbers', () => {
@@ -36,5 +36,40 @@ describe('formatMoneyExact', () => {
 
   it('uses thousands separator + comma decimal', () => {
     expect(formatMoneyExact(1234567.89)).toBe('€1.234.567,89');
+  });
+});
+
+describe('matchesMoneySearch', () => {
+  it('matches numeric prefix (preserves current behavior)', () => {
+    expect(matchesMoneySearch(1234.5, '1234')).toBe(true);
+  });
+  it('matches numeric exact with cents (preserves current behavior)', () => {
+    expect(matchesMoneySearch(1234.5, '1234.50')).toBe(true);
+  });
+  it('matches one-decimal form (preserves current behavior via toFixed)', () => {
+    expect(matchesMoneySearch(1234.5, '1234.5')).toBe(true);
+  });
+  it('matches es-ES decimal separator', () => {
+    expect(matchesMoneySearch(1234.5, '1234,50')).toBe(true);
+  });
+  it('matches es-ES thousands separator (BUGFIX)', () => {
+    expect(matchesMoneySearch(1234.5, '1.234')).toBe(true);
+  });
+  it('matches es-ES full display form (BUGFIX)', () => {
+    expect(matchesMoneySearch(1234.5, '1.234,50')).toBe(true);
+  });
+  it('matches display form with euro sign for 5+ digit amounts (BUGFIX)', () => {
+    expect(matchesMoneySearch(12345.67, '€12.345')).toBe(true);
+  });
+  it('rejects unrelated terms', () => {
+    expect(matchesMoneySearch(1234.5, 'abc')).toBe(false);
+    expect(matchesMoneySearch(1234.5, '5678')).toBe(false);
+  });
+  it('returns false for empty searchTerm', () => {
+    expect(matchesMoneySearch(1234.5, '')).toBe(false);
+  });
+  it('rejects similar but distinct amounts (no false positives)', () => {
+    expect(matchesMoneySearch(234.50, '1.234')).toBe(false);
+    expect(matchesMoneySearch(1234.5, '12.345')).toBe(false);
   });
 });
