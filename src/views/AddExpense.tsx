@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
-import { format } from 'date-fns';
 import { useAuth } from '../auth';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
@@ -11,7 +10,7 @@ import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleSummary } from '../api-types/cycles';
-import { formatDateLabel } from '../lib/dates';
+import { formatDateLabel, todayISO } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
 
 const ChevronLeftIcon = () => (
@@ -45,9 +44,9 @@ export const AddExpense: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [expenseDate, setExpenseDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [expenseDate, setExpenseDate] = useState(() => todayISO());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const isToday = expenseDate === format(new Date(), 'yyyy-MM-dd');
+  const isToday = expenseDate === todayISO();
 
   const loadCyclesFn = useCallback(async () => {
     const data = await Api.listCycles();
@@ -374,13 +373,13 @@ export const AddExpense: React.FC = () => {
                     className="expense-date-input"
                     value={expenseDate}
                     onChange={e => setExpenseDate(e.target.value)}
-                    max={format(new Date(), 'yyyy-MM-dd')}
+                    max={todayISO()}
                   />
                   {!isToday && (
                     <button
                       type="button"
                       className="expense-date-today"
-                      onClick={() => { setExpenseDate(format(new Date(), 'yyyy-MM-dd')); setShowDatePicker(false); }}
+                      onClick={() => { setExpenseDate(todayISO()); setShowDatePicker(false); }}
                     >
                       Hoy
                     </button>

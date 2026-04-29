@@ -18,6 +18,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
+import { todayISO, yesterdayISO } from '../lib/dates';
 import { ErrorView } from '../components/ErrorView';
 import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
@@ -251,13 +252,8 @@ export const Dashboard: React.FC = () => {
 
   const formatDatePill = (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00');
-    const today = new Date();
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
-    if (dateStr === todayStr) return 'Hoy';
-    if (dateStr === yesterdayStr) return 'Ayer';
+    if (dateStr === todayISO()) return 'Hoy';
+    if (dateStr === yesterdayISO()) return 'Ayer';
     const days = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
     return `${days[d.getDay()]} ${d.getDate()}`;
   };

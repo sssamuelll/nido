@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Api } from '../api';
-import { format } from 'date-fns';
+import { todayISO, yesterdayISO } from '../lib/dates';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
@@ -350,8 +350,8 @@ export const History: React.FC = () => {
   );
 
   const formatDayLabel = (dateStr: string) => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+    const today = todayISO();
+    const yesterday = yesterdayISO();
     const d = new Date(dateStr + 'T12:00:00');
     const dayNum = d.getDate();
     const monthName = MONTHS[d.getMonth()];
