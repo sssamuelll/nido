@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Api } from '../api';
+import { handleApiError } from '../lib/handleApiError';
 
 export interface CategoryDef {
   id: number;
@@ -22,7 +23,10 @@ export const useCategoryManagement = (context: 'shared' | 'personal' = 'shared')
           iconBg: c.iconBg ?? (c.color ? `${c.color}1A` : 'var(--gl)'),
         })));
       })
-      .catch(() => setCategories([]));
+      .catch((err) => {
+        handleApiError(err, 'Error al cargar categorías', { silent: true });
+        setCategories([]);
+      });
   };
 
   useEffect(() => { loadCategories(); }, [context]);

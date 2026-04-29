@@ -247,7 +247,10 @@ export const Settings: React.FC = () => {
   };
 
   const loadDataFn = useCallback(async () => {
-    const cycle = await Api.getCurrentCycle().catch(() => null);
+    const cycle = await Api.getCurrentCycle().catch((err) => {
+      handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
+      return null;
+    });
     setCurrentCycle(cycle);
     const [budgetData, membersData] = await Promise.all([
       Api.getHouseholdBudget(),

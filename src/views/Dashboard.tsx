@@ -19,6 +19,7 @@ import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
+import { handleApiError } from '../lib/handleApiError';
 import { useAsyncEffect } from '../hooks/useResource';
 import type { CycleInfo } from '../api-types/cycles';
 
@@ -136,16 +137,21 @@ export const Dashboard: React.FC = () => {
 
   // Load cycle first, then data
   useEffect(() => {
-    Api.getCurrentCycle().catch(() => null).then((cycle) => {
-      setActiveCycle(cycle);
-      setCycleLoaded(true);
-    });
+    Api.getCurrentCycle()
+      .catch((err) => {
+        handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
+        return null;
+      })
+      .then((cycle) => {
+        setActiveCycle(cycle);
+        setCycleLoaded(true);
+      });
   }, []);
 
   useEffect(() => {
     Api.getNotifications()
       .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
-      .catch((err) => console.error('Failed to load notifications:', err));
+      .catch((err) => handleApiError(err, 'Error al cargar notificaciones', { silent: true }));
   }, []);
 
   const loadDashboardDataFn = useCallback(async () => {
@@ -542,7 +548,7 @@ export const Dashboard: React.FC = () => {
               setShowNotifications(false);
               Api.getNotifications()
                 .then((data: Notification[]) => setUnreadCount(data.filter((n: Notification) => !n.is_read).length))
-                .catch((err) => console.error('Failed to refresh notifications:', err));
+                .catch((err) => handleApiError(err, 'Error al refrescar notificaciones', { silent: true }));
             }}
           />
         )}
