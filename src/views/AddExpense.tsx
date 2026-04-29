@@ -194,6 +194,9 @@ export const AddExpense: React.FC = () => {
   }, [amount, hasOperator]);
 
   const handleKey = (key: string) => {
+    // keydown listener holds a stale handleKey closure across re-renders;
+    // functional updater reads latest state without coupling listener deps to error.
+    setError(prev => prev ? '' : prev);
     if (key === 'del') {
       setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
     } else if (key === '=') {
@@ -337,7 +340,7 @@ export const AddExpense: React.FC = () => {
               }}
               placeholder="En que gastaste?"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value); if (error) setError(''); }}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = 'var(--green)';
                 e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
@@ -372,14 +375,14 @@ export const AddExpense: React.FC = () => {
                     type="date"
                     className="expense-date-input"
                     value={expenseDate}
-                    onChange={e => setExpenseDate(e.target.value)}
+                    onChange={e => { setExpenseDate(e.target.value); if (error) setError(''); }}
                     max={todayISO()}
                   />
                   {!isToday && (
                     <button
                       type="button"
                       className="expense-date-today"
-                      onClick={() => { setExpenseDate(todayISO()); setShowDatePicker(false); }}
+                      onClick={() => { setExpenseDate(todayISO()); setShowDatePicker(false); if (error) setError(''); }}
                     >
                       Hoy
                     </button>
@@ -475,6 +478,7 @@ export const AddExpense: React.FC = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setCategory('');
+                        if (error) setError('');
                       }}
                     >
                       &times;
@@ -503,6 +507,7 @@ export const AddExpense: React.FC = () => {
                       setCategory(item.name);
                       setCategorySearch('');
                       setCmdOpen(false);
+                      if (error) setError('');
                     }}
                   >
                     <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
@@ -521,6 +526,7 @@ export const AddExpense: React.FC = () => {
                     setCategorySearch('');
                     setCmdOpen(false);
                     showToast(`Usaremos “${nextCategory}” en este gasto. Si quieres, luego la registramos como categoría nueva.`);
+                    if (error) setError('');
                   }}
                 >
                   <PlusIcon /> Usar &ldquo;{categorySearch.trim()}&rdquo; en este gasto

@@ -261,6 +261,10 @@ Reportes anteriores del audit de drift listaban este sitio como "POST /api/categ
 
 shared/ folder for cross-tier utilities — currently 1 consumer (server/routes/cycles.ts duplicates es-ES Intl formatter from src/lib/money.ts:formatMoneyExact). Trigger to extract: 2nd request for an src/lib/* helper from server-side. When triggered, evaluate location (src/shared/ vs top-level shared/), tsconfig path setup, and migration cost of moving src/lib/money.ts (78 consumers).
 
+### Tagged form-error state with field-aware clearing
+
+Form error semantics currently use unconditional clear-on-any-onChange (per ERR-3 audit). Future: when forms grow more complex, consider tagged error state `{ field?, message }` with field-aware clearing (validation errors persist until user edits the offending field; submit-failure errors clear on any input change). Trigger: form with 5+ inputs where unconditional clearing causes user confusion (user types in field A, error pertaining to field B disappears prematurely, user submits before fixing B, sees error reappear). When triggered, introduce useFormError hook with FormError discriminated union. Currently 5 form components (Login, Invite, Setup, AddExpense, History edit form) all use simple `useState('')` pattern.
+
 ---
 
 ## Single-site patterns watch
@@ -276,3 +280,7 @@ parseFloat(x.toFixed(2)) round-to-cents — currently 2 instances same file (src
 ### History search filter (post-MONEY-1)
 
 `src/views/History.tsx` filter logic (incl. money search via `matchesMoneySearch`) no tiene test unitario. Verificación post-MONEY-1 se basa en (i) tests del helper `matchesMoneySearch` en `src/lib/money.test.ts` (cubren la lógica del helper), y (ii) baseline-comparison que confirma que la migración no introduce nuevo FAIL. Test del filter component completo es follow-up tras un eventual extracto del filter logic a hook propio (no scope MONEY-1).
+
+### Form error UX lifecycle (post-ERR-3)
+
+Form components (Login, Invite, Setup, AddExpense, History edit) have no unit/integration tests covering the error-display lifecycle (set on validation/submit-failure → clear on user edit → re-set on next failed submit). Verification post-ERR-3 relies on baseline-comparison (no new FAIL/PASS regressions) and manual testing. Test coverage is follow-up for any future form refactor (e.g. when the deferred useFormError hook is introduced).

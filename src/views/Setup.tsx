@@ -75,7 +75,7 @@ export const Setup: React.FC = () => {
               className="login-input"
               placeholder="Ej: Samuel"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={e => { setUsername(e.target.value); if (error) setError(''); }}
               disabled={isLoading}
             />
           </div>

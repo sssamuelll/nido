@@ -615,7 +615,7 @@ export const History: React.FC = () => {
                 <input
                   className="form-input"
                   value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  onChange={(e) => { setEditDescription(e.target.value); if (editError) setEditError(''); }}
                   placeholder="En que gastaste?"
                 />
               </div>
@@ -632,7 +632,7 @@ export const History: React.FC = () => {
                     min="0"
                     step="0.01"
                     value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
+                    onChange={(e) => { setEditAmount(e.target.value); if (editError) setEditError(''); }}
                   />
                 </div>
               </div>
@@ -654,6 +654,7 @@ export const History: React.FC = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditCategory('');
+                            if (editError) setEditError('');
                           }}
                         >
                           &times;
@@ -682,6 +683,7 @@ export const History: React.FC = () => {
                           setEditCategory(item.name);
                           setCategorySearch('');
                           setCmdOpen(false);
+                          if (editError) setEditError('');
                         }}
                       >
                         <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
@@ -700,6 +702,7 @@ export const History: React.FC = () => {
                         setCategorySearch('');
                         setCmdOpen(false);
                         showToast(`Usaremos "${nextCategory}" en este gasto.`);
+                        if (editError) setEditError('');
                       }}
                     >
                       <PlusIcon /> Usar &ldquo;{categorySearch.trim()}&rdquo;
@@ -714,7 +717,7 @@ export const History: React.FC = () => {
                   className="form-input"
                   type="date"
                   value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
+                  onChange={(e) => { setEditDate(e.target.value); if (editError) setEditError(''); }}
                 />
               </div>
 
