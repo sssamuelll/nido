@@ -11,7 +11,7 @@ import { MonthNavigator } from '../components/MonthNavigator';
 import { showToast } from '../components/Toast';
 import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleSummary } from '../api-types/cycles';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
@@ -66,7 +66,7 @@ export const History: React.FC = () => {
     const data = await Api.listCycles();
     return Array.isArray(data) ? data : [];
   }, []);
-  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+  const { data: cyclesData } = useResource<CycleSummary[]>(loadCyclesFn, {
     invalidationKey: CACHE_KEYS.cycles,
   });
   const cycles = cyclesData ?? [];

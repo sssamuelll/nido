@@ -1,11 +1,11 @@
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleSummary } from '../api-types/cycles';
 
 export type CycleResolution =
-  | { kind: 'in-active'; cycle: CycleInfo }
-  | { kind: 'in-closed'; cycle: CycleInfo }
+  | { kind: 'in-active'; cycle: CycleSummary }
+  | { kind: 'in-closed'; cycle: CycleSummary }
   | { kind: 'no-cycle' };
 
-export function resolveCycleForDate(date: string, cycles: CycleInfo[]): CycleResolution {
+export function resolveCycleForDate(date: string, cycles: CycleSummary[]): CycleResolution {
   for (const c of cycles) {
     if (!c.start_date) continue;
     const startsBefore = date >= c.start_date;

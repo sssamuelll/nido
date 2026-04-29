@@ -1,4 +1,9 @@
-import { parseCycleList, type CycleInfo } from './api-types/cycles';
+import {
+  parseCycleList,
+  parseCycleDetail,
+  type CycleSummary,
+  type CycleDetail,
+} from './api-types/cycles';
 import { parseNotificationList, type Notification } from './api-types/notifications';
 import { parseExpenseList, type Expense } from './api-types/expenses';
 
@@ -379,13 +384,23 @@ export class Api {
   static async togglePauseRecurring(id: number) { return this.request(`/recurring/${id}/pause`, { method: 'PUT' }); }
 
   // Billing cycles
-  static async listCycles(): Promise<CycleInfo[]> {
+  static async listCycles(): Promise<CycleSummary[]> {
     const raw = await this.request('/cycles/list');
     return parseCycleList(raw);
   }
-  static async getCurrentCycle() { return this.request('/cycles/current'); }
-  static async requestCycle() { return this.request('/cycles/request', { method: 'POST' }); }
-  static async approveCycle(cycleId: number) { return this.request('/cycles/approve', { method: 'POST', body: { cycle_id: cycleId } }); }
+  static async getCurrentCycle(): Promise<CycleDetail | null> {
+    const raw = await this.request('/cycles/current');
+    if (raw === null) return null;
+    return parseCycleDetail(raw);
+  }
+  static async requestCycle(): Promise<CycleDetail> {
+    const raw = await this.request('/cycles/request', { method: 'POST' });
+    return parseCycleDetail(raw);
+  }
+  static async approveCycle(cycleId: number): Promise<CycleDetail> {
+    const raw = await this.request('/cycles/approve', { method: 'POST', body: { cycle_id: cycleId } });
+    return parseCycleDetail(raw);
+  }
 }
 
 export { ApiError };

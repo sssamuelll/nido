@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveCycleForDate } from './resolveCycleForDate';
-import type { CycleInfo } from '../api-types/cycles';
+import type { CycleSummary } from '../api-types/cycles';
 
-const cycles: CycleInfo[] = [
+const cycles: CycleSummary[] = [
   { id: 3, month: '2026-04-27', status: 'active', start_date: '2026-04-27', end_date: null, started_at: null },
   { id: 2, month: '2026-03-01', status: 'pending', start_date: '2026-03-01', end_date: '2026-04-27', started_at: null },
   { id: 1, month: '2026-02-01', status: 'pending', start_date: '2026-02-01', end_date: '2026-03-01', started_at: null },
