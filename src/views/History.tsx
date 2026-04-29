@@ -12,7 +12,7 @@ import { showToast } from '../components/Toast';
 import { ArrowUpDown, Calendar, Check, CheckSquare, Download, X } from 'lucide-react';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import type { CycleSummary } from '../api-types/cycles';
-import { formatMoney, formatMoneyExact } from '../lib/money';
+import { formatMoney, formatMoneyExact, matchesMoneySearch } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
 import type { Expense } from '../api-types/expenses';
@@ -151,8 +151,7 @@ export const History: React.FC = () => {
       const term = searchTerm.toLowerCase();
       const matchesSearch = !term || e.description.toLowerCase().includes(term) ||
         e.category.toLowerCase().includes(term) ||
-        e.amount.toFixed(2).includes(searchTerm) ||
-        String(e.amount).includes(searchTerm);
+        matchesMoneySearch(e.amount, searchTerm);
       const matchesContext = activeContext === 'shared' ? e.type === 'shared' : e.type === 'personal';
       const matchesCategory = selectedCategory === '' || e.category === selectedCategory;
       const matchesDateFrom = !dateFrom || e.date >= dateFrom;

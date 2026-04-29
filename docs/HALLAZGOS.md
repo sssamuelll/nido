@@ -252,3 +252,27 @@ Reportes anteriores del audit de drift listaban este sitio como "POST /api/categ
 **Acción**: ninguna. Documentado aquí para evitar que un futuro audit redescubra este "drift" inexistente.
 
 **Fuera de scope**: validación en sub-routers (`expensesRouter`, `goalsRouter`, `cyclesRouter`, etc.) — si surge la duda, es un eje aparte.
+
+---
+
+## Deferred architectural decisions
+
+### `shared/` folder for cross-tier utilities
+
+shared/ folder for cross-tier utilities — currently 1 consumer (server/routes/cycles.ts duplicates es-ES Intl formatter from src/lib/money.ts:formatMoneyExact). Trigger to extract: 2nd request for an src/lib/* helper from server-side. When triggered, evaluate location (src/shared/ vs top-level shared/), tsconfig path setup, and migration cost of moving src/lib/money.ts (78 consumers).
+
+---
+
+## Single-site patterns watch
+
+### `parseFloat(x.toFixed(2))` round-to-cents
+
+parseFloat(x.toFixed(2)) round-to-cents — currently 2 instances same file (src/views/AddExpense.tsx:203, :240). Watch for diffusion. Trigger to create lib/money roundCents(): a consumer outside AddExpense, or a 3rd instance accumulating drift in styles.
+
+---
+
+## Test coverage gaps
+
+### History search filter (post-MONEY-1)
+
+`src/views/History.tsx` filter logic (incl. money search via `matchesMoneySearch`) no tiene test unitario. Verificación post-MONEY-1 se basa en (i) tests del helper `matchesMoneySearch` en `src/lib/money.test.ts` (cubren la lógica del helper), y (ii) baseline-comparison que confirma que la migración no introduce nuevo FAIL. Test del filter component completo es follow-up tras un eventual extracto del filter logic a hook propio (no scope MONEY-1).

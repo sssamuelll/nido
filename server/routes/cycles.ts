@@ -20,6 +20,12 @@ interface RecurringExpenseRow {
   created_by_user_id: number;
 }
 
+// es-ES Intl.NumberFormat — keep in sync with src/lib/money.ts:formatMoneyExact
+const eurFmt = new Intl.NumberFormat('es-ES', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const router = Router();
 
 const getCycleWithApprovalState = async (db: ReturnType<typeof getDatabase>, cycleId: number, currentUserId: number) => {
@@ -154,7 +160,7 @@ const activateCycle = async (db: ReturnType<typeof getDatabase>, cycleId: number
     recipient_user_id: null,
     type: 'cycle_approved',
     title: 'Ciclo reiniciado',
-    body: `Se registraron ${registeredCount} gastos recurrentes por un total de €${total.toFixed(2)}`,
+    body: `Se registraron ${registeredCount} gastos recurrentes por un total de €${eurFmt.format(total)}`,
     metadata: { cycle_id: cycleId, count: registeredCount, total },
   });
 };
