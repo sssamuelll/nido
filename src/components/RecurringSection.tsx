@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Api } from '../api';
 import { showToast } from './Toast';
 import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { useAsyncEffect } from '../hooks/useResource';
 import { formatMoneyExact } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
@@ -34,7 +35,6 @@ const TagIcon = () => (
 export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved }) => {
   const [items, setItems] = useState<RecurringItem[]>([]);
   const [cycle, setCycle] = useState<CycleInfo | null>(null);
-  const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<RecurringItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -70,28 +70,22 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [recurring, currentCycle] = await Promise.all([
-        Api.getRecurring(),
-        Api.getCurrentCycle().catch((err) => {
-          handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
-          return null;
-        }),
-      ]);
-      setItems(Array.isArray(recurring) ? recurring : []);
-      setCycle(currentCycle);
-    } catch (err) {
-      handleApiError(err, 'Error al cargar recurrentes', { silent: true });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
+  const loadData = useCallback(async () => {
+    const [recurring, currentCycle] = await Promise.all([
+      Api.getRecurring(),
+      Api.getCurrentCycle().catch((err) => {
+        handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
+        return null;
+      }),
+    ]);
+    setItems(Array.isArray(recurring) ? recurring : []);
+    setCycle(currentCycle);
   }, []);
+
+  const { loading } = useAsyncEffect(loadData, {
+    fallbackMessage: 'Error al cargar recurrentes',
+    invalidationKeys: [CACHE_KEYS.recurring, CACHE_KEYS.cycles],
+  });
 
   const activeItems = items.filter(i => !i.paused);
   const total = activeItems.reduce((sum, i) => sum + i.amount, 0);
@@ -181,7 +175,6 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
         showToast('Gasto fijo creado', 'success');
       }
       closeModal();
-      await loadData();
     } catch (err) {
       handleApiError(err, 'Error al guardar');
     } finally {
@@ -197,7 +190,6 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       cacheBus.invalidate(CACHE_KEYS.recurring);
       showToast(editItem.paused ? 'Gasto activado' : 'Gasto pausado', 'success');
       closeModal();
-      await loadData();
     } catch (err) {
       handleApiError(err, 'Error al cambiar estado');
     } finally {
@@ -213,7 +205,6 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       cacheBus.invalidate(CACHE_KEYS.recurring);
       showToast('Gasto fijo eliminado', 'success');
       closeModal();
-      await loadData();
     } catch (err) {
       handleApiError(err, 'Error al eliminar');
     } finally {
@@ -227,7 +218,6 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       await Api.approveCycle(cycle.id);
       cacheBus.invalidate(CACHE_KEYS.cycles, CACHE_KEYS.summary);
       showToast('Ciclo aprobado', 'success');
-      await loadData();
       onCycleApproved?.();
     } catch (err) {
       handleApiError(err, 'Error al aprobar ciclo');
@@ -239,7 +229,6 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       await Api.requestCycle();
       cacheBus.invalidate(CACHE_KEYS.cycles);
       showToast('Ciclo iniciado', 'success');
-      await loadData();
     } catch (err) {
       handleApiError(err, 'Error al iniciar ciclo');
     }
