@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createChart, ColorType, AreaData, Time, AreaSeries } from 'lightweight-charts';
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
+import { useResource } from '../hooks/useResource';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
@@ -397,9 +398,6 @@ const CategoryDonutSection: React.FC<{ categories: CategoryData[]; animated: boo
 
 export const Analytics: React.FC = () => {
   const { activeContext, setActiveContext } = useContextSelector();
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [chartAnimated, setChartAnimated] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
 
@@ -421,30 +419,32 @@ export const Analytics: React.FC = () => {
     return `Ciclo del ${d.getDate()} ${MONTHS[d.getMonth()]}`;
   };
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadAnalytics = useCallback(async () => {
+    const params: { context: string; start_date?: string; end_date?: string } = { context: activeContext };
+    if (currentCycle?.start_date) {
+      params.start_date = currentCycle.start_date;
+      if (currentCycle.end_date) params.end_date = currentCycle.end_date;
+    }
+    return Api.getAnalytics(params);
+  }, [activeContext, currentCycle?.id, currentCycle?.start_date, currentCycle?.end_date]);
+
+  const { data, loading, error, reload: fetchData } =
+    useResource<AnalyticsData>(loadAnalytics, { fallbackMessage: 'Error al cargar analíticas' });
+
+  // Reset chart animation + insight visibility when params change (deps mirror loadAnalytics).
+  useEffect(() => {
     setChartAnimated(false);
     setInsightDismissed(false);
-    try {
-      const params: { context: string; start_date?: string; end_date?: string } = { context: activeContext };
-      if (currentCycle?.start_date) {
-        params.start_date = currentCycle.start_date;
-        if (currentCycle.end_date) params.end_date = currentCycle.end_date;
-      }
-      const result = await Api.getAnalytics(params);
-      setData(result);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setChartAnimated(true));
-      });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar analíticas');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeContext, currentCycle?.id, cycles.length]);
+  }, [activeContext, currentCycle?.id]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Trigger chart fade-in once data lands. Two rAFs let the DOM commit before the transition starts.
+  useEffect(() => {
+    if (!data) return;
+    const handle = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setChartAnimated(true));
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [data]);
 
   const chartTitle = activeContext === 'shared'
     ? 'Gasto acumulado — Compartido'

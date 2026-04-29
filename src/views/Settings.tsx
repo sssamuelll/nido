@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
+import { useAsyncEffect } from '../hooks/useResource';
 import { format } from 'date-fns';
 import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -219,11 +220,6 @@ export const Settings: React.FC = () => {
   const [cycleLoading, setCycleLoading] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const loadCycle = async () => {
     try {
@@ -250,31 +246,28 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const cycle = await Api.getCurrentCycle().catch(() => null);
-      setCurrentCycle(cycle);
-      const [budgetData, membersData] = await Promise.all([
-        Api.getHouseholdBudget(),
-        Api.getMembers(),
-        loadPasskeys(),
-      ]);
+  const loadDataFn = useCallback(async () => {
+    const cycle = await Api.getCurrentCycle().catch(() => null);
+    setCurrentCycle(cycle);
+    const [budgetData, membersData] = await Promise.all([
+      Api.getHouseholdBudget(),
+      Api.getMembers(),
+      loadPasskeys(),
+    ]);
 
-      if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
-        budgetData.total_amount = budgetData.pending_approval.total_amount;
-      }
-
-      setBudget(budgetData);
-      setMembers(membersData);
-    } catch (err) {
-      // Cat 3 automático: load on mount, no toast — but ErrorView would be ideal
-      // if budget/members fail to load. Settings page tolerates the failure.
-      console.error('Failed to load settings data:', err);
-    } finally {
-      setLoading(false);
+    if (budgetData.pending_approval && budgetData.pending_approval.requested_by_user_id === user?.id) {
+      budgetData.total_amount = budgetData.pending_approval.total_amount;
     }
-  };
+
+    setBudget(budgetData);
+    setMembers(membersData);
+    // loadPasskeys is closure-captured; stable across renders for this usage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Cat 3 automático: load on mount, no toast — but ErrorView would be ideal if budget/members fail.
+  // Settings page tolerates the failure (render gates on `!budget`).
+  const { loading, run: loadData } = useAsyncEffect(loadDataFn);
 
   const handleAddDevice = async () => {
     try {

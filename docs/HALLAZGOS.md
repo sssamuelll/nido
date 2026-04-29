@@ -83,3 +83,60 @@ El componente lee `cycle.requested_by`, pero el server (`server/routes/cycles.ts
 ### Sub-hallazgo: `'in-closed'` es misnomer para ciclos `pending`
 
 `src/lib/resolveCycleForDate.ts` clasifica cualquier ciclo no-`active` como `'in-closed'`. Pero el schema de `billing_cycles` solo permite estados `'pending'` y `'active'` (ver `server/db.ts:303` CHECK constraint). Un ciclo `'pending'` clasificado como `'in-closed'` semánticamente confuso. Renombrar a `'in-other'` o `'non-active'` sería más correcto pero rompe consumers. Out of scope.
+
+---
+
+## Eje E.a — hallazgos detectados durante la migración (2026-04-28)
+
+### 1. 14 tests pre-existentes rotos en `main`
+
+Detectado al validar Eje E.a. Verificado vía `git stash` que los 14 también fallan en main limpio — **no introducidos por la migración**. Patrón común: rot de tests vs cambios deliberados de comportamiento (refactors de respuesta del server, privacy, schema). No flakes — todos son assertion mismatches reproducibles.
+
+⚠ **Bloquea Eje O**: 4 de los 5 archivos afectados (`server/auth.test.ts`, `server/routes/{analytics,expenses,goals}.test.ts`) son justamente los que el Eje O quiere refactorizar (extraer `mockDb`/`getRouteHandler`/`createResponse` a helper común). Antes de tocar el helper, conviene fijar o saltar las aserciones rotas para tener una baseline limpia donde verificar que la extracción no rompe nada.
+
+| # | Archivo | Test | Diagnóstico probable |
+|---|---|---|---|
+| 1 | `server/auth.test.ts` | `authenticateToken returns 401 when no session cookie is present` | Middleware retorna shape de error distinto al esperado (`{error: 'Unauthorized'}`). Probable refactor del middleware sin actualizar test. |
+| 2 | `server/routes/analytics.test.ts` | `GET / returns monthly totals grouped correctly` | Test accede a `res.json.mock.calls[0][0]` esperando array; recibe `undefined`. Cambió la forma de respuesta (probablemente ahora devuelve `{monthly:[...], kpis:..., insights:...}` y el test espera el array suelto). |
+| 3 | `server/routes/analytics.test.ts` | `calculates KPIs correctly` | `expected 600, got 0`. Misma causa: shape de respuesta cambió, test no extrae KPIs del nuevo wrapper. |
+| 4 | `server/routes/analytics.test.ts` | `calculates category breakdown percentages` | `expected length 3, got 0`. Misma causa. |
+| 5 | `server/routes/analytics.test.ts` | `generates positive trend insight when spending decreased` | `insights.find(...)` returns undefined. Insights no se generan o cambió el `type`. |
+| 6 | `server/routes/analytics.test.ts` | `generates budget warning insight at 80%+` | Misma causa. |
+| 7 | `server/routes/analytics.test.ts` | `returns 500 on database error` | `res.status` nunca llamado con `500`. Probable cambio a `next(err)` con error middleware central, en vez de `res.status(500)` inline. |
+| 8 | `server/routes/expenses.test.ts` | `creates a new expense using the authenticated user as paid_by` | `INSERT INTO expenses` con set de columnas distinto al esperado. Schema cambió (probable: nueva columna `cycle_id`, `category_id`, etc.) y el test no se actualizó. |
+| 9 | `server/routes/expenses.test.ts` | `forbids deleting another user personal expense` | Mensaje de error o status code distinto. Probable cambio de "Forbidden 403" → "Not found 404" por privacy (no revelar existencia del recurso). |
+| 10 | `server/routes/goals.test.ts` | `POST / creates goal with correct household_id from auth user` | Spy comparison falla — el SQL recibido coincide pero algún arg posicional difiere. Posible reorden de columnas en INSERT. |
+| 11 | `server/routes/goals.test.ts` | `POST / sets owner_user_id when owner_type is personal` | Misma causa. |
+| 12 | `server/routes/goals.test.ts` | `PUT /:id returns 403 when editing another user personal goal` | Mensaje de error distinto. Igual que #9: probable privacy refactor. |
+| 13 | `server/routes/goals.test.ts` | `PUT /:id returns 404 for goal not in household` | Mensaje de error distinto. |
+| 14 | `src/views/privacy.test.ts` | `builds a dashboard card only for the authenticated user personal data` | `expected avatar:'👨‍💻', got 'S'`. Cambió la lógica de avatar de emoji a inicial del nombre. Test no actualizado. |
+
+**Acción sugerida**: PR aparte que actualiza estas 14 aserciones para reflejar el comportamiento actual (o, donde el comportamiento sea regresión, revertirlo). No es trabajo del Eje O.
+
+### 2. `tsc --noEmit` del cliente está roto en este repo
+
+Ejecutar `npx tsc --noEmit -p tsconfig.json` falla con 4 errores **en el propio `tsconfig.json`**, antes de tocar código fuente:
+
+```
+tsconfig.json(8,25): TS6046: Argument for '--moduleResolution' option must be: 'node', 'classic', 'node16', 'nodenext'.
+tsconfig.json(9,5):  TS5023: Unknown compiler option 'allowImportingTsExtensions'.
+tsconfig.json(10,5): TS5070: Option '--resolveJsonModule' cannot be specified without 'node' module resolution strategy.
+tsconfig.json(25,18): TS6306: Referenced project '...server/tsconfig.json' must have setting "composite": true.
+```
+
+Causa: `tsconfig.json` usa `moduleResolution: "bundler"` y `allowImportingTsExtensions` — ambos requieren TypeScript ≥5.0. Pero `package.json` pinea `typescript: ^4.9.5`. Además, `vite build` **no** hace type-checking (usa esbuild para transpilar, sin chequeo de tipos; `vite.config.ts` no carga `vite-plugin-checker` ni similar). El único `tsc` que se ejecuta hoy es `tsc -p server` durante el build, que solo cubre el server.
+
+Conclusión: **el cliente no se type-checkea en CI/CLI**. Solo el editor (que trae su propia versión de TS).
+
+**Acciones posibles** (cualquiera, fuera del scope del audit de drift):
+- (a) Subir `typescript` a `^5.x` en `package.json` y verificar que el cliente compila limpio.
+- (b) Bajar `tsconfig.json` a sintaxis TS 4.9 (`moduleResolution: "node"`, sin `allowImportingTsExtensions`). Pierdes import de `.tsx` explícito.
+- (c) Añadir `vite-plugin-checker` con preset typescript para que `vite build` falle ante errores de tipo. Cubre CI sin tocar TS.
+
+### 3. No hay script `lint` en `package.json`
+
+`package.json` no expone ningún script `lint`. No hay `.eslintrc*` ni `eslint.config.*` en la raíz. El prompt original asumía `pnpm lint`; en este repo no aplica. Si se quiere lint en CI, hay que añadirlo (eslint + plugin-react + plugin-react-hooks). Out of scope del audit.
+
+### 4. `currentMonth` ghost dep en Dashboard.tsx
+
+`src/views/Dashboard.tsx:114` declara `const currentMonth = format(new Date(), 'yyyy-MM');` y la incluye en las deps del `useCallback` de `loadDashboardDataFn` (línea 161). **No se usa en el body del callback**, ni en ninguna otra parte del componente. Es un dep fantasma — heredado del refactor previo cuando el load por mes calendario fue reemplazado por load por ciclo de facturación, y el local quedó sin consumidor. Comportamiento idéntico al de antes (la string es estable dentro del minuto, así que no dispara refetch espurio), pero deuda visible. Cleanup trivial post-audit: borrar la línea y la entrada del array de deps. Fuera del scope de Eje E.a por la regla "cero cambios fuera del eje".
