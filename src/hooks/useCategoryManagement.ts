@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Api } from '../api';
 import { handleApiError } from '../lib/handleApiError';
+import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 
 export interface CategoryDef {
   id: number;
@@ -14,7 +15,7 @@ export interface CategoryDef {
 export const useCategoryManagement = (context: 'shared' | 'personal' = 'shared') => {
   const [categories, setCategories] = useState<CategoryDef[]>([]);
 
-  const loadCategories = () => {
+  const loadCategories = useCallback(() => {
     Api.getCategories(context)
       .then((data: CategoryDef[]) => {
         setCategories(data.map(c => ({
@@ -27,9 +28,11 @@ export const useCategoryManagement = (context: 'shared' | 'personal' = 'shared')
         handleApiError(err, 'Error al cargar categorías', { silent: true });
         setCategories([]);
       });
-  };
+  }, [context]);
 
-  useEffect(() => { loadCategories(); }, [context]);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
+
+  useEffect(() => cacheBus.subscribe(CACHE_KEYS.categories, loadCategories), [loadCategories]);
 
   const getCategoryDef = (name: string) =>
     categories.find(c => c.name === name);
