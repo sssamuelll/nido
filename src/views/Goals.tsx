@@ -1,12 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { format } from 'date-fns';
 import { GoalCard } from '../components/GoalCard';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { type Goal } from '../types';
 import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
-import { formatDateLabel } from '../lib/dates';
+import { formatDateLabel, todayISO } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
@@ -24,13 +23,11 @@ interface GoalFormData {
   color: string;
 }
 
-const todayStr = () => format(new Date(), 'yyyy-MM-dd');
-
 const EMPTY_FORM: GoalFormData = {
   name: '',
   icon: '✨',
   target: '',
-  start_date: todayStr(),
+  start_date: todayISO(),
   deadline: '',
   owner_type: 'shared',
   color: '#60A5FA',
@@ -308,22 +305,22 @@ export const Goals: React.FC = () => {
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
                     </svg>
-                    {formatDateLabel(formData.start_date || todayStr())}
-                    {formData.start_date && formData.start_date !== todayStr() && <span className="expense-date-dot" />}
+                    {formatDateLabel(formData.start_date || todayISO())}
+                    {formData.start_date && formData.start_date !== todayISO() && <span className="expense-date-dot" />}
                   </button>
                 ) : (
                   <div className="expense-date-picker">
                     <input
                       className="expense-date-input"
                       type="date"
-                      value={formData.start_date || todayStr()}
+                      value={formData.start_date || todayISO()}
                       onChange={e => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
                     />
-                    {formData.start_date !== todayStr() && (
+                    {formData.start_date !== todayISO() && (
                       <button
                         type="button"
                         className="expense-date-today"
-                        onClick={() => { setFormData(prev => ({ ...prev, start_date: todayStr() })); setShowStartDate(false); }}
+                        onClick={() => { setFormData(prev => ({ ...prev, start_date: todayISO() })); setShowStartDate(false); }}
                       >
                         Hoy
                       </button>
