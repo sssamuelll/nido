@@ -7,7 +7,14 @@ app-*.png
 design-*.png
 e2e-*.png
 final-*.png
+addexpense-*.png
+dashboard-*.png
+event-*.png
+history-*.png
+modal-*.png
+nido-*.png
 docs/internal-docs/plans/2026-03-19-nido-v2-design-alignment.md
+docs/superpowers/plans/2026-03-19-nido-v2-design-alignment.md
 .env
 *.db
 *.db-journal
@@ -15,3 +22,8 @@ docs/internal-docs/plans/2026-03-19-nido-v2-design-alignment.md
 
 .gemini/
 gha-creds-*.json
+
+# Agent / tooling scratch — never belongs in the repo
+.superpowers/
+mempalace.yaml
+entities.json
