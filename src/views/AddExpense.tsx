@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { format } from 'date-fns';
@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import { useResource } from '../hooks/useResource';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
@@ -48,21 +49,21 @@ export const AddExpense: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const isToday = expenseDate === format(new Date(), 'yyyy-MM-dd');
 
-  const [cycles, setCycles] = useState<CycleInfo[]>([]);
+  const loadCyclesFn = useCallback(async () => {
+    const data = await Api.listCycles();
+    return Array.isArray(data) ? data : [];
+  }, []);
+  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+    fallbackMessage: 'Error al cargar ciclos',
+    invalidationKey: CACHE_KEYS.cycles,
+  });
+  const cycles = cyclesData ?? [];
   const [targetCycleId, setTargetCycleId] = useState<number | null>(null);
   const activeCycle = cycles.find(c => c.status === 'active');
   const cycleResolution = useMemo(
     () => resolveCycleForDate(expenseDate, cycles),
     [expenseDate, cycles]
   );
-  useEffect(() => {
-    Api.listCycles()
-      .then(d => setCycles(Array.isArray(d) ? d : []))
-      .catch((err) => {
-        handleApiError(err, 'Error al cargar ciclos', { silent: true });
-        setCycles([]);
-      });
-  }, []);
   useEffect(() => {
     if (cycleResolution.kind === 'in-active') {
       setTargetCycleId(null);
@@ -81,7 +82,20 @@ export const AddExpense: React.FC = () => {
   const [newCatColor, setNewCatColor] = useState(COLOR_OPTIONS[0]);
   const [savingCat, setSavingCat] = useState(false);
   const [repeatCount, setRepeatCount] = useState(1);
-  const [events, setEvents] = useState<any[]>([]);
+  const loadEventsFn = useCallback(async () => {
+    // Shared expense → only shared events.
+    // Personal expense → user can also tag own expenses (e.g. a souvenir during a shared trip)
+    // to a shared event, so include both shared and own personal events.
+    const lists = type === 'shared'
+      ? [await Api.getEvents('shared')]
+      : await Promise.all([Api.getEvents('shared'), Api.getEvents('personal')]);
+    const merged = lists.flat();
+    return merged.filter((ev: any) => new Date(ev.end_date) >= new Date());
+  }, [type]);
+  const { data: eventsData } = useResource<any[]>(loadEventsFn, {
+    invalidationKey: CACHE_KEYS.events,
+  });
+  const events = eventsData ?? [];
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const cmdRef = useRef<HTMLDivElement>(null);
 
@@ -106,25 +120,6 @@ export const AddExpense: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    const loadEvents = async () => {
-      try {
-        // Shared expense → only shared events.
-        // Personal expense → user can also tag own expenses (e.g. a souvenir during a shared trip)
-        // to a shared event, so include both shared and own personal events.
-        const lists = type === 'shared'
-          ? [await Api.getEvents('shared')]
-          : await Promise.all([Api.getEvents('shared'), Api.getEvents('personal')]);
-        const merged = lists.flat();
-        const activeEvents = merged.filter((ev: any) => new Date(ev.end_date) >= new Date());
-        setEvents(activeEvents);
-      } catch {
-        setEvents([]);
-      }
-    };
-    loadEvents();
-  }, [type]);
 
   useEffect(() => {
     const incomingState = location.state as any;

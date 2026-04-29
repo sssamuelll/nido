@@ -73,7 +73,14 @@ export const History: React.FC = () => {
   const { categories, getCategoryDef } = useCategoryManagement(activeContext);
 
   // Cycle-based navigation state
-  const [cycles, setCycles] = useState<CycleInfo[]>([]);
+  const loadCyclesFn = useCallback(async () => {
+    const data = await Api.listCycles();
+    return Array.isArray(data) ? data : [];
+  }, []);
+  const { data: cyclesData } = useResource<CycleInfo[]>(loadCyclesFn, {
+    invalidationKey: CACHE_KEYS.cycles,
+  });
+  const cycles = cyclesData ?? [];
   const [cycleIndex, setCycleIndex] = useState(0); // 0 = most recent
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,20 +116,6 @@ export const History: React.FC = () => {
 
   // Current cycle being viewed (null = all expenses)
   const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
-
-  // Load cycles on mount
-  useEffect(() => {
-    const loadCycles = async () => {
-      try {
-        const data = await Api.listCycles();
-        setCycles(Array.isArray(data) ? data : []);
-      } catch {
-        // If listing fails, we still show all expenses
-        setCycles([]);
-      }
-    };
-    loadCycles();
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
