@@ -23,6 +23,7 @@ const expenseSchema = z
     paid_by_user_id: z.number().int().finite().positive().nullable().optional(),
     created_at: z.string().min(1).optional(),
     event_id: z.number().int().finite().positive().nullable().optional(),
+    cycle_id: z.number().int().finite().positive().nullable().optional(),
   })
   .passthrough();
 

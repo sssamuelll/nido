@@ -15,6 +15,7 @@ import type { CycleInfo } from '../api-types/cycles';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
+import type { Expense } from '../api-types/expenses';
 
 const TagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
@@ -29,18 +30,6 @@ const PlusIcon = () => (
 );
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-type Expense = {
-  id: number;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-  paid_by: string;
-  type: 'shared' | 'personal';
-  status?: 'paid' | 'pending';
-  cycle_id?: number | null;
-};
 
 /* Category color map matching design reference icon-c backgrounds */
 const CAT_COLORS: Record<string, { bg: string; stroke: string }> = {

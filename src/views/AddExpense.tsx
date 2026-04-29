@@ -265,8 +265,7 @@ export const AddExpense: React.FC = () => {
         setTimeout(() => navigate('/'), 1500);
       }
     } catch (err) {
-      console.error('Failed to save expense:', err);
-      setError('Error al guardar el gasto');
+      handleApiError(err, 'Error al guardar el gasto');
     } finally {
       setLoading(false);
     }

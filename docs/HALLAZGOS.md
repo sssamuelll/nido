@@ -231,3 +231,24 @@ Sección reservada por el handoff de Commit 5 para registrar mutaciones cuya ent
 **Si surge como bug reproducible**: NO parchear el bus añadiendo `AbortController`, dedup de in-flight, o token-de-fetch — eso violaría las **PROHIBITED FEATURES** documentadas inline en `src/lib/cacheBus.ts:1-10`. La regla del repo es explícita: "if we find ourselves needing 2+ of these, the bus has lost its reason to exist. Migrate. Don't grow the bus into a half-TQ." Escalar a migración a TanStack Query (o equivalente) según la regla del comentario.
 
 **Por qué este hallazgo merece visibilidad propia**: pertenece al canónico cacheBus de Eje D, no es residuo de un eje pasado. Debe ser encontrable buscando "useResource" o "race", no escarbando en handoffs históricos. Sin esta entrada, en 6 meses alguien va a sugerir parchear con AbortController y violar la regla sin saberlo.
+
+---
+
+## Tier 3 cleanup — falsos positivos verificados
+
+### SCHEMA-2 — POST /api/categories sin Zod (resuelto upstream)
+
+Reportes anteriores del audit de drift listaban este sitio como "POST /api/categories en `server/index.ts:~760` sin validación Zod". **Falso positivo confirmado el 2026-04-29**:
+
+- `server/index.ts` ahora tiene 352 líneas (la línea 760 referida ya no existe — el archivo se redujo en refactors posteriores).
+- `POST /api/categories` está en `server/index.ts:178` con `validate(categoryUpsertSchema)` middleware aplicado:
+  ```ts
+  app.post('/api/categories', authenticateToken, apiLimiter,
+           validate(categoryUpsertSchema), async (req, res) => { ... });
+  ```
+- Wiring vía PR #209/#210 (hardening pre-existente, ver memoria `nido/decisions/PR-210-merge-note`).
+- El resto de POST/PUT/DELETE declarados directamente en `server/index.ts` también validan: `/auth/verify-pin` y `/auth/update-pin` usan `pinSchema.safeParse` inline; `/auth/logout` no tiene body; `DELETE /api/categories/:id` solo recibe `:id` param.
+
+**Acción**: ninguna. Documentado aquí para evitar que un futuro audit redescubra este "drift" inexistente.
+
+**Fuera de scope**: validación en sub-routers (`expensesRouter`, `goalsRouter`, `cyclesRouter`, etc.) — si surge la duda, es un eje aparte.
