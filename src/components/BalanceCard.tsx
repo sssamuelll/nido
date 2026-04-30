@@ -15,13 +15,11 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   balance,
   monthChange,
   progress,
-  sparkline,
   className = '',
   onClick,
   ariaLabel,
 }) => {
   const theme = OWNER_THEMES[owner];
-  const maxBar = Math.max(...sparkline, 1);
   const TagName = onClick ? 'button' : 'div';
 
   return (

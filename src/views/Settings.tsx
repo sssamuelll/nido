@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../auth';
 import { Api } from '../api';
 import { useAsyncEffect } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import { format } from 'date-fns';
-import { Clock, Download, LogOut, Lock, RefreshCw, CheckCircle, AlertCircle, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
-import { Button } from '../components/Button';
+import { Clock, Lock, RefreshCw, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
 import { showToast } from '../components/Toast';
 import { handleApiError } from '../lib/handleApiError';
 import { ErrorView } from '../components/ErrorView';
