@@ -50,87 +50,96 @@ describe('analytics routes', () => {
   });
 
   const setupDefaultMocks = (overrides: {
-    monthlyRows?: any[];
-    currentMonthTotal?: number;
-    currentMonthCount?: number;
-    prevMonthTotal?: number;
-    budget?: any;
-    categoryRows?: any[];
-    householdUser?: any;
-    categoryColors?: any[];
-    categoryBudgets?: any[];
+    dailyRows?: Array<{ date: string; total: number }>;
+    periodTotal?: number;
+    periodCount?: number;
+    prevTotal?: number;
+    householdId?: number | null;
+    budget?: { total_amount: number; personal_samuel: number; personal_maria: number } | null;
+    categoryRows?: Array<{ name: string; amount: number }>;
+    categoryMeta?: Array<{ name: string; emoji?: string; color: string; budget_amount: number }>;
+    categoryBudgets?: Array<{ name: string; budget_amount: number }>;
+    overallAvg?: { total: number; count: number };
   } = {}) => {
     const {
-      monthlyRows = [],
-      currentMonthTotal = 0,
-      currentMonthCount = 0,
-      prevMonthTotal = 0,
+      dailyRows = [],
+      periodTotal = 0,
+      periodCount = 0,
+      prevTotal = 0,
+      householdId = 1,
       budget = null,
       categoryRows = [],
-      householdUser = { household_id: 1 },
-      categoryColors = [],
+      categoryMeta = [],
       categoryBudgets = [],
+      overallAvg = { total: 0, count: 0 },
     } = overrides;
 
-    // Call order in the handler (analytics.ts):
-    // 1. db.all  - monthly totals
-    // 2. db.get  - current month total
-    // 3. db.get  - current month count
-    // 4. db.get  - prev month total
-    // 5. db.get  - householdUser (app_users)
-    // 6. db.get  - budget (household_budget)
-    // 7. db.all  - category breakdown
-    // 8. db.all  - category colors (if householdId)
-    // 9. db.all  - category budgets (if householdId)
-    // Then variable number of db.get calls for anomaly/streak insights
+    // Call order in the handler when startDate + householdId both present:
+    //   db.all  (1) dailyRows                  ← chart data (cumulative built in handler)
+    //   db.get  (1) periodExpenses → { total } ← KPI totalSpent
+    //   db.get  (2) periodCount → { count }    ← KPI totalExpenses
+    //   db.get  (3) prevTotal → { total }      ← only when startDate, for vsPrevPeriod
+    //   db.get  (4) householdUser → { household_id }
+    //   db.get  (5) budget → HouseholdBudgetRow | null
+    //   db.all  (2) categoryRows               ← breakdown
+    //   db.all  (3) categoryMeta               ← only when householdId, for color/emoji/budget
+    //   db.all  (4) categoryBudgets            ← only when householdId, for budget warnings
+    //   db.get  (6) overallAvg                 ← only when startDate, for tip insight
 
     mockDb.all
-      .mockResolvedValueOnce(monthlyRows)       // 1. monthly totals
-      .mockResolvedValueOnce(categoryRows)       // 7. category breakdown
-      .mockResolvedValueOnce(categoryColors)     // 8. category colors
-      .mockResolvedValueOnce(categoryBudgets);   // 9. category budgets
+      .mockResolvedValueOnce(dailyRows)
+      .mockResolvedValueOnce(categoryRows)
+      .mockResolvedValueOnce(categoryMeta)
+      .mockResolvedValueOnce(categoryBudgets);
 
     mockDb.get
-      .mockResolvedValueOnce({ total: currentMonthTotal })  // 2. current month total
-      .mockResolvedValueOnce({ count: currentMonthCount })  // 3. current month count
-      .mockResolvedValueOnce({ total: prevMonthTotal })     // 4. prev month total
-      .mockResolvedValueOnce(householdUser)                 // 5. household user
-      .mockResolvedValueOnce(budget);                       // 6. budget
+      .mockResolvedValueOnce({ total: periodTotal })
+      .mockResolvedValueOnce({ count: periodCount })
+      .mockResolvedValueOnce({ total: prevTotal })
+      .mockResolvedValueOnce({ household_id: householdId })
+      .mockResolvedValueOnce(budget)
+      .mockResolvedValueOnce(overallAvg);
   };
 
   describe('GET /', () => {
-    it('returns monthly totals grouped correctly', async () => {
-      const monthlyRows = [
-        { month: '2025-10', total: 500 },
-        { month: '2025-11', total: 700 },
-        { month: '2025-12', total: 600 },
-        { month: '2026-01', total: 800 },
-        { month: '2026-02', total: 450 },
-        { month: '2026-03', total: 350 },
+    it('returns daily cumulative totals for the period', async () => {
+      const dailyRows = [
+        { date: '2026-03-01', total: 100 },
+        { date: '2026-03-02', total: 200 },
+        { date: '2026-03-03', total: 50 },
       ];
-      setupDefaultMocks({ monthlyRows });
+      setupDefaultMocks({ dailyRows });
 
       const handler = getRouteHandler('/', 'get');
-      const req = createRequest();
+      const req = createRequest({
+        validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
+      });
       const res = createResponse();
 
       await handler(req, res);
 
       const response = res.json.mock.calls[0][0];
-      expect(response.monthly).toEqual(monthlyRows);
-      expect(response.monthly).toHaveLength(6);
+      // Handler accumulates `total` cumulatively across the period (analytics.ts:81-85).
+      expect(response.daily).toEqual([
+        { date: '2026-03-01', total: 100 },
+        { date: '2026-03-02', total: 300 },
+        { date: '2026-03-03', total: 350 },
+      ]);
+      expect(response.daily).toHaveLength(3);
     });
 
     it('calculates KPIs correctly (totalSpent, avgTicket, vsPrevPeriod)', async () => {
       setupDefaultMocks({
-        currentMonthTotal: 600,
-        currentMonthCount: 20,
-        prevMonthTotal: 800,
+        periodTotal: 600,
+        periodCount: 20,
+        prevTotal: 800,
         budget: { total_amount: 2000, personal_samuel: 500, personal_maria: 500 },
       });
 
       const handler = getRouteHandler('/', 'get');
-      const req = createRequest();
+      const req = createRequest({
+        validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
+      });
       const res = createResponse();
 
       await handler(req, res);
@@ -141,7 +150,7 @@ describe('analytics routes', () => {
       expect(kpis.totalExpenses).toBe(20);
       // (600 - 800) / 800 * 100 = -25%
       expect(kpis.vsPrevPeriod).toBe(-25);
-      // netSavings = shared_available - totalSpent = 2000 - 600 = 1400
+      // netSavings = total_amount - totalSpent = 2000 - 600 = 1400
       expect(kpis.netSavings).toBe(1400);
     });
 
@@ -153,26 +162,30 @@ describe('analytics routes', () => {
       ];
       setupDefaultMocks({
         categoryRows,
-        categoryColors: [
-          { name: 'Restaurant', color: '#ff0000' },
-          { name: 'Ocio', color: '#00ff00' },
+        categoryMeta: [
+          { name: 'Restaurant', color: '#ff0000', budget_amount: 0 },
+          { name: 'Ocio', color: '#00ff00', budget_amount: 0 },
         ],
       });
 
       const handler = getRouteHandler('/', 'get');
-      const req = createRequest();
+      const req = createRequest({
+        validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
+      });
       const res = createResponse();
 
       await handler(req, res);
 
       const { categories } = res.json.mock.calls[0][0];
       expect(categories).toHaveLength(3);
+      // Handler also returns `emoji` and `budget` fields (see Test coverage gaps
+      // in HALLAZGOS); we use toMatchObject so those don't break this test.
       // Restaurant: 300/600 = 50%
-      expect(categories[0]).toEqual({ name: 'Restaurant', amount: 300, pct: 50, color: '#ff0000' });
+      expect(categories[0]).toMatchObject({ name: 'Restaurant', amount: 300, pct: 50, color: '#ff0000' });
       // Ocio: 200/600 = 33%
-      expect(categories[1]).toEqual({ name: 'Ocio', amount: 200, pct: 33, color: '#00ff00' });
-      // Servicios: 100/600 = 17%, fallback color
-      expect(categories[2]).toEqual({ name: 'Servicios', amount: 100, pct: 17, color: '#c4a0e8' });
+      expect(categories[1]).toMatchObject({ name: 'Ocio', amount: 200, pct: 33, color: '#00ff00' });
+      // Servicios: 100/600 = 17%, hardcoded fallback color from CATEGORY_FALLBACK_COLORS
+      expect(categories[2]).toMatchObject({ name: 'Servicios', amount: 100, pct: 17, color: '#c4a0e8' });
     });
 
     it('generates positive trend insight when spending decreased', async () => {
@@ -180,16 +193,17 @@ describe('analytics routes', () => {
         { name: 'Restaurant', amount: 400 },
       ];
       setupDefaultMocks({
-        currentMonthTotal: 400,
-        currentMonthCount: 10,
-        prevMonthTotal: 600,
+        dailyRows: [{ date: '2026-03-10', total: 400 }],
+        periodTotal: 400,
+        periodCount: 10,
+        prevTotal: 600,
         categoryRows,
       });
-      // Anomaly queries: for each category, db.get for historical avg
-      mockDb.get.mockResolvedValueOnce({ total: 400 }); // historical avg for Restaurant (not anomalous)
 
       const handler = getRouteHandler('/', 'get');
-      const req = createRequest();
+      const req = createRequest({
+        validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
+      });
       const res = createResponse();
 
       await handler(req, res);
@@ -207,17 +221,17 @@ describe('analytics routes', () => {
         { name: 'Restaurant', amount: 450 },
       ];
       setupDefaultMocks({
-        currentMonthTotal: 450,
-        currentMonthCount: 15,
-        prevMonthTotal: 450, // same, no positive trend
+        periodTotal: 450,
+        periodCount: 15,
+        prevTotal: 450, // same, no positive trend insight
         categoryRows,
         categoryBudgets: [{ name: 'Restaurant', budget_amount: 500 }], // 450/500 = 90%
       });
-      // Anomaly queries
-      mockDb.get.mockResolvedValueOnce({ total: 450 }); // historical avg
 
       const handler = getRouteHandler('/', 'get');
-      const req = createRequest();
+      const req = createRequest({
+        validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
+      });
       const res = createResponse();
 
       await handler(req, res);
@@ -231,7 +245,7 @@ describe('analytics routes', () => {
 
     it('returns different data for shared vs personal context', async () => {
       // Shared request
-      setupDefaultMocks({ currentMonthTotal: 1000, currentMonthCount: 30 });
+      setupDefaultMocks({ periodTotal: 1000, periodCount: 30 });
       const handler = getRouteHandler('/', 'get');
       const reqShared = createRequest({ validatedQuery: { context: 'shared' } });
       const resShared = createResponse();
@@ -243,7 +257,7 @@ describe('analytics routes', () => {
 
       // Reset for personal request
       vi.clearAllMocks();
-      setupDefaultMocks({ currentMonthTotal: 200, currentMonthCount: 5 });
+      setupDefaultMocks({ periodTotal: 200, periodCount: 5 });
       const reqPersonal = createRequest({ validatedQuery: { context: 'personal' } });
       const resPersonal = createResponse();
       await handler(reqPersonal, resPersonal);

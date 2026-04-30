@@ -292,6 +292,10 @@ PR `tests/refresh-i18n-schema-avatar-assertions` adjusts INSERT-arg assertions i
 - expenses INSERT with `cycle_id` present (explicit cycle attribution)
 - goals INSERT with `start_date` present (goal with explicit timeframe start)
 
+### Category breakdown enriched fields (post-baseline-refresh PR-B)
+
+PR `tests/rewrite-analytics-cycle-based-mocks` loosens the category breakdown assertion from `toEqual` (4 fields) to `toMatchObject` (subset). The fields `emoji` and `budget` returned by the handler are not asserted in any current test. Trigger to add positive coverage: next PR touching category breakdown shape or any UI consumer of those fields.
+
 ---
 
 ## Process gaps
