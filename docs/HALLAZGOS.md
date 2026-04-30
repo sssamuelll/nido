@@ -47,7 +47,7 @@ Ambos asumen `amount >= 0`; el call site construye el signo.
 | `History.tsx:446` (fila de gasto) | `−€1234.50` | `−€1234,50` | **Bugfix.** |
 | `History.tsx:593,597` (Total / Media KPIs) | `€1234.56` (con céntimos) | `€1235` (compact) | **Cambio de convención** — aggregates van enteros. Pierdes los céntimos en el KPI. |
 | `Analytics.tsx:481` (avgTicket KPI) | `€42,50` | `€43` (redondeado) | **Cambio de convención** — KPI avgTicket pierde céntimos. |
-| `BudgetCapsule.tsx:46` | locale `de-DE` | locale `es-ES` | Cosmético (mismo output para enteros ≤4 dígitos). |
+| ~~`BudgetCapsule.tsx:46`~~ | ~~locale `de-DE`~~ | ~~locale `es-ES`~~ | ~~Cosmético (mismo output para enteros ≤4 dígitos).~~ **Resolved 2026-04-30: BudgetCapsule deleted in PR-1.5, finding moot.** |
 
 ### Sub-hallazgo: separador de miles en 4-dígitos
 

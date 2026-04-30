@@ -191,7 +191,6 @@ html.light .toast { background: rgba(255, 255, 255, 0.95); border-color: rgba(34
 html.light .login-right { background: #fff; border-left-color: rgba(0, 0, 0, 0.06) }
 html.light .numpad-key:active { background: var(--gl) }
 html.light .num-btn:active { background: var(--gl) }
-html.light .budget-capsule__fill { box-shadow: none }
 html.light .budget-bar { box-shadow: none }
 html.light .goal-card__track-fill::after { box-shadow: 0 0 6px currentColor }
 html.light .goal-bar::after { box-shadow: 0 0 6px currentColor }
@@ -729,46 +728,6 @@ a:hover { color: var(--text) }
   font-size: 18px;
 }
 .transaction-row__delete:hover { background: var(--rl); border-color: rgba(248, 113, 113, .2); color: var(--red) }
-
-/* ============================================
-   SECTION 24: Budget Capsule
-   ============================================ */
-
-.budget-capsule {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 0; border-bottom: 1px solid var(--border2);
-  transition: all .2s;
-}
-.budget-capsule:last-child { border-bottom: none }
-.budget-capsule--warning {}
-
-.budget-capsule__info { flex: 1; display: flex; flex-direction: column; gap: var(--spacing-sm) }
-.budget-capsule__top-row { display: flex; justify-content: space-between; align-items: center }
-.budget-capsule__name { font-size: 14px; font-weight: 600; color: var(--text) }
-.budget-capsule__amounts { font-size: 12px; color: var(--ts) }
-.budget-capsule__pct { font-weight: 600; color: var(--green); font-size: 13px }
-.budget-capsule__pct--warning { color: var(--orange) }
-
-.budget-capsule__track {
-  height: 4px; background: var(--surface2);
-  border-radius: 2px; margin-top: 6px; overflow: hidden;
-}
-.budget-capsule__fill {
-  height: 100%; border-radius: 2px;
-  width: var(--progress-width, 0%);
-  background: linear-gradient(90deg, var(--gradient-start, var(--green)), var(--gradient-end, var(--gd)));
-  transition: width 1.2s cubic-bezier(.4, 0, .2, 1);
-  box-shadow: 0 0 8px currentColor;
-}
-.budget-capsule__fill--warning { background: linear-gradient(90deg, var(--orange), #F59E0B) }
-
-.budget-capsule__edit {
-  width: 28px; height: 28px; border-radius: var(--rx);
-  border: 1px solid transparent; background: transparent;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all .2s; color: var(--tm); flex-shrink: 0;
-}
-.budget-capsule__edit:hover { background: var(--surface2); border-color: var(--glass-border); color: var(--text) }
 
 /* Design reference budget item alias */
 .budget-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border2); transition: all .2s }
