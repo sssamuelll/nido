@@ -23,15 +23,7 @@ import { ErrorView } from '../components/ErrorView';
 import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleDetail } from '../api-types/cycles';
-
-interface Notification {
-  id: number;
-  type: string;
-  title: string;
-  message: string;
-  is_read: boolean;
-  created_at: string;
-}
+import type { Notification } from '../api-types/notifications';
 
 interface DashboardData {
   budget: {

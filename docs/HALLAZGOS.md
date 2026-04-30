@@ -151,7 +151,9 @@ Sin comentario, el siguiente refactor no puede distinguir si la decisión fue de
 
 Cleanup post-audit: añadir 1 línea de comentario en cada uno de los 7 sitios explicando qué fetch background-tolerante representa. Trabajo trivial (~7 minutos), pero importante para que el patrón sobreviva a la próxima persona/agente.
 
-### 6. Deuda de strictness TS — 31 errores latentes tras bump a TS 5.9.3
+### 6. Deuda de strictness TS — 31 errores latentes tras bump a TS 5.9.3 — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30. The TS strictness backlog cleared via a 5-PR split: PR #239 (Cluster A unused locals/imports, 30→16), PR #240 (BudgetCapsule dead-code deletion — collaterally closed 6 of 9 Cluster B errors, 16→10), PR #241 (Cluster D+E+F+G refresh stale types + CycleInfo alias, 10→5), PR #242 (Cluster B residue lucide retype + HALLAZGOS #7 closure, 5→2), this PR (Cluster C Notification drift cleanup + CI tsc gate activation, 2→0). `npx tsc --noEmit -p tsconfig.json` now reports 0 errors and is gated in CI via `.github/workflows/test.yml`. Body retained below for historical context.
 
 El bump de TypeScript (4.9 → 5.9) ejecutado pre-Eje-D destapó 44 errores de tipo en código fuente que nunca se chequeó porque `tsc` 4.9 no podía leer el `tsconfig.json` con `moduleResolution: "bundler"`. Se arreglaron 13 (3 bugs reales + 8 jest-dom typing-setup + 2 dup imports). Los 31 restantes quedan como deuda explícita:
 
@@ -350,7 +352,9 @@ The exclusion in `test:ci` is undocumented and predates the CI gate added 2026-0
 
 **Out of scope** for the gate-enabling PR — kept as a parking-lot item.
 
-### Client TypeScript not type-checked in CI gate
+### Client TypeScript not type-checked in CI gate — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30. `.github/workflows/test.yml` now runs `npx tsc --noEmit -p tsconfig.json` as a `Type-check client` step between `Build` and `Run tests`. The pre-requisite (clearing existing client TS errors) was met by the 5-PR strictness split (HALLAZGOS #6 — Resolved 2026-04-30). Body retained below for historical context.
 
 `npm run build` runs `tsc -p server` + `vite build`; vite uses esbuild (transpile, no type-check). Client-side TS errors can land on `main` without blocking merges. The CI gate added 2026-04-30 covers `test:run` and `build`, but the build step does not type-check the client.
 
