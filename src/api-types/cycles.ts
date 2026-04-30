@@ -49,6 +49,9 @@ const cycleListSchema = z.array(cycleSummarySchema).max(MAX_CYCLES);
 export type CycleSummary = z.infer<typeof cycleSummarySchema>;
 export type CycleDetail = z.infer<typeof cycleDetailSchema>;
 
+/** Legacy alias for CycleSummary; prefer CycleSummary directly in new code. */
+export type CycleInfo = CycleSummary;
+
 export class CycleParseError extends Error {
   readonly path: ReadonlyArray<string | number>;
   readonly receivedKind: string;

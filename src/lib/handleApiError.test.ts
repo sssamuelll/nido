@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 
 vi.mock('../components/Toast', () => ({
   showToast: vi.fn(),
@@ -8,7 +8,7 @@ import { handleApiError } from './handleApiError';
 import { showToast } from '../components/Toast';
 
 describe('handleApiError', () => {
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: MockInstance<Parameters<typeof console.error>, ReturnType<typeof console.error>>;
 
   beforeEach(() => {
     vi.mocked(showToast).mockClear();

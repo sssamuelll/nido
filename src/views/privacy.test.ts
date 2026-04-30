@@ -26,7 +26,6 @@ describe('privacy view models', () => {
 
   it('maps budget payloads to a single visible personal budget field', () => {
     const budget = toVisibleBudgetFormData({
-      month: '2026-03',
       shared_available: 2000,
       personal_budget: 650,
       categories: { Restaurant: 250 },
@@ -59,9 +58,7 @@ describe('privacy view models', () => {
       },
       budget: {
         month: '2026-03',
-        total_budget: 3000,
-        rent: 1000,
-        savings: 300,
+        shared_available: 2000,
         personal_budget: 450,
         categories: {},
       },
