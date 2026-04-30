@@ -423,7 +423,7 @@ export const Settings: React.FC = () => {
 
   if (error) return <ErrorView message={error} onRetry={loadData} />;
 
-  const formatDisplayName = (username?: string) => {
+  const formatDisplayName = (username?: string | null) => {
     if (!username) return 'Pareja';
     return username.charAt(0).toUpperCase() + username.slice(1);
   };
