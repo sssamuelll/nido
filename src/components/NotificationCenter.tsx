@@ -5,15 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
-
-interface Notification {
-  id: number;
-  type: string;
-  title: string;
-  message: string;
-  is_read: number;
-  created_at: string;
-}
+import type { Notification } from '../api-types/notifications';
 
 interface NotificationCenterProps {
   onClose: () => void;
