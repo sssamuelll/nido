@@ -95,6 +95,7 @@ describe('goals routes', () => {
         'Vacation Fund',
         '\uD83C\uDFD6\uFE0F',
         5000,
+        null,          // start_date null when validatedData omits it
         'Jul 2026',
         'shared',
         null           // owner_user_id null for shared
@@ -124,7 +125,7 @@ describe('goals routes', () => {
 
       expect(mockDb.run).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO goals'),
-        1, 'Laptop', '\uD83D\uDCBB', 2000, null, 'personal', 1 // owner_user_id = req.user.id
+        1, 'Laptop', '\uD83D\uDCBB', 2000, null, null, 'personal', 1 // start_date null, deadline null, owner_user_id = req.user.id
       );
     });
   });
@@ -220,7 +221,7 @@ describe('goals routes', () => {
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({
-        error: 'Forbidden: You can only edit your own personal goals',
+        error: 'Solo puedes editar tus propios objetivos personales',
       });
     });
 
@@ -240,7 +241,7 @@ describe('goals routes', () => {
       await handler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Goal not found' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Objetivo no encontrado' });
     });
   });
 });

@@ -72,7 +72,9 @@ describe('expenses routes privacy', () => {
       'samuel',
       1,
       'shared',
-      'paid'
+      'paid',
+      null,
+      null
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -215,7 +217,7 @@ describe('expenses routes privacy', () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Forbidden: You can only delete your own personal expenses'
+      error: 'Solo puedes eliminar tus propios gastos personales'
     });
   });
 });

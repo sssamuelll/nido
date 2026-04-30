@@ -78,7 +78,7 @@ describe('Auth module', () => {
       await authenticateToken(mockRequest as AuthRequest, mockResponse as unknown as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+      expect(mockResponse.json).toHaveBeenCalledWith({ error: 'No autorizado' });
       expect(mockNext).not.toHaveBeenCalled();
     });
 

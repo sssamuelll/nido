@@ -35,6 +35,12 @@ const createRequest = (overrides: any = {}): any => ({
 describe('analytics routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset queues from `mockResolvedValueOnce`/`mockRejectedValueOnce` so a test that
+    // fails before consuming all queued mocks doesn't leak them into the next test.
+    // (clearAllMocks only clears call history, not queued one-time return values.)
+    mockDb.all.mockReset();
+    mockDb.get.mockReset();
+    mockDb.run.mockReset();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
@@ -257,7 +263,7 @@ describe('analytics routes', () => {
       await handler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Failed to fetch analytics' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error al obtener analíticas' });
     });
   });
 });
