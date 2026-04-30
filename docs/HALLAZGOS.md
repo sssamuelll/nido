@@ -137,7 +137,9 @@ Conclusión: **el cliente no se type-checkea en CI/CLI**. Solo el editor (que tr
 
 `package.json` no expone ningún script `lint`. No hay `.eslintrc*` ni `eslint.config.*` en la raíz. El prompt original asumía `pnpm lint`; en este repo no aplica. Si se quiere lint en CI, hay que añadirlo (eslint + plugin-react + plugin-react-hooks). Out of scope del audit.
 
-### 4. `currentMonth` ghost dep en Dashboard.tsx
+### 4. `currentMonth` ghost dep en Dashboard.tsx — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30 by this PR. The orphaned `currentMonth` variable and its entry in the `loadDashboardDataFn` deps array were removed from `src/views/Dashboard.tsx` (residue from the Eje D refactor that replaced calendar-month loads with billing-cycle loads). The unused `import { format } from 'date-fns'` was also dropped — it was the variable's only consumer. Body retained below for historical context.
 
 `src/views/Dashboard.tsx:114` declara `const currentMonth = format(new Date(), 'yyyy-MM');` y la incluye en las deps del `useCallback` de `loadDashboardDataFn` (línea 161). **No se usa en el body del callback**, ni en ninguna otra parte del componente. Es un dep fantasma — heredado del refactor previo cuando el load por mes calendario fue reemplazado por load por ciclo de facturación, y el local quedó sin consumidor. Comportamiento idéntico al de antes (la string es estable dentro del minuto, así que no dispara refetch espurio), pero deuda visible. Cleanup trivial post-audit: borrar la línea y la entrada del array de deps. Fuera del scope de Eje E.a por la regla "cero cambios fuera del eje".
 
@@ -214,7 +216,9 @@ Esto deja ~3 LOC × 7 archivos = ~21 LOC de ceremonia repetida. Decisión defens
 
 ## Eje D — follow-ups post-Commit-5
 
-### 1. Refetch manual del badge de notificaciones en Dashboard quedó redundante
+### 1. Refetch manual del badge de notificaciones en Dashboard quedó redundante — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30. Functionally closed by PR #229 (commit `4045f91`, 2026-04-29) which removed the manual `Api.getNotifications().then(setUnreadCount)` callback from `Dashboard.tsx` `onClose` of the `NotificationCenter` panel. The badge now refreshes exclusively via `cacheBus.invalidate(CACHE_KEYS.notifications)` triggered by `markAsRead`/`markAllAsRead` — Dashboard subscribes via `useResource(loadUnreadCountFn, { invalidationKey: CACHE_KEYS.notifications })`. This PR closes the documentation drift. Body retained below for historical context.
 
 Tras Commit 5c, `NotificationCenter` invalida `CACHE_KEYS.notifications` después de `markNotificationAsRead` y `markAllNotificationsRead`. Dashboard ya está suscrito a `notifications` (Commit 4), así que el refetch del badge ocurre vía `cacheBus` automáticamente.
 

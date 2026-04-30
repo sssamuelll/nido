@@ -6,7 +6,6 @@ import { Api } from '../api';
 import { MoreHorizontal } from 'lucide-react';
 import { TransactionRow } from '../components/TransactionRow';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { format } from 'date-fns';
 import { INDICATOR_COLORS } from '../types';
 import { VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
@@ -117,8 +116,6 @@ export const Dashboard: React.FC = () => {
   const [eventGoalId, setEventGoalId] = useState<number | null>(null);
   const [editingEvent, setEditingEvent] = useState<any>(null);
 
-  const currentMonth = format(new Date(), 'yyyy-MM');
-
   // useCountUp hooks must be called unconditionally (before any early returns)
   const availableSharedRaw = toNum(data?.budget?.availableShared);
   const totalSharedSpentRaw = toNum(data?.spending?.totalSharedSpent);
@@ -169,7 +166,7 @@ export const Dashboard: React.FC = () => {
     ]);
     setEvents(Array.isArray(eventsData) ? eventsData : []);
     setGoals(Array.isArray(goalsData) ? goalsData : []);
-  }, [cycleLoaded, activeCycle?.id, activeCycle?.start_date, activeCycle?.end_date, currentMonth, activeContext]);
+  }, [cycleLoaded, activeCycle?.id, activeCycle?.start_date, activeCycle?.end_date, activeContext]);
 
   const { loading: dataLoading, error, run: loadDashboardData } =
     useAsyncEffect(loadDashboardDataFn, {
