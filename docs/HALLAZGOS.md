@@ -284,3 +284,27 @@ parseFloat(x.toFixed(2)) round-to-cents — currently 2 instances same file (src
 ### Form error UX lifecycle (post-ERR-3)
 
 Form components (Login, Invite, Setup, AddExpense, History edit) have no unit/integration tests covering the error-display lifecycle (set on validation/submit-failure → clear on user edit → re-set on next failed submit). Verification post-ERR-3 relies on baseline-comparison (no new FAIL/PASS regressions) and manual testing. Test coverage is follow-up for any future form refactor (e.g. when the deferred useFormError hook is introduced).
+
+### Schema-positive test coverage (post-baseline-refresh)
+
+PR `tests/refresh-i18n-schema-avatar-assertions` adjusts INSERT-arg assertions in 3 tests by appending `null` for newly-added columns (`expenses.event_id`, `expenses.cycle_id`, `goals.start_date`). The tests pass but don't exercise these fields with non-null values. Trigger to add positive coverage: any future PR that touches the persistence/validation logic for these fields. Specifically:
+- expenses INSERT with `event_id` present (event-tagged expense)
+- expenses INSERT with `cycle_id` present (explicit cycle attribution)
+- goals INSERT with `start_date` present (goal with explicit timeframe start)
+
+---
+
+## Process gaps
+
+### CI does not run tests on PRs (root cause of stale baseline)
+
+Investigation 2026-04-30 (during Tier-2 baseline-FAILs cleanup):
+- `.github/workflows/deploy.yml` is the only test-relevant workflow. Triggers `on: push: branches: [main]` — runs after merge, not before.
+- Pipeline runs `npm run build` only (tsc + vite). No `npm run test:run` step.
+- Branch protection on `main`: NOT enabled (`Branch not protected` per `gh api repos/.../branches/main/protection`).
+- Other workflows (`gemini-*.yml`) handle code review / triage, not test execution.
+- `package.json` defines `test:run` and `test:ci` scripts but no workflow invokes them.
+
+Consequence: test failures can live in `main` for months without blocking merges. Cleanup PRs periodically clear them, but nothing prevents accumulation between cleanups.
+
+**Trigger to act**: post-merge de PR-A + PR-B (baseline FAILs = 0). En ese punto evaluar añadir test job + branch protection. Sin pre-requisito limpio, gate inútil.

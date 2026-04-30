@@ -17,7 +17,7 @@ describe('privacy view models', () => {
     expect(card).toMatchObject({
       owner: 'samuel',
       name: 'Samuel',
-      avatar: '👨‍💻',
+      avatar: 'S',
       balance: 370,
       monthChange: -80,
       progress: 18,
