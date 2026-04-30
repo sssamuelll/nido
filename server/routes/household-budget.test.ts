@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createMockDb,
   createMockResponse,
-  getRouteHandler as resolveRouteHandler,
-  getRouteMiddleware as resolveRouteMiddleware,
+  getRouteHandler,
+  getRouteMiddleware,
 } from '../../test/route-helpers';
 
 const mockDb = createMockDb();
@@ -20,20 +20,12 @@ import {
   householdBudgetApproveSchema,
 } from '../validation.js';
 
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteHandler(householdBudgetRouter, path, method);
-
-const getRouteMiddleware = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteMiddleware(householdBudgetRouter, path, method);
-
-const createResponse = createMockResponse;
-
 const runMiddleware = (
   middleware: (req: any, res: any, next: any) => void,
   body: unknown,
 ) => {
   const req: any = { body };
-  const res = createResponse();
+  const res = createMockResponse();
   const next = vi.fn();
   middleware(req, res, next);
   return { req, res, next };
@@ -169,7 +161,7 @@ describe('PUT /api/household/budget — middleware integration', () => {
   });
 
   it('responds 400 with structured details when total_amount is a string and never reaches the handler', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res, next } = runMiddleware(middleware, { total_amount: '1500' });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
@@ -179,42 +171,42 @@ describe('PUT /api/household/budget — middleware integration', () => {
   });
 
   it('responds 400 when total_amount is NaN (would corrupt SQLite NUMERIC column)', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res, next } = runMiddleware(middleware, { total_amount: NaN });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 when total_amount is Infinity (would persist as NULL or overflow)', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res, next } = runMiddleware(middleware, { total_amount: Infinity });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 when total_amount is a nested object (NoSQL-style operator payload)', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res, next } = runMiddleware(middleware, { total_amount: { $gt: 0 } });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 when personal_budget is negative (would silently corrupt the partner dashboard)', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res, next } = runMiddleware(middleware, { personal_budget: -50000 });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 with empty body (was previously a no-op 200 update)', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res, next } = runMiddleware(middleware, {});
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('does not leak the raw input value back in the error payload (no PII in errors)', () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const { res } = runMiddleware(middleware, { total_amount: 'secret-token-do-not-echo' });
     const payload = res.json.mock.calls[0][0];
     const serialized = JSON.stringify(payload);
@@ -222,9 +214,9 @@ describe('PUT /api/household/budget — middleware integration', () => {
   });
 
   it('passes through a valid payload to the handler with strong types', async () => {
-    const middleware = getRouteMiddleware('/', 'put');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/', 'put');
     const req: any = { body: { personal_budget: 500 } };
-    const res = createResponse();
+    const res = createMockResponse();
     const next = vi.fn();
     middleware(req, res, next);
     expect(next).toHaveBeenCalledOnce();
@@ -244,12 +236,12 @@ describe('PUT /api/household/budget — middleware integration', () => {
       });
     mockDb.run.mockResolvedValue({ changes: 1 });
 
-    const handler = getRouteHandler('/', 'put');
+    const handler = getRouteHandler(householdBudgetRouter, '/', 'put');
     const req: any = {
       validatedData: { personal_budget: 600 },
       user: { id: 1, username: 'samuel' },
     };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 
@@ -270,37 +262,37 @@ describe('POST /api/household/budget/approve — middleware integration', () => 
   });
 
   it('responds 400 when approval_id is a string (was previously truthy and reached SQL)', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, { approval_id: '7' });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 when approval_id is missing', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, {});
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 when approval_id is a float (would mismatch INTEGER PK)', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, { approval_id: 1.5 });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 with extra fields (strict)', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, { approval_id: 7, override: 999 });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('passes through a valid integer approval_id with strong type', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(householdBudgetRouter, '/approve', 'post');
     const req: any = { body: { approval_id: 42 } };
-    const res = createResponse();
+    const res = createMockResponse();
     const next = vi.fn();
     middleware(req, res, next);
     expect(next).toHaveBeenCalledOnce();

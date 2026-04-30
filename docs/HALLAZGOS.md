@@ -196,7 +196,9 @@ El bump TS 5.9 funciona en este repo porque Vite usa `esbuild` (parser TS indepe
 
 Hoy estamos cruzados: Vite 4 + TS 5.9. Sin urgencia (el build pasa, los tests pasan), pero próxima vez que se toque tooling: Vite 5 + `@vitejs/plugin-react ^4.x` es la combinación natural. Candidato para limpieza de tooling post-audit.
 
-### 9. Eje O — shim aliases locales en cada test file
+### 9. Eje O — shim aliases locales en cada test file — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30. The 7 test files migrated in Eje O had their shim aliases removed (`getRouteHandler` arrow + `createResponse` rename + `getRouteMiddleware` arrow where applicable) and 78 callsites migrated to the canonical helpers from `test/route-helpers.ts` with the local router as first arg. Path Y chosen: `as resolveRouteHandler` / `as resolveRouteMiddleware` import renames also dropped — grep cross-repo found zero `resolve*` precedent outside Eje O, so the renames had no reason to survive once their shadow-avoidance motive (the local arrow) was deleted. Functional-equivalence extended scope to the `getRouteMiddleware` arrow shims in `cycles.test.ts` and `household-budget.test.ts` (identical pattern). Out of scope: the specialized `getRouteMiddleware` helper in `passkey-invite.test.ts` (custom signature with `index` parameter wrapping `getRouteLayer`). Net: ~24 LOC ceremony removed, 78 callsites migrated, type-only changes. Body retained below for historical context.
 
 Para preservar literalmente los callsites de las aserciones, cada uno de los 7 archivos migrados en Eje O conserva un par de aliases locales tipo:
 

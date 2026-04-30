@@ -45,14 +45,12 @@ const getRouteMiddleware = (
   index: number,
 ) => resolveRouteLayer(passkeyInviteRouter, path, method).route!.stack[index].handle;
 
-const createResponse = createMockResponse;
-
 const runMiddleware = (
   middleware: (req: unknown, res: unknown, next: unknown) => void,
   body: unknown,
 ) => {
   const req = { body };
-  const res = createResponse();
+  const res = createMockResponse();
   const next = vi.fn();
   middleware(req, res, next);
   return { req, res, next };

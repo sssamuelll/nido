@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createMockDb,
   createMockResponse,
-  getRouteHandler as resolveRouteHandler,
+  getRouteHandler,
 } from '../../test/route-helpers';
 
 const mockDb = createMockDb();
@@ -14,11 +14,6 @@ vi.mock('../db.js', () => ({
 }));
 
 import goalsRouter from './goals.js';
-
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteHandler(goalsRouter, path, method);
-
-const createResponse = createMockResponse;
 
 describe('goals routes', () => {
   beforeEach(() => {
@@ -33,9 +28,9 @@ describe('goals routes', () => {
         { id: 2, name: 'My Laptop', owner_type: 'personal', owner_user_id: 1, household_id: 1 },
       ];
       mockDb.all.mockResolvedValue(allGoals);
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(goalsRouter, '/', 'get');
       const req: any = { user: { id: 1, username: 'samuel' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -52,9 +47,9 @@ describe('goals routes', () => {
       mockDb.all.mockResolvedValue([
         { id: 1, name: 'Shared Goal', owner_type: 'shared', owner_user_id: null },
       ]);
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(goalsRouter, '/', 'get');
       const req: any = { user: { id: 2, username: 'maria' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -74,7 +69,7 @@ describe('goals routes', () => {
         .mockResolvedValueOnce({ household_id: 1 }) // user lookup
         .mockResolvedValueOnce({ id: 10, name: 'Test', household_id: 1, owner_type: 'shared' }); // select created goal
 
-      const handler = getRouteHandler('/', 'post');
+      const handler = getRouteHandler(goalsRouter, '/', 'post');
       const req: any = {
         user: { id: 1, username: 'samuel' },
         validatedData: {
@@ -85,7 +80,7 @@ describe('goals routes', () => {
           owner_type: 'shared',
         },
       };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -109,7 +104,7 @@ describe('goals routes', () => {
         .mockResolvedValueOnce({ household_id: 1 })
         .mockResolvedValueOnce({ id: 11, name: 'Laptop', owner_type: 'personal', owner_user_id: 1 });
 
-      const handler = getRouteHandler('/', 'post');
+      const handler = getRouteHandler(goalsRouter, '/', 'post');
       const req: any = {
         user: { id: 1, username: 'samuel' },
         validatedData: {
@@ -119,7 +114,7 @@ describe('goals routes', () => {
           owner_type: 'personal',
         },
       };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -138,13 +133,13 @@ describe('goals routes', () => {
         .mockResolvedValueOnce({ id: 5, current: 150, name: 'Goal' }); // updated goal
       mockDb.run.mockResolvedValue({ lastID: 1, changes: 1 });
 
-      const handler = getRouteHandler('/:id/contribute', 'post');
+      const handler = getRouteHandler(goalsRouter, '/:id/contribute', 'post');
       const req: any = {
         params: { id: '5' },
         user: { id: 1, username: 'samuel' },
         validatedData: { amount: 50 },
       };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -184,12 +179,12 @@ describe('goals routes', () => {
         return { changes: 1 };
       });
 
-      const handler = getRouteHandler('/:id', 'delete');
+      const handler = getRouteHandler(goalsRouter, '/:id', 'delete');
       const req: any = {
         params: { id: '3' },
         user: { id: 1, username: 'samuel' },
       };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -209,13 +204,13 @@ describe('goals routes', () => {
         .mockResolvedValueOnce({ household_id: 1 }) // user lookup
         .mockResolvedValueOnce({ id: 7, household_id: 1, owner_type: 'personal', owner_user_id: 2 }); // maria's goal
 
-      const handler = getRouteHandler('/:id', 'put');
+      const handler = getRouteHandler(goalsRouter, '/:id', 'put');
       const req: any = {
         params: { id: '7' },
         user: { id: 1, username: 'samuel' },
         validatedData: { name: 'Hacked' },
       };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -230,13 +225,13 @@ describe('goals routes', () => {
         .mockResolvedValueOnce({ household_id: 1 }) // user lookup
         .mockResolvedValueOnce(undefined); // goal not found
 
-      const handler = getRouteHandler('/:id', 'put');
+      const handler = getRouteHandler(goalsRouter, '/:id', 'put');
       const req: any = {
         params: { id: '99' },
         user: { id: 1, username: 'samuel' },
         validatedData: { name: 'Updated' },
       };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
