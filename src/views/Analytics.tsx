@@ -7,7 +7,7 @@ import { CACHE_KEYS } from '../lib/cacheBus';
 import { ErrorView } from '../components/ErrorView';
 import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
-import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X, type LucideIcon } from 'lucide-react';
 import { formatMoney } from '../lib/money';
 import type { CycleSummary } from '../api-types/cycles';
 
@@ -46,7 +46,7 @@ interface AnalyticsData {
 // "céntimos only on individual rows + balance" convention. avgTicket KPI
 // previously used decimals; now compact to match the convention.
 
-const INSIGHT_ICON: Record<string, React.FC<{ size?: number }>> = {
+const INSIGHT_ICON: Record<string, LucideIcon> = {
   positive: CheckCircle,
   warning: AlertTriangle,
   tip: Lightbulb,

@@ -165,7 +165,9 @@ El bump de TypeScript (4.9 → 5.9) ejecutado pre-Eje-D destapó 44 errores de t
 
 Total ~30-45 min de cleanup mecánico. Candidato a un commit `chore: clean up TS strictness backlog` post-audit.
 
-### 7. Residuo de Eje G — `Settings.tsx` declara `currentCycle` inline en vez de usar `CycleInfo`
+### 7. Residuo de Eje G — `Settings.tsx` declara `currentCycle` inline en vez de usar `CycleInfo` — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30 by PRs #239 (Settings.tsx inline state retyped to `CycleDetail`), #241 (`CycleInfo = CycleSummary` alias added in `src/api-types/cycles.ts`), and this PR (docs closure). The TS2339 originally cited no longer appears in `tsc --noEmit` output. Body retained below for historical context.
 
 `src/views/Settings.tsx:209-219` declara su propio tipo inline para el state `currentCycle`:
 
