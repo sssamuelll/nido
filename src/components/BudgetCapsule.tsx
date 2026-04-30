@@ -12,7 +12,6 @@ const CATEGORY_ICON_MAP: Record<string, React.FC<{ size?: number; color?: string
 };
 
 interface BudgetCapsuleProps {
-  emoji: string;
   categoryName: string;
   current: number;
   max: number;
@@ -21,7 +20,6 @@ interface BudgetCapsuleProps {
 }
 
 export const BudgetCapsule: React.FC<BudgetCapsuleProps> = ({
-  emoji,
   categoryName,
   current,
   max,

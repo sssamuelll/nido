@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
-import { useAuth } from '../auth';
 import { showToast } from '../components/Toast';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
@@ -36,7 +35,6 @@ const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('');

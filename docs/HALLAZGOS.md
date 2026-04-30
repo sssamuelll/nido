@@ -347,3 +347,11 @@ The exclusion in `test:ci` is undocumented and predates the CI gate added 2026-0
 **Action when triggered**: discover the original reason for the exclusion (flakiness, env-specific failures, intentional split between unit and integration). Document the reason in this entry, or delete the script if the exclusion is no longer warranted.
 
 **Out of scope** for the gate-enabling PR — kept as a parking-lot item.
+
+### Client TypeScript not type-checked in CI gate
+
+`npm run build` runs `tsc -p server` + `vite build`; vite uses esbuild (transpile, no type-check). Client-side TS errors can land on `main` without blocking merges. The CI gate added 2026-04-30 covers `test:run` and `build`, but the build step does not type-check the client.
+
+**Trigger to act**: post-merge of 4 PRs in `chore(ts): clear strictness backlog` split (count = 0). At that point: add `npx tsc --noEmit -p tsconfig.json` as a step in `.github/workflows/test.yml`, update branch protection contexts to include the new check (or fold into existing `test` job).
+
+**Pre-requisite for any gate**: existing client TS errors must be cleared first. The 4-PR split does exactly this.

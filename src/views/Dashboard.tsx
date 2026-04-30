@@ -8,7 +8,7 @@ import { TransactionRow } from '../components/TransactionRow';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { format } from 'date-fns';
 import { INDICATOR_COLORS } from '../types';
-import { getPersonalBalanceCardModel, VisibleExpense } from './privacy';
+import { VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
@@ -229,14 +229,6 @@ export const Dashboard: React.FC = () => {
 
   const availableShared = toNum(data?.budget?.availableShared);
   const totalSharedSpent = toNum(data?.spending?.totalSharedSpent);
-  const remainingShared = toNum(data?.spending?.remainingShared);
-  const sharedProgress = availableShared > 0
-    ? Math.round((totalSharedSpent / availableShared) * 100)
-    : 0;
-
-  const personalCard = getPersonalBalanceCardModel(data);
-
-  const userName = user?.username ? user.username.charAt(0).toUpperCase() + user.username.slice(1) : 'Usuario';
 
   // Group recent transactions by date for the date pill display
   const groupedTransactions: { date: string; items: VisibleExpense[] }[] = [];
