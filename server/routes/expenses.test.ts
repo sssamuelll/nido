@@ -3,7 +3,7 @@ import { resolveCycleIdForExpense } from './expenses.js';
 import {
   createMockDb,
   createMockResponse,
-  getRouteHandler as resolveRouteHandler,
+  getRouteHandler,
 } from '../../test/route-helpers';
 
 const mockDb = createMockDb();
@@ -15,11 +15,6 @@ vi.mock('../db.js', () => ({
 }));
 
 import expensesRouter from './expenses.js';
-
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteHandler(expensesRouter, path, method);
-
-const createResponse = createMockResponse;
 
 describe('expenses routes privacy', () => {
   beforeEach(() => {
@@ -45,7 +40,7 @@ describe('expenses routes privacy', () => {
         status: 'paid',
       });
 
-    const handler = getRouteHandler('/', 'post');
+    const handler = getRouteHandler(expensesRouter, '/', 'post');
     const req: any = {
       validatedData: {
         description: 'Coffee',
@@ -57,7 +52,7 @@ describe('expenses routes privacy', () => {
       },
       user: { id: 1, username: 'samuel' },
     };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 
@@ -88,13 +83,13 @@ describe('expenses routes privacy', () => {
       { id: 1, description: 'Shared dinner', type: 'shared', paid_by: 'maria' },
       { id: 2, description: 'Headphones', type: 'personal', paid_by: 'samuel' },
     ]);
-    const handler = getRouteHandler('/', 'get');
+    const handler = getRouteHandler(expensesRouter, '/', 'get');
     const req: any = {
       query: { month: '2026-03' },
       validatedQuery: { month: '2026-03' },
       user: { id: 1, username: 'samuel' },
     };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 
@@ -125,13 +120,13 @@ describe('expenses routes privacy', () => {
       ])
       .mockResolvedValueOnce([])   // shared categories
       .mockResolvedValueOnce([]);  // personal categories
-    const handler = getRouteHandler('/summary', 'get');
+    const handler = getRouteHandler(expensesRouter, '/summary', 'get');
     const req: any = {
       query: { month: '2026-03' },
       validatedQuery: { month: '2026-03' },
       user: { id: 1, username: 'samuel' },
     };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 
@@ -159,13 +154,13 @@ describe('expenses routes privacy', () => {
       .mockResolvedValueOnce([])   // shared categories
       .mockResolvedValueOnce([]);  // personal categories
 
-    const handler = getRouteHandler('/summary', 'get');
+    const handler = getRouteHandler(expensesRouter, '/summary', 'get');
     const req: any = {
       query: { month: '2026-03' },
       validatedQuery: { month: '2026-03' },
       user: { id: 1, username: 'samuel' },
     };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 
@@ -197,9 +192,9 @@ describe('expenses routes privacy', () => {
   it('allows deleting shared expenses for either user', async () => {
     mockDb.get.mockResolvedValue({ id: 7, paid_by: 'maria', type: 'shared' });
     mockDb.run.mockResolvedValue({ changes: 1 });
-    const handler = getRouteHandler('/:id', 'delete');
+    const handler = getRouteHandler(expensesRouter, '/:id', 'delete');
     const req: any = { params: { id: '7' }, user: { id: 1, username: 'samuel' } };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 
@@ -209,9 +204,9 @@ describe('expenses routes privacy', () => {
 
   it('forbids deleting another user personal expense', async () => {
     mockDb.get.mockResolvedValue({ id: 9, paid_by: 'maria', type: 'personal' });
-    const handler = getRouteHandler('/:id', 'delete');
+    const handler = getRouteHandler(expensesRouter, '/:id', 'delete');
     const req: any = { params: { id: '9' }, user: { id: 1, username: 'samuel' } };
-    const res = createResponse();
+    const res = createMockResponse();
 
     await handler(req, res);
 

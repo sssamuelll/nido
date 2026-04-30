@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createMockDb,
   createMockResponse,
-  getRouteMiddleware as resolveRouteMiddleware,
+  getRouteMiddleware,
 } from '../../test/route-helpers';
 
 const mockDb = createMockDb();
@@ -22,17 +22,12 @@ import { cycleApproveSchema } from '../validation.js';
 // generic 500 thirty frames later. Its sibling /household/budget/approve
 // was already hardened (commit 55c3422); this test brings cycles to parity.
 
-const getRouteMiddleware = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteMiddleware(cyclesRouter, path, method);
-
-const createResponse = createMockResponse;
-
 const runMiddleware = (
   middleware: (req: unknown, res: unknown, next: unknown) => void,
   body: unknown,
 ) => {
   const req = { body };
-  const res = createResponse();
+  const res = createMockResponse();
   const next = vi.fn();
   middleware(req, res, next);
   return { req, res, next };
@@ -103,7 +98,7 @@ describe('POST /api/cycles/approve — middleware integration', () => {
   });
 
   it('responds 400 with structured details when cycle_id is missing', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(cyclesRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, {});
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
@@ -113,21 +108,21 @@ describe('POST /api/cycles/approve — middleware integration', () => {
   });
 
   it('responds 400 when cycle_id is an object (would have been a 500 from sqlite3 binding)', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(cyclesRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, { cycle_id: { $gt: 0 } });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('responds 400 when cycle_id is the string "7" (was silently coerced before)', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(cyclesRouter, '/approve', 'post');
     const { res, next } = runMiddleware(middleware, { cycle_id: '7' });
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('calls next() and exposes validatedData when cycle_id is a positive integer', () => {
-    const middleware = getRouteMiddleware('/approve', 'post');
+    const middleware = getRouteMiddleware(cyclesRouter, '/approve', 'post');
     const { req, res, next } = runMiddleware(middleware, { cycle_id: 12 });
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();

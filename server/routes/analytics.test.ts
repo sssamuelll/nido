@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createMockDb,
   createMockResponse,
-  getRouteHandler as resolveRouteHandler,
+  getRouteHandler,
 } from '../../test/route-helpers';
 
 const mockDb = createMockDb();
@@ -12,11 +12,6 @@ vi.mock('../db.js', () => ({
 }));
 
 import analyticsRouter from './analytics.js';
-
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteHandler(analyticsRouter, path, method);
-
-const createResponse = createMockResponse;
 
 // Freeze current date for deterministic tests
 const NOW = new Date('2026-03-15T12:00:00Z');
@@ -110,11 +105,11 @@ describe('analytics routes', () => {
       ];
       setupDefaultMocks({ dailyRows });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const req = createRequest({
         validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
       });
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -136,11 +131,11 @@ describe('analytics routes', () => {
         budget: { total_amount: 2000, personal_samuel: 500, personal_maria: 500 },
       });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const req = createRequest({
         validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
       });
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -168,11 +163,11 @@ describe('analytics routes', () => {
         ],
       });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const req = createRequest({
         validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
       });
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -200,11 +195,11 @@ describe('analytics routes', () => {
         categoryRows,
       });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const req = createRequest({
         validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
       });
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -228,11 +223,11 @@ describe('analytics routes', () => {
         categoryBudgets: [{ name: 'Restaurant', budget_amount: 500 }], // 450/500 = 90%
       });
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const req = createRequest({
         validatedQuery: { context: 'shared', start_date: '2026-03-01', end_date: '2026-03-31' },
       });
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -246,9 +241,9 @@ describe('analytics routes', () => {
     it('returns different data for shared vs personal context', async () => {
       // Shared request
       setupDefaultMocks({ periodTotal: 1000, periodCount: 30 });
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const reqShared = createRequest({ validatedQuery: { context: 'shared' } });
-      const resShared = createResponse();
+      const resShared = createMockResponse();
       await handler(reqShared, resShared);
 
       // Check that the shared query uses type = 'shared'
@@ -259,7 +254,7 @@ describe('analytics routes', () => {
       vi.clearAllMocks();
       setupDefaultMocks({ periodTotal: 200, periodCount: 5 });
       const reqPersonal = createRequest({ validatedQuery: { context: 'personal' } });
-      const resPersonal = createResponse();
+      const resPersonal = createMockResponse();
       await handler(reqPersonal, resPersonal);
 
       // Check that the personal query uses type = 'personal' AND paid_by = ?
@@ -270,9 +265,9 @@ describe('analytics routes', () => {
 
     it('returns 500 on database error', async () => {
       mockDb.all.mockRejectedValueOnce(new Error('DB error'));
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(analyticsRouter, '/', 'get');
       const req = createRequest();
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 

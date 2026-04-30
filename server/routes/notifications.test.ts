@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createMockDb,
   createMockResponse,
-  getRouteHandler as resolveRouteHandler,
+  getRouteHandler,
 } from '../../test/route-helpers';
 
 const mockDb = createMockDb();
@@ -12,11 +12,6 @@ vi.mock('../db.js', () => ({
 }));
 
 import notificationsRouter from './notifications.js';
-
-const getRouteHandler = (path: string, method: 'get' | 'post' | 'put' | 'delete') =>
-  resolveRouteHandler(notificationsRouter, path, method);
-
-const createResponse = createMockResponse;
 
 describe('notifications routes', () => {
   beforeEach(() => {
@@ -32,9 +27,9 @@ describe('notifications routes', () => {
       ];
       mockDb.all.mockResolvedValue(notifications);
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(notificationsRouter, '/', 'get');
       const req: any = { user: { id: 1, username: 'samuel' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -55,9 +50,9 @@ describe('notifications routes', () => {
       ];
       mockDb.all.mockResolvedValue(samuelNotifications);
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(notificationsRouter, '/', 'get');
       const req: any = { user: { id: 1, username: 'samuel' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -74,9 +69,9 @@ describe('notifications routes', () => {
     it('SELECT aliases body AS message and read AS is_read to match component interface', async () => {
       mockDb.all.mockResolvedValue([]);
 
-      const handler = getRouteHandler('/', 'get');
+      const handler = getRouteHandler(notificationsRouter, '/', 'get');
       const req: any = { user: { id: 1, username: 'samuel' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -90,9 +85,9 @@ describe('notifications routes', () => {
     it('marks a notification as read', async () => {
       mockDb.run.mockResolvedValue({ changes: 1 });
 
-      const handler = getRouteHandler('/:id/read', 'put');
+      const handler = getRouteHandler(notificationsRouter, '/:id/read', 'put');
       const req: any = { params: { id: '5' }, user: { id: 1, username: 'samuel' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
@@ -109,9 +104,9 @@ describe('notifications routes', () => {
     it('marks all user notifications as read', async () => {
       mockDb.run.mockResolvedValue({ changes: 3 });
 
-      const handler = getRouteHandler('/read-all', 'post');
+      const handler = getRouteHandler(notificationsRouter, '/read-all', 'post');
       const req: any = { user: { id: 1, username: 'samuel' } };
-      const res = createResponse();
+      const res = createMockResponse();
 
       await handler(req, res);
 
