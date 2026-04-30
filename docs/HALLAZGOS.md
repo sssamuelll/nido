@@ -300,7 +300,28 @@ PR `tests/rewrite-analytics-cycle-based-mocks` loosens the category breakdown as
 
 ## Process gaps
 
-### CI does not run tests on PRs (root cause of stale baseline)
+### CI does not run tests on PRs (root cause of stale baseline) — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30. `.github/workflows/test.yml` now gates every PR targeting `main` with `npm ci` + `npm run build` + `npm run test:run`. Branch protection on `main` requires the `test` status check to pass, blocks force pushes, and enforces admin checks (no direct push to `main` for any user including the repo owner). Solo-dev workflow: 0 approvals required, self-merge after CI green.
+
+Branch protection applied via:
+
+```bash
+gh api repos/sssamuelll/nido/branches/main/protection --method PUT --input - <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": ["test"]},
+  "enforce_admins": true,
+  "required_pull_request_reviews": {"required_approving_review_count": 0, "dismiss_stale_reviews": false, "require_code_owner_reviews": false},
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "required_linear_history": false,
+  "required_conversation_resolution": false
+}
+EOF
+```
+
+**Original investigation** (kept for historical context):
 
 Investigation 2026-04-30 (during Tier-2 baseline-FAILs cleanup):
 - `.github/workflows/deploy.yml` is the only test-relevant workflow. Triggers `on: push: branches: [main]` — runs after merge, not before.
@@ -311,4 +332,18 @@ Investigation 2026-04-30 (during Tier-2 baseline-FAILs cleanup):
 
 Consequence: test failures can live in `main` for months without blocking merges. Cleanup PRs periodically clear them, but nothing prevents accumulation between cleanups.
 
-**Trigger to act**: post-merge de PR-A + PR-B (baseline FAILs = 0). En ese punto evaluar añadir test job + branch protection. Sin pre-requisito limpio, gate inútil.
+**Trigger to act**: ~~post-merge de PR-A + PR-B (baseline FAILs = 0)~~ — completed; gate active.
+
+### `test:ci` script excludes `src/components/**` without documentation
+
+`package.json` defines two test scripts:
+- `test:run` — `vitest run` (full, 478 tests across 25 files).
+- `test:ci` — `vitest run --exclude=src/components/**` (skips component tests).
+
+The exclusion in `test:ci` is undocumented and predates the CI gate added 2026-04-30. The current gate uses `test:run` (full); `test:ci` is referenced by no workflow.
+
+**Trigger to investigate**: any future PR proposing to use `test:ci` for any purpose.
+
+**Action when triggered**: discover the original reason for the exclusion (flakiness, env-specific failures, intentional split between unit and integration). Document the reason in this entry, or delete the script if the exclusion is no longer warranted.
+
+**Out of scope** for the gate-enabling PR — kept as a parking-lot item.
