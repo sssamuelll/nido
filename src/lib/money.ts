@@ -1,7 +1,9 @@
-const compactFmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
+// useGrouping: boolean form for ES2020 lib compat ('always' alias per ECMA-402).
+const compactFmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0, useGrouping: true });
 const exactFmt = new Intl.NumberFormat('es-ES', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
+  useGrouping: true,
 });
 
 /**
@@ -37,13 +39,14 @@ export const formatMoneyExact = (amount: number): string => `€${exactFmt.forma
  *   "1234"      → true (numeric prefix, raw)
  *   "1234.50"   → true (numeric exact, raw)
  *   "1234,50"   → true (es-ES decimal sep → numeric)
- *   "1.234"     → true (es-ES thousands sep → numeric, BUGFIX case)
+ *   "1.234"     → true (es-ES thousands sep → display + normalized)
  *   "1.234,50"  → true (es-ES full → numeric)
+ *   "€1.234"    → true (display form with euro sign)
  *
- * Note: amounts ≤ 4 digits omit thousands separator per es-ES traditional
- * convention (see formatMoneyExact). The "1.234" → 1234.50 bugfix therefore
- * goes through normalized numeric matching, not display matching. Display
- * matching activates for 5+ digit amounts (e.g. "€12.345" matches 12345.67).
+ * Note: formatMoneyExact applies thousands separators from 4-digit amounts
+ * upward (e.g. "€1.234,50" for 1234.50), so display matching covers the
+ * full range. Normalized numeric matching remains the path for queries
+ * without the euro sign or expressed in raw numeric form.
  *
  * Returns false on empty searchTerm so direct callers don't accidentally match
  * everything; callers that want "no filter = match all" should gate themselves.
