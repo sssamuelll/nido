@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { ChevronLeft } from 'lucide-react';
 import { formatMoney, formatMoneyExact } from '../lib/money';
+import { formatDayLabelWithWeekday } from '../lib/dates';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorView } from '../components/ErrorView';
 import { useResource } from '../hooks/useResource';
@@ -89,12 +90,6 @@ export const EventDetail: React.FC = () => {
   for (const exp of exps) { if (!grouped[exp.date]) grouped[exp.date] = []; grouped[exp.date].push(exp); }
   const dateGroups = Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
 
-  const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr + 'T12:00:00');
-    const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
-    return `${days[d.getDay()]} ${d.getDate()}`;
-  };
-
   return (
     <>
       <div className="topbar">
@@ -127,7 +122,7 @@ export const EventDetail: React.FC = () => {
         {dateGroups.length === 0 && <div className="empty-view"><div className="empty-view__text">No hay gastos registrados en este evento</div></div>}
         {dateGroups.map(([date, exps]) => (
           <div key={date}>
-            <div className="ev-date-label">{formatDateLabel(date)}</div>
+            <div className="ev-date-label">{formatDayLabelWithWeekday(date)}</div>
             {exps.map(exp => (
               <div key={exp.id} className="ev-expense-row">
                 <div className="ev-expense-row__left">

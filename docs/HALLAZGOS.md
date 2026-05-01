@@ -369,3 +369,19 @@ The exclusion in `test:ci` is undocumented and predates the CI gate added 2026-0
 **Trigger to act**: post-merge of 4 PRs in `chore(ts): clear strictness backlog` split (count = 0). At that point: add `npx tsc --noEmit -p tsconfig.json` as a step in `.github/workflows/test.yml`, update branch protection contexts to include the new check (or fold into existing `test` job).
 
 **Pre-requisite for any gate**: existing client TS errors must be cleared first. The 4-PR split does exactly this.
+
+### `Dashboard.tsx` mixed top-level vs in-component date formatters — Discovered 2026-05-01
+
+`Dashboard.tsx` historically defined `formatCycleLabel` as a top-level module function and `formatDatePill` as an in-component arrow inside the `Dashboard` component. Same file, opposite scoping conventions. Both functions were removed in the Date-format arc bulk-migration PR (canonization to `src/lib/dates.ts`), so the divergence is now historical for this specific case.
+
+**Trigger to investigate**: future PRs in `src/views/` that introduce both a top-level helper and an in-component helper for the same domain in the same file.
+
+**Action when triggered**: pick one convention deliberately. The repo precedent (Money helper, Date helper) is module-level helpers in `src/lib/` shared across files; in-component helpers should be reserved for state-dependent closures that genuinely cannot be hoisted.
+
+### `useMonthNavigation` hook — DEAD CODE, deletion candidate — Discovered 2026-05-01
+
+`src/hooks/useMonthNavigation.ts` exports a `useMonthNavigation` hook returning `currentMonth`, `setCurrentMonth`, `navigateMonth`, `formatMonthName`. Cross-tree grep on 2026-05-01 (`grep -rn "useMonthNavigation" src/ backend/ scripts/`) confirmed **zero consumers**. The hook also held a duplicate `MONTHS` Spanish array (now superseded by `src/lib/dates.ts:MONTHS_ES_FULL`).
+
+**Trigger to act**: any future PR in `src/hooks/` or any addition of a month-navigator UI.
+
+**Action when triggered**: either wire a real consumer or delete the hook (`git rm src/hooks/useMonthNavigation.ts`). Atomic deletion PR precedent: #247 (AnimatedNumber removal). The Date-format arc PR2 intentionally did not delete it — kept atomic concept "date canonization" separate from "dead code removal".

@@ -15,8 +15,6 @@ export const MONTHS_ES_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago',
 export const MONTHS_ES_FULL  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'] as const;
 export const DAYS_ES         = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'] as const;
 
-const MONTH_NAMES_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
 /** Today as 'yyyy-MM-dd' in local time. */
 export const todayISO = (): string => format(new Date(), 'yyyy-MM-dd');
 
@@ -38,14 +36,6 @@ export const yesterdayISO = (): string => {
  * `new Date('yyyy-MM-dd')` directly.
  */
 export const parseISODate = (dateStr: string): Date => new Date(dateStr + 'T12:00:00');
-
-/** Short Spanish label for a 'yyyy-MM-dd' date: "Hoy", "Ayer", or "27 Abr". */
-export const formatDateLabel = (dateStr: string): string => {
-  if (dateStr === todayISO()) return 'Hoy';
-  if (dateStr === yesterdayISO()) return 'Ayer';
-  const d = parseISODate(dateStr);
-  return `${d.getDate()} ${MONTH_NAMES_ES[d.getMonth()]}`;
-};
 
 const INVALID = '—';
 

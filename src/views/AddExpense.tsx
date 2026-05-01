@@ -9,7 +9,7 @@ import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { CycleSummary } from '../api-types/cycles';
-import { formatDateLabel, todayISO } from '../lib/dates';
+import { formatDayLabel, todayISO } from '../lib/dates';
 import { formatMoneyExact } from '../lib/money';
 
 const ChevronLeftIcon = () => (
@@ -362,7 +362,7 @@ export const AddExpense: React.FC = () => {
                   <rect x="3" y="4" width="18" height="18" rx="2" />
                   <path d="M16 2v4M8 2v4M3 10h18" />
                 </svg>
-                {isToday ? 'Hoy' : formatDateLabel(expenseDate)}
+                {formatDayLabel(expenseDate)}
                 {!isToday && <span className="expense-date-dot" />}
               </button>
             ) : (

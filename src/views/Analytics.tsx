@@ -9,11 +9,10 @@ import { ContextTabs } from '../components/ContextTabs';
 import { MonthNavigator } from '../components/MonthNavigator';
 import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X, type LucideIcon } from 'lucide-react';
 import { formatMoney } from '../lib/money';
+import { formatCycleLabel, MONTHS_ES_SHORT } from '../lib/dates';
 import type { CycleSummary } from '../api-types/cycles';
 
 /* ── constants ──────────────────────────────────────────── */
-
-const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 /* ── types ──────────────────────────────────────────────── */
 
@@ -90,10 +89,9 @@ const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
       timeScale: {
         borderVisible: false,
         tickMarkFormatter: (time: unknown) => {
-          const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
           if (typeof time === 'string') {
             const [,m, d] = time.split('-');
-            return `${parseInt(d)} ${months[parseInt(m) - 1] || m}`;
+            return `${parseInt(d)} ${MONTHS_ES_SHORT[parseInt(m) - 1] || m}`;
           }
           return '';
         },
@@ -421,8 +419,7 @@ export const Analytics: React.FC = () => {
     if (!currentCycle) return 'Todos los gastos';
     if (cycleIndex === 0 && currentCycle.status === 'active') return 'Ciclo actual';
     if (!currentCycle.start_date) return 'Ciclo';
-    const d = new Date(currentCycle.start_date + 'T12:00:00');
-    return `Ciclo del ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+    return formatCycleLabel(currentCycle.start_date);
   };
 
   const loadAnalytics = useCallback(async () => {

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Api } from '../api';
 import { X, Bell, Check } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatRelative } from '../lib/dates';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import type { Notification } from '../api-types/notifications';
@@ -91,7 +90,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
                   <div className="notification-item__header">
                     <span className="notification-item__title">{n.title}</span>
                     <span className="notification-item__time">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: es })}
+                      {formatRelative(n.created_at)}
                     </span>
                   </div>
                   <p className="notification-item__message">{n.message}</p>

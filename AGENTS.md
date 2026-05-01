@@ -85,7 +85,7 @@ These are decisions made with María, not technical choices the agent gets to re
 
 Notable open items as of 2026-04-28:
 - **`RecurringSection.tsx:113` `requested_by` mismatch** — actionable bug ticket. Failing test at `src/components/RecurringSection.bug.test.ts` (uses `it.fails`). When fixed, the test starts failing → delete the file.
-- **Date-format UX drift** (4 formats across views) — UX decision needed.
+- **Date format canonized** via `src/lib/dates.ts` (6 canonical formats: dayLabel, dayLabelWithWeekday, cycleLabel, monthYear, dateLong, relative + cycleRange helper).
 - **4-digit thousands separator** — `Intl.NumberFormat('es-ES')` doesn't add separators below 5 digits by default. Product call if "fintech-style" is wanted.
 
 ---
