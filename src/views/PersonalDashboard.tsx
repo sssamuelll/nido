@@ -3,6 +3,7 @@ import { Bell, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
 import { TransactionRow } from '../components/TransactionRow';
+import { formatDayLabel } from '../lib/dates';
 import { useAuth } from '../auth';
 import { OWNER_THEMES } from '../types';
 import { buildPersonalDetailModel, type VisibleExpense } from './privacy';
@@ -229,7 +230,7 @@ export const PersonalDashboard: React.FC = () => {
                     name={expense.description}
                     payer="Privado"
                     amount={`-${formatMoneyExact(expense.amount)}`}
-                    date={expense.date}
+                    dateLabel={formatDayLabel(expense.date)}
                     indicatorColor={ownerTheme.base}
                     isPositive={false}
                     onClick={() => navigate('/history', { state: { initialContext: 'personal', initialCategory: expense.category } })}

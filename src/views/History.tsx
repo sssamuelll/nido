@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Api } from '../api';
-import { formatCycleLabel, formatDayLabelWithWeekday } from '../lib/dates';
+import { formatCycleLabel, formatDayLabel, formatDayLabelWithWeekday } from '../lib/dates';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
@@ -389,7 +389,7 @@ export const History: React.FC = () => {
             {expense.category} {' · '}
             <span className={badgeClass} style={{ fontSize: '10px', padding: '1px 6px' }}>{payer}</span>
             {sortKey === 'amount' && (
-              <span style={{ marginLeft: '6px' }}>{expense.date}</span>
+              <span style={{ marginLeft: '6px' }}>{formatDayLabel(expense.date)}</span>
             )}
           </div>
         </div>
