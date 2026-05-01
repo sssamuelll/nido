@@ -27,3 +27,4 @@ gha-creds-*.json
 .superpowers/
 mempalace.yaml
 entities.json
+visual-sanity-*.png

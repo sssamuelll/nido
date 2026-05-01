@@ -17,7 +17,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
-import { formatCycleLabel, formatDayLabelWithWeekday } from '../lib/dates';
+import { formatCycleLabel, formatDayLabel, formatDayLabelWithWeekday } from '../lib/dates';
 import { ErrorView } from '../components/ErrorView';
 import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
@@ -483,7 +483,7 @@ export const Dashboard: React.FC = () => {
                           name={tx.description}
                           payer={tx.paid_by}
                           amount={`-${formatMoneyExact(toNum(tx.amount))}`}
-                          date={tx.date}
+                          dateLabel={formatDayLabel(tx.date)}
                           indicatorColor={INDICATOR_COLORS[tx.paid_by] ?? INDICATOR_COLORS['shared']}
                           isPositive={false}
                           onClick={() => navigate('/history', { state: { initialContext: tx.type === 'shared' ? 'shared' : 'personal', initialCategory: tx.category } })}

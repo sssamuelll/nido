@@ -385,3 +385,32 @@ The exclusion in `test:ci` is undocumented and predates the CI gate added 2026-0
 **Trigger to act**: any future PR in `src/hooks/` or any addition of a month-navigator UI.
 
 **Action when triggered**: either wire a real consumer or delete the hook (`git rm src/hooks/useMonthNavigation.ts`). Atomic deletion PR precedent: #247 (AnimatedNumber removal). The Date-format arc PR2 intentionally did not delete it — kept atomic concept "date canonization" separate from "dead code removal".
+
+### `TransactionRow` `date` prop renders raw ISO string — Discovered 2026-05-01 — Resolved 2026-05-01
+
+Three callsites in the app rendered raw ISO date strings (`'2026-04-29'`) directly to the user where the canonical Spanish-format helper (`'Mié 29'`) was expected:
+
+- `src/views/Dashboard.tsx:486` — `date={tx.date}` passed raw to `<TransactionRow>`
+- `src/views/PersonalDashboard.tsx:232` — `date={expense.date}` idem
+- `src/views/History.tsx:392` — `<span>{expense.date}</span>` rendered inline (only when `sortKey === 'amount'`, so easy to miss in default-state visual sanity)
+
+The Date-format arc Phase 1 inventory (PR #248 / PR #249) missed all three because none matched the function-name grep patterns the inventory leaned on (`getDate`, `toLocaleDateString`, `format`, `MONTHS`, `DAYS`, `formatDistance`). The bug shape sat in three blind spots:
+
+1. **Prop-passthrough bypass.** The `<TransactionRow>` component (`src/components/TransactionRow.tsx`) declares `date: string` and renders it verbatim. The component itself has zero formatting calls — the formatting hole lives upstream in the *caller's failure to format* before passing. Phase 1 grep pivots assumed each formatter lived next to the data being formatted; this assumption fails when the data flows through a generic display component.
+2. **Inline raw-render bypass.** `History.tsx:392` renders `{expense.date}` directly inside JSX with no surrounding helper, library call, or `Date` constructor. Same shape as the prop-passthrough — data flows to display with no transformation in between, so the only signal is the variable name (`.date`) and the JSX context.
+3. **View scope incomplete.** `PersonalDashboard.tsx` was not in the 11 contextos enumerated in Decision 2 of the Phase 0 spec. The mapping was driven by the *drift inventory* (the symptom) rather than a fresh `ls src/views/` cross-check (the population). Views added or expanded between previous arcs and this one fall through.
+
+**Resolved in this PR** by:
+- Renaming `<TransactionRow>`'s `date: string` prop to `dateLabel: string` (formatted-display-string contract)
+- Migrating the 3 callsites to wrap with `formatDayLabel(...)` from `src/lib/dates.ts`
+- This entry as the contract record for future Date-arc-style sweeps
+
+**Lessons for future arcs:**
+
+The Phase 1 grep playbook needs three additions to catch this bug shape next time. Each lesson pairs the concept with a concrete grep that future agents can drop into a sweep.
+
+1. *Function-name greps miss data-flow holes.* When the formatter is **absent** from the callsite, function-name grep finds nothing. Add data-flow-style sweeps that look at JSX prop bindings and inline renders by data shape, not function name.
+   - Prop passthrough sweep: `grep -rn 'date={[^"}]' src/ --include='*.tsx'` (catches any raw-var passed to a `date` prop; extend with `created_at|started_at|deadline` for siblings)
+   - Inline render sweep: `grep -rn '{[a-z][a-zA-Z_]*\.date}' src/ --include='*.tsx' | grep -v ".test."` (catches `{var.date}` in JSX; expect business-logic exemptions like sorting/filtering and CSV export to surface — manually triage)
+2. *View-scope enumeration must start from the directory listing, not the drift list.* Phase 0 mapping should begin with `ls src/views/` as the population, mark each view as covered/exempt with a one-line reason, and only then map contextos to formatters. Drift is the symptom; the view list is the population. PersonalDashboard was missed because it wasn't in the symptom set.
+3. *Display-string component props benefit from explicit `*Label` naming.* Renaming `<TransactionRow>`'s `date: string` prop to `dateLabel: string` makes the formatted-display-string contract explicit. The type-checker can't enforce format (both raw ISO and formatted strings are `string`), but the prop name surfaces accidental raw passthrough at the call site during code review. Consider this convention for new display components in `src/components/`.
