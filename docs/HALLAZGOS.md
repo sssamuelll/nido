@@ -378,7 +378,9 @@ The exclusion in `test:ci` is undocumented and predates the CI gate added 2026-0
 
 **Action when triggered**: pick one convention deliberately. The repo precedent (Money helper, Date helper) is module-level helpers in `src/lib/` shared across files; in-component helpers should be reserved for state-dependent closures that genuinely cannot be hoisted.
 
-### `useMonthNavigation` hook — DEAD CODE, deletion candidate — Discovered 2026-05-01
+### `useMonthNavigation` hook — DEAD CODE, deletion candidate — Discovered 2026-05-01 — Resolved 2026-05-01
+
+**Status**: Resolved by this PR — `src/hooks/useMonthNavigation.ts` deleted via `git rm` after Phase 1 re-confirmed zero consumers cross-tree. Atomic deletion precedent: PR #247 (AnimatedNumber removal).
 
 `src/hooks/useMonthNavigation.ts` exports a `useMonthNavigation` hook returning `currentMonth`, `setCurrentMonth`, `navigateMonth`, `formatMonthName`. Cross-tree grep on 2026-05-01 (`grep -rn "useMonthNavigation" src/ backend/ scripts/`) confirmed **zero consumers**. The hook also held a duplicate `MONTHS` Spanish array (now superseded by `src/lib/dates.ts:MONTHS_ES_FULL`).
 
