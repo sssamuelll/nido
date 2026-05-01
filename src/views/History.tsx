@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Api } from '../api';
-import { todayISO, yesterdayISO } from '../lib/dates';
+import { formatCycleLabel, formatDayLabelWithWeekday } from '../lib/dates';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
@@ -28,8 +28,6 @@ const PlusIcon = () => (
     <path d="M12 4v16m-8-8h16" />
   </svg>
 );
-
-const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 /* Category color map matching design reference icon-c backgrounds */
 const CAT_COLORS: Record<string, { bg: string; stroke: string }> = {
@@ -142,8 +140,7 @@ export const History: React.FC = () => {
     if (!currentCycle) return 'Todos los gastos';
     if (cycleIndex === 0 && currentCycle.status === 'active') return 'Ciclo actual';
     if (!currentCycle.start_date) return 'Ciclo';
-    const d = new Date(currentCycle.start_date + 'T12:00:00');
-    return `Ciclo del ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+    return formatCycleLabel(currentCycle.start_date);
   };
 
   const filteredExpenses = useMemo(() => {
@@ -347,17 +344,6 @@ export const History: React.FC = () => {
   const sortedDates = Object.keys(grouped).sort((a, b) =>
     sortDir === 'desc' ? b.localeCompare(a) : a.localeCompare(b)
   );
-
-  const formatDayLabel = (dateStr: string) => {
-    const today = todayISO();
-    const yesterday = yesterdayISO();
-    const d = new Date(dateStr + 'T12:00:00');
-    const dayNum = d.getDate();
-    const monthName = MONTHS[d.getMonth()];
-    if (dateStr === today) return `Hoy — ${dayNum} ${monthName}`;
-    if (dateStr === yesterday) return `Ayer — ${dayNum} ${monthName}`;
-    return `${dayNum} ${monthName}`;
-  };
 
   const getCatColor = (category: string) => {
     const key = category.toLowerCase();
@@ -580,7 +566,7 @@ export const History: React.FC = () => {
             /* Grouped by date */
             sortedDates.map((date, idx) => (
               <div key={date} style={{ marginBottom: idx < sortedDates.length - 1 ? '20px' : undefined }}>
-                <div className="day-label">{formatDayLabel(date)}</div>
+                <div className="day-label">{formatDayLabelWithWeekday(date)}</div>
                 {grouped[date].map(expense => renderExpenseRow(expense))}
               </div>
             ))

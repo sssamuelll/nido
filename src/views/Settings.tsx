@@ -3,7 +3,7 @@ import { useAuth } from '../auth';
 import { Api } from '../api';
 import { useAsyncEffect } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
-import { format } from 'date-fns';
+import { formatDateLong } from '../lib/dates';
 import { Clock, Lock, RefreshCw, Smartphone, UserPlus, Copy, Check, Link, Delete } from 'lucide-react';
 import { showToast } from '../components/Toast';
 import { handleApiError } from '../lib/handleApiError';
@@ -559,7 +559,7 @@ export const Settings: React.FC = () => {
                         {pk.device_name}
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--tm)' }}>
-                        Registrado {format(new Date(pk.created_at), 'dd MMM yyyy')}
+                        Registrado {formatDateLong(pk.created_at)}
                       </div>
                     </div>
                   </div>
@@ -681,7 +681,7 @@ export const Settings: React.FC = () => {
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--tm)', marginBottom: '12px' }}>
                   {currentCycle.status === 'active'
-                    ? `Iniciado el ${new Date(currentCycle.started_at || '').toLocaleDateString('es-ES')}`
+                    ? `Iniciado el ${formatDateLong(currentCycle.started_at || '')}`
                     : `Aprobaciones: ${currentCycle.approvals?.approved_count || 0}/${currentCycle.approvals?.total_members || members.length}`}
                 </div>
 

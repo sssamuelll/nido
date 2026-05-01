@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  todayISO, yesterdayISO, parseISODate, formatDateLabel,
+  todayISO, yesterdayISO, parseISODate,
   formatDayLabel, formatDayLabelWithWeekday, formatCycleLabel,
   formatMonthYear, formatDateLong, formatRelative, formatCycleRange,
   MONTHS_ES_SHORT, MONTHS_ES_FULL, DAYS_ES,
@@ -32,20 +32,6 @@ describe('dates helpers', () => {
     expect(d.getFullYear()).toBe(2026);
   });
 
-  it('formatDateLabel returns "Hoy" for today', () => {
-    expect(formatDateLabel(todayISO())).toBe('Hoy');
-  });
-
-  it('formatDateLabel returns "Ayer" for yesterday', () => {
-    expect(formatDateLabel(yesterdayISO())).toBe('Ayer');
-  });
-
-  it('formatDateLabel returns "<day> <month>" for other dates', () => {
-    // Far future to avoid colliding with today/yesterday.
-    expect(formatDateLabel('2099-04-27')).toBe('27 Abr');
-    expect(formatDateLabel('2099-01-05')).toBe('5 Ene');
-    expect(formatDateLabel('2099-12-31')).toBe('31 Dic');
-  });
 });
 
 describe('canonical formatters — arrays', () => {

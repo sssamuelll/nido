@@ -5,7 +5,7 @@ import { type Goal } from '../types';
 import { Api } from '../api';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
-import { formatDateLabel, todayISO } from '../lib/dates';
+import { formatDayLabel, todayISO } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
@@ -305,7 +305,7 @@ export const Goals: React.FC = () => {
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
                     </svg>
-                    {formatDateLabel(formData.start_date || todayISO())}
+                    {formatDayLabel(formData.start_date || todayISO())}
                     {formData.start_date && formData.start_date !== todayISO() && <span className="expense-date-dot" />}
                   </button>
                 ) : (

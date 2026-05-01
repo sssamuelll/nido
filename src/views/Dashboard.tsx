@@ -17,7 +17,7 @@ import { ContextTabs } from '../components/ContextTabs';
 import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
-import { todayISO, yesterdayISO } from '../lib/dates';
+import { formatCycleLabel, formatDayLabelWithWeekday } from '../lib/dates';
 import { ErrorView } from '../components/ErrorView';
 import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
@@ -73,13 +73,6 @@ const getRecentExpenseWindow = (expenses: VisibleExpense[], maxItems = 5, maxDay
   return sorted
     .filter((expense) => newestTs - new Date(expense.created_at ?? `${expense.date}T12:00:00`).getTime() <= maxAgeMs)
     .slice(0, maxItems);
-};
-
-const formatCycleLabel = (cycle: CycleDetail | null) => {
-  if (!cycle?.start_date) return 'Ciclo actual';
-  const d = new Date(cycle.start_date + 'T12:00:00');
-  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  return `Desde ${d.getDate()} ${months[d.getMonth()]}`;
 };
 
 export const Dashboard: React.FC = () => {
@@ -231,15 +224,9 @@ export const Dashboard: React.FC = () => {
     groupedTransactions.push({ date, items: dateMap.get(date)! });
   });
 
-  const formatDatePill = (dateStr: string) => {
-    const d = new Date(dateStr + 'T12:00:00');
-    if (dateStr === todayISO()) return 'Hoy';
-    if (dateStr === yesterdayISO()) return 'Ayer';
-    const days = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
-    return `${days[d.getDay()]} ${d.getDate()}`;
-  };
-
-  const cycleLabel = formatCycleLabel(activeCycle);
+  const cycleLabel = activeCycle?.start_date
+    ? formatCycleLabel(activeCycle.start_date)
+    : 'Ciclo actual';
 
   return (
     <>
@@ -488,7 +475,7 @@ export const Dashboard: React.FC = () => {
                   if (filteredItems.length === 0) return null;
                   return (
                     <React.Fragment key={date}>
-                      <div className="dashboard__date-pill">{formatDatePill(date)}</div>
+                      <div className="dashboard__date-pill">{formatDayLabelWithWeekday(date)}</div>
                       {filteredItems.map(tx => (
                         <TransactionRow
                           key={tx.id}
