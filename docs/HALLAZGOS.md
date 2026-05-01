@@ -63,7 +63,9 @@ El helper usa instancias `Intl.NumberFormat` cacheadas a nivel módulo. Esto es 
 
 ## Eje G (Cycle types) — un bug serio descubierto durante la unificación
 
-### `RecurringSection.tsx:113` — `requested_by` no coincide con la respuesta del server
+### `RecurringSection.tsx:113` — `requested_by` no coincide con la respuesta del server — Resolved 2026-04-29
+
+**Status**: Resolved by PR #231 (c6dc6c4) — cycle approval banner cast removed and replaced with typed `CycleDetail.requested_by_user_id` comparison; scaffolded test `src/components/RecurringSection.bug.test.ts` deleted in same commit.
 
 **Archivo:línea**: `src/components/RecurringSection.tsx:113` (`showApprovalBanner`).
 
