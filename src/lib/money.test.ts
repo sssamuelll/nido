@@ -5,17 +5,17 @@ describe('formatMoney (compact)', () => {
   it('formats whole numbers', () => {
     expect(formatMoney(0)).toBe('€0');
     expect(formatMoney(50)).toBe('€50');
-    // es-ES traditional: no thousands separator for 4-digit numbers
-    expect(formatMoney(1234)).toBe('€1234');
+    // thousands separator from 4-digit amounts upward
+    expect(formatMoney(1234)).toBe('€1.234');
   });
 
   it('rounds away decimals', () => {
-    expect(formatMoney(1234.5)).toBe('€1235');
-    expect(formatMoney(1234.49)).toBe('€1234');
+    expect(formatMoney(1234.5)).toBe('€1.235');
+    expect(formatMoney(1234.49)).toBe('€1.234');
     expect(formatMoney(0.99)).toBe('€1');
   });
 
-  it('uses thousands separator on 5+ digit numbers', () => {
+  it('uses thousands separator on 4+ digit numbers', () => {
     expect(formatMoney(12_345)).toBe('€12.345');
     expect(formatMoney(1_234_567)).toBe('€1.234.567');
   });
@@ -25,9 +25,9 @@ describe('formatMoneyExact', () => {
   it('always shows two decimals', () => {
     expect(formatMoneyExact(0)).toBe('€0,00');
     expect(formatMoneyExact(50)).toBe('€50,00');
-    // es-ES traditional: no thousands separator for 4-digit numbers
-    expect(formatMoneyExact(1234.5)).toBe('€1234,50');
-    expect(formatMoneyExact(1234)).toBe('€1234,00');
+    // thousands separator from 4-digit amounts upward
+    expect(formatMoneyExact(1234.5)).toBe('€1.234,50');
+    expect(formatMoneyExact(1234)).toBe('€1.234,00');
   });
 
   it('rounds to two decimals when given more', () => {
@@ -71,5 +71,11 @@ describe('matchesMoneySearch', () => {
   it('rejects similar but distinct amounts (no false positives)', () => {
     expect(matchesMoneySearch(234.50, '1.234')).toBe(false);
     expect(matchesMoneySearch(1234.5, '12.345')).toBe(false);
+  });
+  it('matches display form with separator on 4-digit amounts', () => {
+    expect(matchesMoneySearch(1234.5, '€1.234')).toBe(true);
+  });
+  it('matches 4-digit thousands separator query without euro sign', () => {
+    expect(matchesMoneySearch(1000, '1.000')).toBe(true);
   });
 });

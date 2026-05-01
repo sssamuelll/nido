@@ -49,7 +49,9 @@ Ambos asumen `amount >= 0`; el call site construye el signo.
 | `Analytics.tsx:481` (avgTicket KPI) | `€42,50` | `€43` (redondeado) | **Cambio de convención** — KPI avgTicket pierde céntimos. |
 | ~~`BudgetCapsule.tsx:46`~~ | ~~locale `de-DE`~~ | ~~locale `es-ES`~~ | ~~Cosmético (mismo output para enteros ≤4 dígitos).~~ **Resolved 2026-04-30: BudgetCapsule deleted in PR-1.5, finding moot.** |
 
-### Sub-hallazgo: separador de miles en 4-dígitos
+### Sub-hallazgo: separador de miles en 4-dígitos — Resolved 2026-05-01
+
+Status: Resolved as anticipated by the sub-hallazgo body itself. `useGrouping: true` (ECMA-402 alias of `'always'`) applied to both `compactFmt` and `exactFmt` in `src/lib/money.ts`. Product call: yes, fintech-style separator desde 4 dígitos.
 
 `Intl.NumberFormat('es-ES')` por defecto **no añade separador a 4-dígitos** (`€1234`, no `€1.234`) por convención tradicional pre-2010 RAE. Esto preserva el comportamiento existente del repo. Si en el futuro se quiere `€1.234`, basta con pasar `useGrouping: 'always'` en una sola línea de `lib/money.ts`. **Pendiente decisión de producto** si se quiere "ver más fintech".
 
