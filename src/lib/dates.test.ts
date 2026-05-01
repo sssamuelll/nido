@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   todayISO, yesterdayISO, parseISODate,
   formatDayLabel, formatDayLabelWithWeekday, formatCycleLabel,
@@ -6,7 +6,7 @@ import {
   MONTHS_ES_SHORT, MONTHS_ES_FULL, DAYS_ES,
 } from './dates';
 
-const CURRENT_YEAR = new Date().getFullYear();
+const currentYear = (): number => new Date().getFullYear();
 const ymd = (y: number, m: number, d: number): string =>
   `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
@@ -64,6 +64,11 @@ describe('canonical formatters — arrays', () => {
 });
 
 describe('formatDayLabel', () => {
+  // Clock pinned so ymd(currentYear(), …) inputs never coincide with system
+  // today/yesterday and trigger the 'Hoy'/'Ayer' shortcut path.
+  beforeEach(() => { vi.setSystemTime(new Date('2026-07-15T12:00:00')); });
+  afterEach(() => { vi.useRealTimers(); });
+
   it('returns "Hoy" for today', () => {
     expect(formatDayLabel(todayISO())).toBe('Hoy');
   });
@@ -73,8 +78,8 @@ describe('formatDayLabel', () => {
   });
 
   it('returns "<day> <short-month>" for current-year dates (no auto-año)', () => {
-    expect(formatDayLabel(ymd(CURRENT_YEAR, 1, 5))).toBe('5 Ene');
-    expect(formatDayLabel(ymd(CURRENT_YEAR, 12, 31))).toBe('31 Dic');
+    expect(formatDayLabel(ymd(currentYear(), 1, 5))).toBe('5 Ene');
+    expect(formatDayLabel(ymd(currentYear(), 12, 31))).toBe('31 Dic');
   });
 
   it('auto-includes year for past dates outside current year', () => {
@@ -87,7 +92,7 @@ describe('formatDayLabel', () => {
   });
 
   it('accepts Date instances', () => {
-    const d = parseISODate(ymd(CURRENT_YEAR, 6, 15));
+    const d = parseISODate(ymd(currentYear(), 6, 15));
     expect(formatDayLabel(d)).toBe('15 Jun');
   });
 
@@ -104,20 +109,12 @@ describe('formatDayLabelWithWeekday', () => {
     expect(formatDayLabelWithWeekday(yesterdayISO())).toBe('Ayer');
   });
 
-  it('uses Title-case weekday with RAE tilde "Mié" (2026-04-29 = miércoles)', () => {
-    if (CURRENT_YEAR === 2026) {
-      expect(formatDayLabelWithWeekday('2026-04-29')).toBe('Mié 29');
-    } else {
-      expect(formatDayLabelWithWeekday('2026-04-29')).toBe(`Mié 29 2026`);
-    }
+  it('uses Title-case weekday with RAE tilde "Mié" (2099-04-29 = miércoles)', () => {
+    expect(formatDayLabelWithWeekday('2099-04-29')).toBe('Mié 29 2099');
   });
 
-  it('uses Title-case weekday with RAE tilde "Sáb" (2026-05-02 = sábado)', () => {
-    if (CURRENT_YEAR === 2026) {
-      expect(formatDayLabelWithWeekday('2026-05-02')).toBe('Sáb 2');
-    } else {
-      expect(formatDayLabelWithWeekday('2026-05-02')).toBe(`Sáb 2 2026`);
-    }
+  it('uses Title-case weekday with RAE tilde "Sáb" (2099-05-02 = sábado)', () => {
+    expect(formatDayLabelWithWeekday('2099-05-02')).toBe('Sáb 2 2099');
   });
 
   it('auto-includes year for past dates outside current year', () => {
