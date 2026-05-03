@@ -279,6 +279,18 @@ shared/ folder for cross-tier utilities — currently 1 consumer (server/routes/
 
 Form error semantics currently use unconditional clear-on-any-onChange (per ERR-3 audit). Future: when forms grow more complex, consider tagged error state `{ field?, message }` with field-aware clearing (validation errors persist until user edits the offending field; submit-failure errors clear on any input change). Trigger: form with 5+ inputs where unconditional clearing causes user confusion (user types in field A, error pertaining to field B disappears prematurely, user submits before fixing B, sees error reappear). When triggered, introduce useFormError hook with FormError discriminated union. Currently 5 form components (Login, Invite, Setup, AddExpense, History edit form) all use simple `useState('')` pattern.
 
+### Categories handlers inline in `server/index.ts` — deferred extract (Eje K side-discovery 2026-05-03)
+
+The categories resource is declared inline as `app.get/post/delete` in `server/index.ts:148-301` rather than as a `Router` exported from `server/routes/categories.ts`, breaking symmetry with every other resource (analytics, expenses, events, goals, household-budget, notifications, recurring, cycles — all in `server/routes/*.ts` as `Router` exports). Discovered while planning Eje K (Zod for GET query params): the canonical wiring-test pattern (`getRouteMiddleware` from `test/route-helpers.ts:43-49`) requires a `Router` to extract from. Eje K's Phase 1 plan resolved this by activating `supertest` (already in `devDependencies`, previously unused) for the categories wiring test — pragmatic asymmetry, atomic concept of Eje K kept clean.
+
+**Trigger to act:** any PR that touches the categories handlers for non-trivial reasons (logic change, new endpoint under `/api/categories`, schema modification beyond minor field additions).
+
+**Resolution path (mechanical):** lift-and-shift the GET / POST / DELETE handlers from `server/index.ts:148-301` into a new `server/routes/categories.ts` exporting a default `Router`; mount with `app.use('/api/categories', authenticateToken, apiLimiter, categoriesRouter)`. Move the `categoryUpsertSchema, CategoryUpsertInput, validate` imports out of `server/index.ts:29` into the new file. After the extract, the supertest fixture in `server/categories-wiring.test.ts` (added by Eje K) can be deleted in favor of a `getRouteMiddleware` test in a new `server/routes/categories.test.ts` matching the events test pattern.
+
+**Phase 0 skip justified** by the mechanical scope: zero behavior change, ~150 LOC moved, no design decisions to surface. A direct Phase 1 plan (or even an inline PR) is appropriate when triggered.
+
+**When:** post-merge of Eje K, not urgent.
+
 ---
 
 ## Single-site patterns watch
