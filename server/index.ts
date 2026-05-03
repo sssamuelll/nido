@@ -26,12 +26,15 @@ import recurringRouter from './routes/recurring.js';
 import cyclesRouter from './routes/cycles.js';
 import eventsRouter from './routes/events.js';
 import { port, appSessionCookieName, allowedOrigins, isProduction } from './config.js';
-import { pinSchema, validate, categoryUpsertSchema, CategoryUpsertInput } from './validation.js';
+import {
+  pinSchema, validate, categoryUpsertSchema, CategoryUpsertInput,
+  validateQuery, contextOnlyQuerySchema, ContextOnlyQuery,
+} from './validation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+export const app = express();
 app.set('trust proxy', 1);
 
 // Security Middleware
@@ -146,7 +149,9 @@ app.use('/api/cycles', authenticateToken, apiLimiter, cyclesRouter);
 app.use('/api/events', authenticateToken, apiLimiter, eventsRouter);
 
 // Categories routes
-app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthRequest, res) => {
+app.get('/api/categories', authenticateToken, apiLimiter,
+        validateQuery(contextOnlyQuerySchema),
+        async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const user = await db.get<{ household_id: number }>(
@@ -155,7 +160,8 @@ app.get('/api/categories', authenticateToken, apiLimiter, async (req: AuthReques
     );
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
+    const { context } =
+      (req as AuthRequest & { validatedQuery: ContextOnlyQuery }).validatedQuery;
 
     const categories = context === 'personal'
       ? await db.all<Array<{ id: number; name: string; emoji: string; color: string; budget_amount: number; context: string }>>(
@@ -349,4 +355,4 @@ const startServer = async () => {
   }
 };
 
-void startServer();
+if (process.env.NODE_ENV !== 'test') void startServer();

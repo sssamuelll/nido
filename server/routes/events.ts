@@ -3,16 +3,19 @@ import { getDatabase } from '../db.js';
 import { AuthRequest } from '../auth.js';
 import {
   validate,
+  validateQuery,
   eventCreateSchema,
   eventUpdateSchema,
   EventCreateInput,
   EventUpdateInput,
+  contextOnlyQuerySchema,
+  ContextOnlyQuery,
 } from '../validation.js';
 
 const router = Router();
 
 // GET / — List events for household filtered by context
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', validateQuery(contextOnlyQuerySchema), async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const user = await db.get<{ household_id: number }>(
@@ -24,7 +27,8 @@ router.get('/', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    const context = (req.query.context as string) === 'personal' ? 'personal' : 'shared';
+    const { context } =
+      (req as AuthRequest & { validatedQuery: ContextOnlyQuery }).validatedQuery;
 
     // total_spent only aggregates expenses of the same type as the event, so a
     // personal souvenir tagged to a shared trip doesn't consume the shared budget.
