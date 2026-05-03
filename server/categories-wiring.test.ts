@@ -50,4 +50,9 @@ describe('GET /api/categories — wiring (Decision 6B)', () => {
     const res = await request(app).get('/api/categories?context=a&context=b');
     expect(res.status).toBe(400);
   });
+
+  it('rejects ?context[$ne]=shared (qs object) with HTTP 400', async () => {
+    const res = await request(app).get('/api/categories?context[$ne]=shared');
+    expect(res.status).toBe(400);
+  });
 });
