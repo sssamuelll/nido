@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   analyticsQuerySchema,
+  contextOnlyQuerySchema,
   dateSchema,
   expenseCreateSchema,
   expenseUpdateSchema,
@@ -689,6 +690,57 @@ describe('Validation Schemas', () => {
       const r = expenseSummaryQuerySchema.safeParse({ cycle_id: '5' });
       expect(r.success).toBe(true);
       if (r.success) expect(r.data.cycle_id).toBe(5);
+    });
+  });
+
+  describe('contextOnlyQuerySchema', () => {
+    it('accepts an empty query and defaults context to shared', () => {
+      const result = contextOnlyQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.context).toBe('shared');
+    });
+
+    it('accepts context=shared explicitly', () => {
+      const result = contextOnlyQuerySchema.safeParse({ context: 'shared' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.context).toBe('shared');
+    });
+
+    it('accepts context=personal', () => {
+      const result = contextOnlyQuerySchema.safeParse({ context: 'personal' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.context).toBe('personal');
+    });
+
+    it('rejects an unknown enum value (?context=household)', () => {
+      expect(contextOnlyQuerySchema.safeParse({ context: 'household' }).success).toBe(false);
+    });
+
+    it('rejects context as an array (?context=a&context=b)', () => {
+      expect(contextOnlyQuerySchema.safeParse({ context: ['shared', 'personal'] }).success).toBe(false);
+    });
+
+    it('rejects context as a nested object (?context[$ne]=shared)', () => {
+      expect(contextOnlyQuerySchema.safeParse({ context: { $ne: 'shared' } }).success).toBe(false);
+    });
+
+    it('rejects context as the empty string (qs collapses ?context= to "")', () => {
+      expect(contextOnlyQuerySchema.safeParse({ context: '' }).success).toBe(false);
+    });
+
+    it('rejects null/undefined/array as the whole query', () => {
+      expect(contextOnlyQuerySchema.safeParse(null).success).toBe(false);
+      expect(contextOnlyQuerySchema.safeParse(undefined).success).toBe(false);
+      expect(contextOnlyQuerySchema.safeParse([]).success).toBe(false);
+    });
+
+    it('strips unknown extra fields silently (forward-compat: ?utm_source=…)', () => {
+      const result = contextOnlyQuerySchema.safeParse({ context: 'personal', utm_source: 'x' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.context).toBe('personal');
+        expect((result.data as Record<string, unknown>).utm_source).toBeUndefined();
+      }
     });
   });
 

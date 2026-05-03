@@ -246,6 +246,21 @@ export const analyticsQuerySchema = z.object({
 
 export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>;
 
+// GET /api/categories and GET /api/events both read `req.query.context` with
+// the identical broken ternary `(req.query.context as string) === 'personal'
+// ? 'personal' : 'shared'`. The cast lies: qs expands `?a=x&a=y` to an array
+// and `?a[b]=c` to a nested object (Express 4.22 default extended parser),
+// so a hostile or stale URL silently downgrades the user's request to
+// 'shared' (HTTP 200, wrong data) instead of returning a 400 the client
+// can react to. This schema rejects both shapes at the boundary and
+// supplies the safe default at the schema layer (matches
+// `analyticsQuerySchema` precedent).
+export const contextOnlyQuerySchema = z.object({
+  context: z.enum(['shared', 'personal']).default('shared'),
+});
+
+export type ContextOnlyQuery = z.infer<typeof contextOnlyQuerySchema>;
+
 // Household budget mutation schemas.
 //
 // PUT /api/household/budget and POST /api/household/budget/approve previously
