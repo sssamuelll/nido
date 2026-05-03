@@ -49,10 +49,12 @@ describe('GET /api/categories — wiring (Decision 6B)', () => {
   it('rejects ?context=a&context=b (qs array) with HTTP 400', async () => {
     const res = await request(app).get('/api/categories?context=a&context=b');
     expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Error de validación' });
   });
 
   it('rejects ?context[$ne]=shared (qs object) with HTTP 400', async () => {
     const res = await request(app).get('/api/categories?context[$ne]=shared');
     expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Error de validación' });
   });
 });
