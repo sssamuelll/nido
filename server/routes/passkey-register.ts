@@ -49,7 +49,7 @@ router.post('/register/start', authenticateToken, async (req: AuthRequest, res: 
 
     res.json(options);
   } catch (error) {
-    console.error('Register start error:', error);
+    req.log.error({ err: error }, 'passkey register start failed');
     res.status(500).json({ error: 'Error al iniciar el registro' });
   }
 });
@@ -100,7 +100,7 @@ router.post('/register/finish', authenticateToken, async (req: AuthRequest, res:
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Register finish error:', error);
+    req.log.error({ err: error }, 'passkey register finish failed');
     res.status(500).json({ error: 'Verificación del registro fallida' });
   }
 });
@@ -116,7 +116,7 @@ router.get('/passkeys', authenticateToken, async (req: AuthRequest, res: Respons
 
     res.json(passkeys);
   } catch (error) {
-    console.error('Passkeys list error:', error);
+    req.log.error({ err: error }, 'passkeys list failed');
     res.status(500).json({ error: 'Error al obtener passkeys' });
   }
 });

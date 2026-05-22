@@ -167,7 +167,7 @@ router.get('/', validateQuery(expenseListQuerySchema), async (req: AuthRequest, 
 
     res.json(expenses);
   } catch (error) {
-    console.error('Error fetching expenses:', error);
+    req.log.error({ err: error }, 'expenses list failed');
     res.status(500).json({ error: 'Error al obtener gastos' });
   }
 });
@@ -216,7 +216,7 @@ router.get('/export', validateQuery(expenseExportQuerySchema), async (req: AuthR
     res.setHeader('Content-Disposition', `attachment; filename="nido-gastos-${startDate || 'todos'}.csv"`);
     res.send('\uFEFF' + csv); // BOM for Excel UTF-8
   } catch (error) {
-    console.error('Error exporting expenses:', error);
+    req.log.error({ err: error }, 'expenses export failed');
     res.status(500).json({ error: 'Error al exportar gastos' });
   }
 });
@@ -282,7 +282,7 @@ router.post('/', validate(expenseCreateSchema), async (req: AuthRequest, res) =>
 
     res.status(201).json(newExpense);
   } catch (error) {
-    console.error('Error creating expense:', error);
+    req.log.error({ err: error }, 'expense create failed');
     res.status(500).json({ error: 'Error al crear gasto' });
   }
 });
@@ -358,7 +358,7 @@ router.put('/:id', validate(expenseUpdateSchema), async (req: AuthRequest, res) 
 
     res.json(updatedExpense);
   } catch (error) {
-    console.error('Error updating expense:', error);
+    req.log.error({ err: error }, 'expense update failed');
     res.status(500).json({ error: 'Error al actualizar gasto' });
   }
 });
@@ -390,7 +390,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     await db.run('DELETE FROM expenses WHERE id = ?', id);
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting expense:', error);
+    req.log.error({ err: error }, 'expense delete failed');
     res.status(500).json({ error: 'Error al eliminar gasto' });
   }
 });
@@ -593,13 +593,13 @@ router.get('/summary', validateQuery(expenseSummaryQuerySchema), async (req: Aut
       recentTransactions,
     });
   } catch (error) {
-    console.error('Error fetching summary:', error);
+    req.log.error({ err: error }, 'expense summary failed');
     res.status(500).json({ error: 'Error al obtener resumen' });
   }
 });
 
 // Get distinct categories used
-router.get('/categories', async (_req: AuthRequest, res) => {
+router.get('/categories', async (req: AuthRequest, res) => {
   try {
     const db = getDatabase();
     const rows = await db.all<{ category: string }[]>(
@@ -607,7 +607,7 @@ router.get('/categories', async (_req: AuthRequest, res) => {
     );
     res.json(rows.map(r => r.category));
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    req.log.error({ err: error }, 'expense categories list failed');
     res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });

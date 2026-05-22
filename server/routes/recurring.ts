@@ -36,7 +36,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     res.json(items);
   } catch (error) {
-    console.error('Error fetching recurring expenses:', error);
+    req.log.error({ err: error }, 'recurring list failed');
     res.status(500).json({ error: 'Error al obtener gastos recurrentes' });
   }
 });
@@ -126,7 +126,7 @@ router.post('/', validate(recurringExpenseCreateSchema), async (req: AuthRequest
 
     res.status(201).json(newItem);
   } catch (error) {
-    console.error('Error creating recurring expense:', error);
+    req.log.error({ err: error }, 'recurring create failed');
     res.status(500).json({ error: 'Error al crear gasto recurrente' });
   }
 });
@@ -202,7 +202,7 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
     const updated = await db.get('SELECT * FROM recurring_expenses WHERE id = ?', id);
     res.json(updated);
   } catch (error) {
-    console.error('Error updating recurring expense:', error);
+    req.log.error({ err: error }, 'recurring update failed');
     res.status(500).json({ error: 'Error al actualizar gasto recurrente' });
   }
 });
@@ -240,7 +240,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     await db.run('DELETE FROM recurring_expenses WHERE id = ?', id);
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting recurring expense:', error);
+    req.log.error({ err: error }, 'recurring delete failed');
     res.status(500).json({ error: 'Error al eliminar gasto recurrente' });
   }
 });
@@ -284,7 +284,7 @@ router.put('/:id/pause', async (req: AuthRequest, res) => {
     const updated = await db.get('SELECT * FROM recurring_expenses WHERE id = ?', id);
     res.json(updated);
   } catch (error) {
-    console.error('Error toggling recurring expense pause:', error);
+    req.log.error({ err: error }, 'recurring pause-toggle failed');
     res.status(500).json({ error: 'Error al cambiar estado de pausa' });
   }
 });

@@ -15,6 +15,11 @@ vi.mock('./config.js', () => ({
   appBaseUrl: 'http://localhost:3100',
   appSessionDays: 30,
   appSessionCookieName: 'nido_session',
+  // logger.ts reads these to pick its level and transport; under test we want
+  // the silent-test branch so pino doesn't spawn pretty-print workers.
+  isProduction: false,
+  isDevelopment: false,
+  isTest: true,
 }));
 
 vi.mock('bcryptjs', () => ({

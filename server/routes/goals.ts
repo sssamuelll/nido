@@ -39,7 +39,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     res.json(goals);
   } catch (error) {
-    console.error('Error fetching goals:', error);
+    req.log.error({ err: error }, 'goals list failed');
     res.status(500).json({ error: 'Error al obtener objetivos' });
   }
 });
@@ -83,7 +83,7 @@ router.post('/', validate(goalCreateSchema), async (req: AuthRequest, res) => {
 
     res.status(201).json(newGoal);
   } catch (error) {
-    console.error('Error creating goal:', error);
+    req.log.error({ err: error }, 'goal create failed');
     res.status(500).json({ error: 'Error al crear objetivo' });
   }
 });
@@ -146,7 +146,7 @@ router.put('/:id', validate(goalUpdateSchema), async (req: AuthRequest, res) => 
 
     res.json(updatedGoal);
   } catch (error) {
-    console.error('Error updating goal:', error);
+    req.log.error({ err: error }, 'goal update failed');
     res.status(500).json({ error: 'Error al actualizar objetivo' });
   }
 });
@@ -191,7 +191,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting goal:', error);
+    req.log.error({ err: error }, 'goal delete failed');
     res.status(500).json({ error: 'Error al eliminar objetivo' });
   }
 });
@@ -257,12 +257,12 @@ router.post('/:id/contribute', validate(goalContributeSchema), async (req: AuthR
           body: `¡El objetivo '${existing.name}' ha sido alcanzado!`,
           metadata: { goal_id: existing.id },
         });
-      } catch (notifErr) { console.error('Notification error:', notifErr); }
+      } catch (notifErr) { req.log.error({ err: notifErr }, 'goal-reached notification failed'); }
     }
 
     res.json(updatedGoal);
   } catch (error) {
-    console.error('Error contributing to goal:', error);
+    req.log.error({ err: error }, 'goal contribute failed');
     res.status(500).json({ error: 'Error al contribuir al objetivo' });
   }
 });

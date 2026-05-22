@@ -25,7 +25,8 @@ import notificationsRouter from './routes/notifications.js';
 import recurringRouter from './routes/recurring.js';
 import cyclesRouter from './routes/cycles.js';
 import eventsRouter from './routes/events.js';
-import { port, appSessionCookieName, allowedOrigins, isProduction } from './config.js';
+import { port, appSessionCookieName, allowedOrigins, isProduction, appBaseUrl } from './config.js';
+import { logger, httpLogger } from './logger.js';
 import {
   pinSchema, validate, categoryUpsertSchema, CategoryUpsertInput,
   validateQuery, contextOnlyQuerySchema, ContextOnlyQuery,
@@ -42,6 +43,7 @@ app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
 }));
 app.use(cookieParser());
+app.use(httpLogger);
 
 const csrfCheck = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
@@ -88,7 +90,7 @@ app.post('/api/auth/verify-pin', authenticateToken, async (req: AuthRequest, res
       res.status(401).json({ error: 'PIN incorrecto' });
     }
   } catch (error) {
-    console.error('PIN verify error:', error);
+    req.log.error({ err: error }, 'pin verify failed');
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -113,7 +115,7 @@ app.post('/api/auth/update-pin', authenticateToken, async (req: AuthRequest, res
     );
     res.json({ success: true, message: 'PIN actualizado correctamente' });
   } catch (error) {
-    console.error('PIN update error:', error);
+    req.log.error({ err: error }, 'pin update failed');
     res.status(500).json({ error: 'Error al actualizar el PIN' });
   }
 });
@@ -122,7 +124,7 @@ app.post('/api/auth/logout', async (req, res) => {
   try {
     await revokeAppSession(req.cookies?.[appSessionCookieName]);
   } catch (error) {
-    console.error('Session revoke error:', error);
+    req.log.error({ err: error }, 'session revoke failed');
   } finally {
     clearAuthCookies(res);
     res.json({ message: 'Logged out' });
@@ -270,7 +272,7 @@ app.post('/api/categories', authenticateToken, apiLimiter, validate(categoryUpse
 
     res.json({ success: true });
   } catch (error) {
-    console.error('POST /api/categories error:', error);
+    req.log.error({ err: error }, 'category upsert failed');
     res.status(500).json({ error: 'Error al guardar categoría' });
   }
 });
@@ -301,7 +303,7 @@ app.delete('/api/categories/:id', authenticateToken, apiLimiter, async (req: Aut
 
     res.json({ success: true });
   } catch (error) {
-    console.error('DELETE /api/categories error:', error);
+    req.log.error({ err: error }, 'category delete failed');
     res.status(500).json({ error: 'Error al eliminar categoría' });
   }
 });
@@ -345,12 +347,10 @@ const startServer = async () => {
     await initDatabase();
 
     app.listen(port, () => {
-      console.log(`🚀 Nido server running on port ${port}`);
-      console.log(`📱 App: http://localhost:${port}`);
-      console.log(`🔌 API: http://localhost:${port}/api`);
+      logger.info({ port, baseUrl: appBaseUrl }, 'nido server started');
     });
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    logger.fatal({ err: error }, 'database init failed');
     process.exit(1);
   }
 };

@@ -6,6 +6,7 @@ import {
   appSessionDays,
   appSessionCookieName,
 } from './config.js';
+import { logger } from './logger.js';
 
 export interface AuthUser {
   id: number;
@@ -135,7 +136,7 @@ export const verifyPin = async (appUserId: number, pin: string): Promise<boolean
     }
     return user.pin === pin;
   } catch (error) {
-    console.error('PIN verify error:', error);
+    logger.error({ err: error, appUserId }, 'pin verify failed');
     return false;
   }
 };
@@ -154,7 +155,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
     res.status(401).json({ error: 'No autorizado' });
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    req.log.error({ err: error }, 'auth middleware failed');
     res.status(401).json({ error: 'No autorizado' });
   }
 };

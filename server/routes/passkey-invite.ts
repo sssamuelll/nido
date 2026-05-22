@@ -82,7 +82,7 @@ router.post('/invite', authenticateToken, validate(inviteCreateSchema), async (r
       expires_at: expiresAt,
     });
   } catch (error) {
-    console.error('Invite create error:', error);
+    req.log.error({ err: error }, 'invite create failed');
     res.status(500).json({ error: 'Error al crear invitación' });
   }
 });
@@ -137,7 +137,7 @@ router.get('/invite/:token', async (req: Request, res: Response) => {
 
     res.json(result);
   } catch (error) {
-    console.error('Invite info error:', error);
+    req.log.error({ err: error }, 'invite info failed');
     res.status(500).json({ error: 'Error al obtener información de la invitación' });
   }
 });
@@ -204,7 +204,7 @@ router.get('/invite/:token/register-options', async (req: Request, res: Response
 
     res.json(options);
   } catch (error) {
-    console.error('Invite register options error:', error);
+    req.log.error({ err: error }, 'invite register-options failed');
     res.status(500).json({ error: 'Error al generar opciones de registro' });
   }
 });
@@ -317,7 +317,7 @@ router.post('/invite/:token/claim', loginLimiter, async (req: Request, res: Resp
 
     res.json({ user: { id: user!.id, username: user!.username } });
   } catch (error) {
-    console.error('Invite claim error:', error);
+    req.log.error({ err: error }, 'invite claim failed');
     res.status(500).json({ error: 'Error al reclamar invitación' });
   }
 });

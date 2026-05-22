@@ -24,6 +24,10 @@ const createRequest = (overrides: any = {}): any => ({
   user: { id: 1, username: 'samuel', household_id: 1 },
   query: { months: '6', context: 'shared' },
   validatedQuery: { context: 'shared' },
+  // pino-http normally attaches `req.log`; under these unit tests we bypass the
+  // middleware stack via `getRouteHandler`, so inject a no-op logger so the
+  // handler's `req.log.error(...)` in catch paths doesn't throw.
+  log: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
   ...overrides,
 });
 

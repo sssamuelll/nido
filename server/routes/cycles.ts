@@ -186,7 +186,7 @@ router.get('/list', async (req: AuthRequest, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('Error listing cycles:', error);
+    req.log.error({ err: error }, 'cycles list failed');
     res.status(500).json({ error: 'Error al listar ciclos' });
   }
 });
@@ -229,7 +229,7 @@ router.get('/current', async (req: AuthRequest, res) => {
     const detailedCycle = await getCycleWithApprovalState(db, cycle.id, req.user!.id);
     res.json(detailedCycle);
   } catch (error) {
-    console.error('Error fetching current billing cycle:', error);
+    req.log.error({ err: error }, 'current cycle fetch failed');
     res.status(500).json({ error: 'Error al obtener ciclo de facturación actual' });
   }
 });
@@ -290,7 +290,7 @@ router.post('/request', async (req: AuthRequest, res) => {
     const cycle = await getCycleWithApprovalState(db, result.lastID!, req.user!.id);
     res.status(201).json(cycle);
   } catch (error) {
-    console.error('Error requesting billing cycle:', error);
+    req.log.error({ err: error }, 'cycle request failed');
     res.status(500).json({ error: 'Error al solicitar ciclo de facturación' });
   }
 });
@@ -346,7 +346,7 @@ router.post('/approve', validate(cycleApproveSchema), async (req: AuthRequest, r
 
     res.json(detailedCycle);
   } catch (error) {
-    console.error('Error approving billing cycle:', error);
+    req.log.error({ err: error }, 'cycle approve failed');
     res.status(500).json({ error: 'Error al aprobar ciclo de facturación' });
   }
 });
