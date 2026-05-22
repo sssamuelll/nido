@@ -14,6 +14,7 @@
  */
 import pino from 'pino';
 import pinoHttp from 'pino-http';
+import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { isDevelopment, isProduction, isTest, logLevel } from './config.js';
@@ -57,6 +58,27 @@ export const logger = pino({
       '*.password',
     ],
     censor: '[REDACTED]',
+  },
+  // Bridge pino → Sentry: any level≥error log carrying `{ err }` (the convention
+  // the 18 call sites migrated in #88 already use) is forwarded to Sentry as an
+  // exception. Sentry.captureException is a no-op when SENTRY_DSN_SERVER is
+  // unset, so this path is safe in dev/test/CI.
+  hooks: {
+    logMethod(inputArgs, method, level) {
+      if (level >= 50 /* error */) {
+        const first = inputArgs[0];
+        const err =
+          first && typeof first === 'object' && 'err' in first
+            ? (first as { err: unknown }).err
+            : null;
+        if (err instanceof Error) {
+          Sentry.captureException(err);
+        } else if (typeof first === 'string') {
+          Sentry.captureMessage(first, 'error');
+        }
+      }
+      return method.apply(this, inputArgs);
+    },
   },
   transport,
 });

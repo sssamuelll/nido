@@ -32,6 +32,11 @@ const envSchema = z.object({
 
   // Logging – pino level. If unset, logger.ts picks a per-NODE_ENV default.
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
+
+  // Observability – Sentry server DSN. Unset = Sentry disabled (no-op init).
+  // server/instrument.ts reads process.env.SENTRY_DSN_SERVER directly; this
+  // entry exists so Zod fail-fasts on a malformed URL at boot.
+  SENTRY_DSN_SERVER: z.string().url().optional(),
 });
 
 // Type inference
@@ -57,6 +62,7 @@ class Config {
         APP_SESSION_COOKIE_NAME: process.env.APP_SESSION_COOKIE_NAME,
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
         LOG_LEVEL: process.env.LOG_LEVEL,
+        SENTRY_DSN_SERVER: process.env.SENTRY_DSN_SERVER,
       };
 
       return envSchema.parse(rawEnv);
