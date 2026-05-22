@@ -29,6 +29,9 @@ const envSchema = z.object({
 
   // CORS – required in production to prevent wildcard origin with credentials
   ALLOWED_ORIGINS: z.string().min(1).optional(),
+
+  // Logging – pino level. If unset, logger.ts picks a per-NODE_ENV default.
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 });
 
 // Type inference
@@ -53,6 +56,7 @@ class Config {
         APP_SESSION_DAYS: process.env.APP_SESSION_DAYS,
         APP_SESSION_COOKIE_NAME: process.env.APP_SESSION_COOKIE_NAME,
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+        LOG_LEVEL: process.env.LOG_LEVEL,
       };
 
       return envSchema.parse(rawEnv);
@@ -62,11 +66,14 @@ class Config {
           `${err.path.join('.')}: ${err.message}`
         ).join('\n');
 
-        console.error('❌ Environment configuration error:');
-        console.error(errorMessages);
-        console.error('\n💡 Please check your .env file or environment variables.');
-        console.error('   For development, copy .env.example to .env and generate secure values.');
-        console.error('   You can run: npm run setup-env');
+        // Runs before the structured logger is initialized (logger.ts imports
+        // this module), so write directly to stderr instead of using logger.* /
+        // console.* — keeps boot failures visible without circular init.
+        process.stderr.write('❌ Environment configuration error:\n');
+        process.stderr.write(errorMessages + '\n');
+        process.stderr.write('\n💡 Please check your .env file or environment variables.\n');
+        process.stderr.write('   For development, copy .env.example to .env and generate secure values.\n');
+        process.stderr.write('   You can run: npm run setup-env\n');
 
         if (process.env.NODE_ENV === 'production') {
           process.exit(1);
@@ -125,6 +132,10 @@ class Config {
       : undefined;
   }
 
+  get logLevel(): EnvConfig['LOG_LEVEL'] {
+    return this.config.LOG_LEVEL;
+  }
+
   validateSecurity(): { valid: boolean; warnings: string[] } {
     const warnings: string[] = [];
 
@@ -155,4 +166,5 @@ export const {
   appSessionDays,
   appSessionCookieName,
   allowedOrigins,
+  logLevel,
 } = config;

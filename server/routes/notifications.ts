@@ -28,7 +28,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     res.json(notifications);
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    req.log.error({ err: error }, 'notifications fetch failed');
     res.status(500).json({ error: 'Error al obtener notificaciones' });
   }
 });
@@ -55,7 +55,7 @@ router.put('/:id/read', async (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    req.log.error({ err: error }, 'notification mark-read failed');
     res.status(500).json({ error: 'Error al marcar notificación como leída' });
   }
 });
@@ -80,7 +80,7 @@ router.post('/read-all', async (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    req.log.error({ err: error }, 'notifications mark-all-read failed');
     res.status(500).json({ error: 'Error al marcar todas las notificaciones como leídas' });
   }
 });

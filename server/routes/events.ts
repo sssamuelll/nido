@@ -54,7 +54,7 @@ router.get('/', validateQuery(contextOnlyQuerySchema), async (req: AuthRequest, 
 
     res.json(events);
   } catch (error) {
-    console.error('Error fetching events:', error);
+    req.log.error({ err: error }, 'events list failed');
     res.status(500).json({ error: 'Error al obtener eventos' });
   }
 });
@@ -149,7 +149,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
       expenses,
     });
   } catch (error) {
-    console.error('Error fetching event detail:', error);
+    req.log.error({ err: error }, 'event detail fetch failed');
     res.status(500).json({ error: 'Error al obtener detalle del evento' });
   }
 });
@@ -219,7 +219,7 @@ router.post('/', validate(eventCreateSchema), async (req: AuthRequest, res) => {
 
     res.status(201).json({ ...newEvent, subcategories: newSubcategories });
   } catch (error) {
-    console.error('Error creating event:', error);
+    req.log.error({ err: error }, 'event create failed');
     res.status(500).json({ error: 'Error al crear evento' });
   }
 });
@@ -304,7 +304,7 @@ router.put('/:id', validate(eventUpdateSchema), async (req: AuthRequest, res) =>
 
     res.json({ ...updatedEvent, subcategories: updatedSubcategories });
   } catch (error) {
-    console.error('Error updating event:', error);
+    req.log.error({ err: error }, 'event update failed');
     res.status(500).json({ error: 'Error al actualizar evento' });
   }
 });
@@ -344,7 +344,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting event:', error);
+    req.log.error({ err: error }, 'event delete failed');
     res.status(500).json({ error: 'Error al eliminar evento' });
   }
 });

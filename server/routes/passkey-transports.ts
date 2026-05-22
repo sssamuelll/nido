@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/server';
+import { logger } from '../logger.js';
 
 const TRANSPORT_VALUES = [
   'ble',
@@ -41,21 +42,27 @@ export function parseTransports(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    console.warn('[passkey] invalid transports row', {
-      credential_id: ctx.credentialId,
-      reason: 'json_parse_failed',
-      sample: sample(raw),
-    });
+    logger.warn(
+      {
+        credential_id: ctx.credentialId,
+        reason: 'json_parse_failed',
+        sample: sample(raw),
+      },
+      '[passkey] invalid transports row',
+    );
     return [];
   }
 
   if (!Array.isArray(parsed)) {
-    console.warn('[passkey] invalid transports row', {
-      credential_id: ctx.credentialId,
-      reason: 'shape_invalid',
-      received: describeValue(parsed),
-      sample: sample(raw),
-    });
+    logger.warn(
+      {
+        credential_id: ctx.credentialId,
+        reason: 'shape_invalid',
+        received: describeValue(parsed),
+        sample: sample(raw),
+      },
+      '[passkey] invalid transports row',
+    );
     return [];
   }
 
@@ -66,11 +73,14 @@ export function parseTransports(
     if (item.success) {
       result.push(item.data);
     } else {
-      console.warn('[passkey] dropping unknown transport', {
-        credential_id: ctx.credentialId,
-        index: i,
-        received: describeValue(parsed[i]),
-      });
+      logger.warn(
+        {
+          credential_id: ctx.credentialId,
+          index: i,
+          received: describeValue(parsed[i]),
+        },
+        '[passkey] dropping unknown transport',
+      );
     }
   }
   return result;

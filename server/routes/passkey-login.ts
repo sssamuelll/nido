@@ -17,7 +17,7 @@ import { parseTransports } from './passkey-transports.js';
 const router = Router();
 
 // ===== POST /login/start =====
-router.post('/login/start', loginLimiter, async (_req: Request, res: Response) => {
+router.post('/login/start', loginLimiter, async (req: Request, res: Response) => {
   try {
     const db = getDatabase();
     const credentials = await db.all<{ credential_id: string; transports: string }[]>(
@@ -37,7 +37,7 @@ router.post('/login/start', loginLimiter, async (_req: Request, res: Response) =
 
     res.json(options);
   } catch (error) {
-    console.error('Login start error:', error);
+    req.log.error({ err: error }, 'passkey login start failed');
     res.status(500).json({ error: 'Error al iniciar autenticación' });
   }
 });
@@ -108,7 +108,7 @@ router.post('/login/finish', loginLimiter, async (req: Request, res: Response) =
 
     res.json({ user: { id: user.id, username: user.username } });
   } catch (error) {
-    console.error('Login finish error:', error);
+    req.log.error({ err: error }, 'passkey login finish failed');
     res.status(500).json({ error: 'Verificación de autenticación fallida' });
   }
 });
@@ -143,7 +143,7 @@ router.post('/pin-login', loginLimiter, async (req: Request, res: Response) => {
 
     res.json({ user: { id: matchedUser.id, username: matchedUser.username } });
   } catch (error) {
-    console.error('PIN login error:', error);
+    req.log.error({ err: error }, 'pin login failed');
     res.status(500).json({ error: 'Error al iniciar sesión' });
   }
 });

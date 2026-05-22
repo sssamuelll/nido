@@ -87,7 +87,7 @@ router.get('/', async (req: AuthRequest, res) => {
       pending_approval: pendingApproval ?? null,
     });
   } catch (error) {
-    console.error('Error fetching household budget:', error);
+    req.log.error({ err: error }, 'household-budget fetch failed');
     res.status(500).json({ error: 'Error al obtener presupuesto del hogar' });
   }
 });
@@ -192,7 +192,7 @@ router.put('/', validate(householdBudgetUpdateSchema), async (req: AuthRequest, 
 
     res.json({ success: true, pending_approval: pendingApproval });
   } catch (error) {
-    console.error('Error updating household budget:', error);
+    req.log.error({ err: error }, 'household-budget update failed');
     res.status(500).json({ error: 'Error al actualizar presupuesto del hogar' });
   }
 });
@@ -252,7 +252,7 @@ router.post('/approve', validate(householdBudgetApproveSchema), async (req: Auth
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error approving budget:', error);
+    req.log.error({ err: error }, 'household-budget approve failed');
     res.status(500).json({ error: 'Error al aprobar presupuesto' });
   }
 });

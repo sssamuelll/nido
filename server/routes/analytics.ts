@@ -265,7 +265,7 @@ router.get('/', validateQuery(analyticsQuerySchema), async (req: AuthRequest, re
       householdBudget,
     });
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    req.log.error({ err: error }, 'analytics fetch failed');
     res.status(500).json({ error: 'Error al obtener analíticas' });
   }
 });

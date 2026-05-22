@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { databaseUrl } from './config.js';
+import { logger } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -374,7 +375,7 @@ export const initDatabase = async () => {
     await database.run('UPDATE users SET pin = ? WHERE id = ?', [hashed, user.id]);
   }
   if (usersWithPlaintextPin.length > 0) {
-    console.log(`Migrated ${usersWithPlaintextPin.length} plaintext PIN(s) to bcrypt`);
+    logger.info({ count: usersWithPlaintextPin.length }, 'migrated plaintext PINs to bcrypt');
   }
 
   // Ensure primary household exists (no default categories seeded — users create their own)
@@ -400,7 +401,7 @@ export const initDatabase = async () => {
   );
 
   if (!unifiedModelRan) {
-    console.log('Running migration: unified_category_budget_model');
+    logger.info({ migration: 'unified_category_budget_model' }, 'running migration');
 
     // 1. Create new tables
     await database.exec(`
@@ -589,7 +590,7 @@ export const initDatabase = async () => {
     // 6. Validate
     const orphaned = await database.get<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM expenses WHERE category_id IS NULL`);
     if (orphaned && orphaned.cnt > 0) {
-      console.warn(`Warning: ${orphaned.cnt} expenses have no category_id (will show as "Sin categoria")`);
+      logger.warn({ count: orphaned.cnt }, 'migration found expenses with no category_id (will show as "Sin categoria")');
     }
 
     // 7. Indexes
@@ -604,7 +605,7 @@ export const initDatabase = async () => {
     await database.exec(`DROP TABLE IF EXISTS budgets`);
 
     await database.run(`INSERT INTO migrations (name) VALUES ('unified_category_budget_model')`);
-    console.log('Migration unified_category_budget_model complete');
+    logger.info({ migration: 'unified_category_budget_model' }, 'migration complete');
   }
 
   // === Migration: Drop unused password column from users table ===
@@ -613,10 +614,10 @@ export const initDatabase = async () => {
     try {
       await database.exec('ALTER TABLE users DROP COLUMN password');
       await database.run(`INSERT INTO migrations (name) VALUES ('drop_users_password')`);
-      console.log('Migration drop_users_password complete');
+      logger.info({ migration: 'drop_users_password' }, 'migration complete');
     } catch (error) {
       // SQLite < 3.35.0 doesn't support DROP COLUMN — log and skip
-      console.warn('Could not drop users.password column (SQLite version may not support DROP COLUMN)');
+      logger.warn({ err: error }, 'could not drop users.password column (SQLite version may not support DROP COLUMN)');
     }
   }
 
@@ -633,7 +634,7 @@ export const initDatabase = async () => {
     await ensureColumn(database, 'recurring_expenses', 'every_n_cycles', 'INTEGER NOT NULL DEFAULT 1');
     await ensureColumn(database, 'recurring_expenses', 'last_registered_cycle_id', 'INTEGER REFERENCES billing_cycles(id)');
     await database.run(`INSERT INTO migrations (name) VALUES ('recurring_cycle_frequency')`);
-    console.log('Migration recurring_cycle_frequency complete');
+    logger.info({ migration: 'recurring_cycle_frequency' }, 'migration complete');
   }
 
   await dropLegacyCategoriesUnique(database);
@@ -641,7 +642,7 @@ export const initDatabase = async () => {
   await addCycleIdToExpenses(database);
   await backfillExpenseCategoryIds(database);
 
-  console.log('Database initialized');
+  logger.info('database initialized');
 };
 
 const backfillExpenseCategoryIds = async (database: Database) => {
@@ -696,7 +697,7 @@ const backfillExpenseCategoryIds = async (database: Database) => {
   const sharedChanges = sharedResult.changes ?? 0;
   const personalChanges = personalResult.changes ?? 0;
   if (sharedChanges + personalChanges > 0) {
-    console.log(`Migration backfill_expense_category_ids: linked ${sharedChanges} shared + ${personalChanges} personal expenses`);
+    logger.info({ migration: 'backfill_expense_category_ids', sharedChanges, personalChanges }, 'migration linked orphan expenses');
   }
 };
 
@@ -750,7 +751,7 @@ const materializeLegacyRecurringExpenses = async (database: Database) => {
 
   await database.run(`INSERT INTO migrations (name) VALUES ('recurring_materialize_legacy')`);
   if (materialized > 0) {
-    console.log(`Migration recurring_materialize_legacy complete (${materialized} expenses materialized)`);
+    logger.info({ migration: 'recurring_materialize_legacy', materialized }, 'migration complete');
   }
 };
 
@@ -761,7 +762,7 @@ const addCycleIdToExpenses = async (database: Database) => {
   await ensureColumn(database, 'expenses', 'cycle_id', 'INTEGER REFERENCES billing_cycles(id) ON DELETE SET NULL');
   await database.exec(`CREATE INDEX IF NOT EXISTS idx_expenses_cycle_id ON expenses(cycle_id)`);
   await database.run(`INSERT INTO migrations (name) VALUES ('expenses_add_cycle_id')`);
-  console.log('Migration expenses_add_cycle_id complete');
+  logger.info({ migration: 'expenses_add_cycle_id' }, 'migration complete');
 };
 
 const dropLegacyCategoriesUnique = async (database: Database) => {
@@ -776,7 +777,7 @@ const dropLegacyCategoriesUnique = async (database: Database) => {
     return;
   }
 
-  console.log('Running migration: categories_drop_legacy_unique');
+  logger.info({ migration: 'categories_drop_legacy_unique' }, 'running migration');
   await database.run(`PRAGMA foreign_keys=OFF`);
   try {
     await database.run(`BEGIN TRANSACTION`);
@@ -809,7 +810,7 @@ const dropLegacyCategoriesUnique = async (database: Database) => {
     }
     await database.run(`COMMIT`);
     await database.run(`INSERT INTO migrations (name) VALUES ('categories_drop_legacy_unique')`);
-    console.log('Migration categories_drop_legacy_unique complete');
+    logger.info({ migration: 'categories_drop_legacy_unique' }, 'migration complete');
   } catch (error) {
     await database.run(`ROLLBACK`).catch(() => {});
     throw error;
@@ -869,7 +870,7 @@ export async function notifyPartner(
       metadata,
     });
   } catch (err) {
-    console.error('Notification error:', err);
+    logger.error({ err, userId, type }, 'notification create failed');
   }
 }
 

@@ -19,7 +19,7 @@ import {
 const router = Router();
 
 // ===== GET /setup-status =====
-router.get('/setup-status', async (_req: Request, res: Response) => {
+router.get('/setup-status', async (req: Request, res: Response) => {
   try {
     const db = getDatabase();
     const userCount = await db.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM app_users');
@@ -33,7 +33,7 @@ router.get('/setup-status', async (_req: Request, res: Response) => {
 
     res.json({ hasUsers, needsPasskeyMigration });
   } catch (error) {
-    console.error('Setup status error:', error);
+    req.log.error({ err: error }, 'setup status failed');
     res.status(500).json({ error: 'Error al verificar estado de configuración' });
   }
 });
@@ -93,7 +93,7 @@ router.post('/setup/start', loginLimiter, async (req: Request, res: Response) =>
 
     res.json({ options, userId: appUserId });
   } catch (error) {
-    console.error('Setup start error:', error);
+    req.log.error({ err: error }, 'setup start failed');
     res.status(500).json({ error: 'Error en la configuración' });
   }
 });
@@ -151,7 +151,7 @@ router.post('/setup/finish', loginLimiter, async (req: Request, res: Response) =
 
     res.json({ user: { id: user!.id, username: user!.username } });
   } catch (error) {
-    console.error('Setup finish error:', error);
+    req.log.error({ err: error }, 'setup finish failed');
     res.status(500).json({ error: 'Verificación del registro fallida' });
   }
 });

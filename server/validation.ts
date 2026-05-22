@@ -74,7 +74,7 @@ export function validate(schema: z.ZodSchema) {
       (req as Request & { validatedData?: unknown }).validatedData = result.data;
       next();
     } catch (error) {
-      console.error('Validation middleware error:', error);
+      req.log.error({ err: error }, 'validation middleware failed');
       res.status(500).json({ error: 'Error interno de validación' });
     }
   };
@@ -98,7 +98,7 @@ export function validateQuery(schema: z.ZodSchema) {
       (req as Request & { validatedQuery?: unknown }).validatedQuery = result.data;
       next();
     } catch (error) {
-      console.error('Query validation middleware error:', error);
+      req.log.error({ err: error }, 'query validation middleware failed');
       res.status(500).json({ error: 'Error interno de validación' });
     }
   };
