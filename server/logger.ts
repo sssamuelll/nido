@@ -61,8 +61,19 @@ export const logger = pino({
   },
   // Bridge pino → Sentry: any level≥error log carrying `{ err }` (the convention
   // the 18 call sites migrated in #88 already use) is forwarded to Sentry as an
-  // exception. Sentry.captureException is a no-op when SENTRY_DSN_SERVER is
-  // unset, so this path is safe in dev/test/CI.
+  // exception, tagged with the request scope so events cross-reference with log
+  // lines. Sentry.captureException is a no-op when SENTRY_DSN_SERVER is unset,
+  // so this path is safe in dev/test/CI.
+  //
+  // Drop behavior: level≥error logs that lack `{ err }` AND aren't string-first
+  // (e.g. `req.log.error({ count: 42 }, 'msg')`) emit a log line but no Sentry
+  // event. All 18 migrated #88 call sites pass `{ err }`, so this is intentional
+  // — we don't want bare info-payload logs flooding Sentry.
+  //
+  // `this` in pino's logMethod is the calling logger (child or root), so
+  // `.bindings()` returns whatever the caller owns: empty for the root logger,
+  // `req.id` for an httpLogger-attached `req.log`, and `+ userId` after
+  // `authenticateToken` re-childs (see server/auth.ts).
   hooks: {
     logMethod(inputArgs, method, level) {
       if (level >= 50 /* error */) {
@@ -71,11 +82,19 @@ export const logger = pino({
           first && typeof first === 'object' && 'err' in first
             ? (first as { err: unknown }).err
             : null;
-        if (err instanceof Error) {
-          Sentry.captureException(err);
-        } else if (typeof first === 'string') {
-          Sentry.captureMessage(first, 'error');
-        }
+        const bindings = (this as pino.Logger).bindings() as {
+          req?: { id?: string };
+          userId?: number | string | null;
+        };
+        Sentry.withScope((scope) => {
+          if (bindings.req?.id) scope.setTag('reqId', String(bindings.req.id));
+          if (bindings.userId != null) scope.setUser({ id: String(bindings.userId) });
+          if (err instanceof Error) {
+            Sentry.captureException(err);
+          } else if (typeof first === 'string') {
+            Sentry.captureMessage(first, 'error');
+          }
+        });
       }
       return method.apply(this, inputArgs);
     },
@@ -95,11 +114,13 @@ export const httpLogger = pinoHttp({
   logger,
   genReqId: (req: IncomingMessage) =>
     pickInboundRequestId(req.headers['x-request-id']) ?? randomUUID(),
-  // pino-http evaluates customProps per emitted log entry (not only at
-  // request-complete), so any req.log.* call that fires *after*
-  // authenticateToken populates req.user picks up the real userId.
-  // If a future pino-http upgrade narrows this to the summary log only,
-  // userId would silently regress to null for in-handler logs — re-verify.
+  // pino-http evaluates customProps ONCE at middleware-mount time (verified
+  // empirically against pino-http v10), not per emitted log entry. Since
+  // authenticateToken runs *after* httpLogger, `req.user` is undefined here —
+  // this customProps populates the request-summary log line with `userId:null`.
+  // The real userId is surfaced via `authenticateToken` re-childing `req.log`
+  // with the bound user id (see server/auth.ts). In-handler logs and the
+  // Sentry scope hook above read it from the child's bindings.
   customProps: (req: IncomingMessage) => {
     const user = (req as IncomingMessage & { user?: { id?: number } }).user;
     return { userId: user?.id ?? null };

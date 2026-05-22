@@ -149,6 +149,13 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       const user = await getAppUserFromSession(sessionToken);
       if (user) {
         req.user = user;
+        // Re-child req.log so userId becomes a real binding. pino-http's
+        // `customProps` is evaluated once at middleware-mount time (verified
+        // empirically against pino-http v10), so it captures req.user as
+        // undefined — authenticateToken runs *after* httpLogger. Re-childing
+        // here is what surfaces userId in both log lines and Sentry scope
+        // (server/logger.ts hooks.logMethod reads bindings().userId).
+        req.log = req.log.child({ userId: user.id });
         return next();
       }
     }
