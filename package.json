@@ -18,7 +18,10 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:run": "vitest run",
-    "test:ci": "vitest run --exclude=src/components/**"
+    "test:ci": "vitest run --exclude=src/components/**",
+    "migrate:status": "tsx server/migrate.ts status",
+    "migrate:up": "tsx server/migrate.ts up",
+    "migrate:down": "tsx server/migrate.ts down"
   },
   "dependencies": {
     "@sentry/node": "^8.55.2",
