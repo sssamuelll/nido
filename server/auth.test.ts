@@ -20,6 +20,7 @@ vi.mock('./config.js', () => ({
   isProduction: false,
   isDevelopment: false,
   isTest: true,
+  logLevel: undefined,
 }));
 
 vi.mock('bcryptjs', () => ({

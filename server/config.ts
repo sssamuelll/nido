@@ -132,6 +132,10 @@ class Config {
       : undefined;
   }
 
+  get logLevel(): EnvConfig['LOG_LEVEL'] {
+    return this.config.LOG_LEVEL;
+  }
+
   validateSecurity(): { valid: boolean; warnings: string[] } {
     const warnings: string[] = [];
 
@@ -162,4 +166,5 @@ export const {
   appSessionDays,
   appSessionCookieName,
   allowedOrigins,
+  logLevel,
 } = config;

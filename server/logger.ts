@@ -16,11 +16,20 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { randomUUID } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { isDevelopment, isProduction, isTest } from './config.js';
+import { isDevelopment, isProduction, isTest, logLevel } from './config.js';
 
 const level =
-  process.env.LOG_LEVEL ??
+  logLevel ??
   (isProduction ? 'info' : isTest ? 'silent' : 'debug');
+
+// One-time-use invite tokens live in URL path segments (server/routes/passkey-invite.ts).
+// pino-http's default per-request log includes req.url, which would otherwise emit
+// the raw token on every hit. Persisted/aggregated logs could then expose live
+// invitations to anyone with log access — redact at the serializer boundary.
+export const sanitizeUrl = (url: string | undefined): string | undefined => {
+  if (!url) return url;
+  return url.replace(/\/invite\/[^/?]+/g, '/invite/[REDACTED]');
+};
 
 const transport = isDevelopment
   ? {
@@ -64,6 +73,11 @@ export const httpLogger = pinoHttp({
   logger,
   genReqId: (req: IncomingMessage) =>
     pickInboundRequestId(req.headers['x-request-id']) ?? randomUUID(),
+  // pino-http evaluates customProps per emitted log entry (not only at
+  // request-complete), so any req.log.* call that fires *after*
+  // authenticateToken populates req.user picks up the real userId.
+  // If a future pino-http upgrade narrows this to the summary log only,
+  // userId would silently regress to null for in-handler logs — re-verify.
   customProps: (req: IncomingMessage) => {
     const user = (req as IncomingMessage & { user?: { id?: number } }).user;
     return { userId: user?.id ?? null };
@@ -72,7 +86,7 @@ export const httpLogger = pinoHttp({
     req: (req: IncomingMessage & { id?: string; remoteAddress?: string }) => ({
       id: req.id,
       method: req.method,
-      url: req.url,
+      url: sanitizeUrl(req.url),
       remoteAddress: req.remoteAddress,
     }),
     res: (res: ServerResponse) => ({ statusCode: res.statusCode }),
