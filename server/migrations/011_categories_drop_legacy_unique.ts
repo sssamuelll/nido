@@ -6,10 +6,18 @@ export const name = 'categories_drop_legacy_unique';
 /**
  * Rebuilds the categories table to drop a legacy `UNIQUE(household_id, name)`
  * constraint that prevented the same name from existing as both shared and
- * personal contexts. Fresh DBs created by 001 already lack that constraint, so
- * this migration only fires when the old constraint is still present in
- * sqlite_master. Name kept as the legacy slug.
+ * personal contexts. Fresh DBs created by 001 already lack that constraint,
+ * so this migration is a no-op there. Name kept as the legacy slug.
+ *
+ * Marked `transactional: false` because the rebuild needs
+ * `PRAGMA foreign_keys = OFF`, which SQLite documents as a no-op inside a
+ * BEGIN/COMMIT. Without disabling FKs, DROP TABLE categories fires the
+ * `ON DELETE SET NULL` action on every expenses.category_id / recurring_expenses.category_id
+ * row referencing a category — silent data loss. We manage atomicity here
+ * instead of relying on the runner's wrap.
  */
+export const transactional = false;
+
 export async function up(db: Database): Promise<void> {
   const info = await db.get<{ sql: string }>(
     `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'categories'`
@@ -20,42 +28,47 @@ export async function up(db: Database): Promise<void> {
 
   logger.info({ migration: name }, 'rebuilding categories to drop legacy unique constraint');
 
-  // foreign_keys must be off while we rename, otherwise SQLite tries to repoint
-  // referencing tables mid-flight. The runner already wraps this in a BEGIN, so
-  // the manual transaction calls from the original implementation are removed.
-  await db.run(`PRAGMA foreign_keys=OFF`);
+  await db.run(`PRAGMA foreign_keys = OFF`);
   try {
-    await db.exec(`
-      CREATE TABLE categories_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        household_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        emoji TEXT NOT NULL,
-        color TEXT NOT NULL,
-        budget_amount REAL NOT NULL DEFAULT 0,
-        context TEXT NOT NULL DEFAULT 'shared',
-        owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE
-      );
+    await db.exec('BEGIN');
+    try {
+      await db.exec(`
+        CREATE TABLE categories_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          household_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          emoji TEXT NOT NULL,
+          color TEXT NOT NULL,
+          budget_amount REAL NOT NULL DEFAULT 0,
+          context TEXT NOT NULL DEFAULT 'shared',
+          owner_user_id INTEGER REFERENCES app_users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE
+        );
 
-      INSERT INTO categories_new (id, household_id, name, emoji, color, budget_amount, context, owner_user_id, created_at)
-        SELECT id, household_id, name, emoji, color, budget_amount, context, owner_user_id, created_at FROM categories;
+        INSERT INTO categories_new (id, household_id, name, emoji, color, budget_amount, context, owner_user_id, created_at)
+          SELECT id, household_id, name, emoji, color, budget_amount, context, owner_user_id, created_at FROM categories;
 
-      DROP TABLE categories;
-      ALTER TABLE categories_new RENAME TO categories;
+        DROP TABLE categories;
+        ALTER TABLE categories_new RENAME TO categories;
 
-      CREATE INDEX IF NOT EXISTS idx_categories_household_id ON categories(household_id);
-      CREATE INDEX IF NOT EXISTS idx_categories_household_context_owner ON categories(household_id, context, owner_user_id);
-      CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_identity
-        ON categories(household_id, name, context, COALESCE(owner_user_id, -1));
-    `);
-    const fkCheck = await db.all<{ table: string }[]>(`PRAGMA foreign_key_check`);
-    if (fkCheck.length > 0) {
-      throw new Error(`categories rebuild left dangling FKs: ${JSON.stringify(fkCheck)}`);
+        CREATE INDEX IF NOT EXISTS idx_categories_household_id ON categories(household_id);
+        CREATE INDEX IF NOT EXISTS idx_categories_household_context_owner ON categories(household_id, context, owner_user_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_identity
+          ON categories(household_id, name, context, COALESCE(owner_user_id, -1));
+      `);
+
+      const fkCheck = await db.all<{ table: string }[]>(`PRAGMA foreign_key_check`);
+      if (fkCheck.length > 0) {
+        throw new Error(`categories rebuild left dangling FKs: ${JSON.stringify(fkCheck)}`);
+      }
+      await db.exec('COMMIT');
+    } catch (err) {
+      await db.exec('ROLLBACK').catch(() => {});
+      throw err;
     }
   } finally {
-    await db.run(`PRAGMA foreign_keys=ON`);
+    await db.run(`PRAGMA foreign_keys = ON`);
   }
 }
 

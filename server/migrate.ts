@@ -37,6 +37,14 @@ export interface Migration {
   name: string;
   up(db: Database): Promise<void>;
   down(db: Database): Promise<void>;
+  /**
+   * Default `true`: the runner wraps up()/down() in BEGIN/COMMIT and ROLLBACKs
+   * on throw. Set `false` for migrations that need PRAGMAs SQLite refuses to
+   * honor inside a transaction (e.g. `foreign_keys=OFF` — see migration 011).
+   * Non-transactional migrations are responsible for their own atomicity; the
+   * runner still records the migration name after `up()` returns successfully.
+   */
+  transactional?: boolean;
 }
 
 const DEFAULT_DB_PATH = path.join(__dirname, '..', 'nido.db');
@@ -63,6 +71,11 @@ const POST_001_TABLES = [
   'categories',
 ];
 
+// Migration file naming: NNN_descriptive_name.{ts,js} where NNN is exactly
+// three digits. The fixed-width prefix is what gives us deterministic ordering
+// via plain filename sort. If we ever exceed 999 migrations, this regex (and
+// the SCHEMA_MIGRATION_NAMES list) must widen — file names beyond that won't
+// be loaded silently otherwise.
 const MIGRATION_FILE_RE = /^(\d{3})_[A-Za-z0-9_]+\.(ts|js)$/;
 
 async function loadMigrations(): Promise<Migration[]> {
@@ -99,7 +112,12 @@ async function loadMigrations(): Promise<Migration[]> {
     if (!mod.name) throw new Error(`migration ${file} is missing exported "name"`);
     if (typeof mod.up !== 'function') throw new Error(`migration ${file} is missing exported "up"`);
     if (typeof mod.down !== 'function') throw new Error(`migration ${file} is missing exported "down"`);
-    migrations.push({ name: mod.name, up: mod.up, down: mod.down });
+    migrations.push({
+      name: mod.name,
+      up: mod.up,
+      down: mod.down,
+      transactional: mod.transactional,
+    });
   }
   return migrations;
 }
@@ -189,6 +207,11 @@ async function pruneOldBackups(dbPath: string): Promise<void> {
   const dir = path.dirname(dbPath);
   const base = path.basename(dbPath);
   const entries = await fs.readdir(dir);
+  // The ISO timestamp suffix (with `:` and `.` swapped for `-` so Windows
+  // accepts them in a filename) preserves lexicographic ordering — older
+  // backups sort earlier. The first `len - MAX_BACKUPS` entries are the ones
+  // we drop. Don't replace this with parseDate-and-sort unless you also
+  // confirm the suffix format hasn't changed.
   const backups = entries
     .filter((f) => f.startsWith(`${base}.pre-migration-`))
     .sort();
@@ -248,17 +271,33 @@ export async function runPendingMigrations(
 
   const justApplied: string[] = [];
   for (const m of pending) {
-    logger.info({ migration: m.name }, 'applying migration');
-    await db.exec('BEGIN');
-    try {
-      await m.up(db);
+    logger.info({ migration: m.name, transactional: m.transactional !== false }, 'applying migration');
+    if (m.transactional === false) {
+      try {
+        await m.up(db);
+      } catch (err) {
+        logger.error({ err, migration: m.name }, 'migration failed; aborting boot');
+        throw err;
+      }
+      // Recorded outside the migration's own transaction. If this INSERT
+      // throws (unlikely — would mean disk full or DB locked), the migration
+      // is in an "applied but unrecorded" state and will re-run on next boot.
+      // The migration's up() must be re-runnable to make that recovery safe;
+      // 011 is, via the `sqlite_master.sql` legacy-UNIQUE check.
       await db.run(`INSERT INTO migrations (name) VALUES (?)`, m.name);
-      await db.exec('COMMIT');
       justApplied.push(m.name);
-    } catch (err) {
-      await db.exec('ROLLBACK').catch(() => {});
-      logger.error({ err, migration: m.name }, 'migration failed; aborting boot');
-      throw err;
+    } else {
+      await db.exec('BEGIN');
+      try {
+        await m.up(db);
+        await db.run(`INSERT INTO migrations (name) VALUES (?)`, m.name);
+        await db.exec('COMMIT');
+        justApplied.push(m.name);
+      } catch (err) {
+        await db.exec('ROLLBACK').catch(() => {});
+        logger.error({ err, migration: m.name }, 'migration failed; aborting boot');
+        throw err;
+      }
     }
   }
 
@@ -294,16 +333,29 @@ export async function rollbackLast(
     );
   }
 
-  logger.info({ migration: last.name }, 'rolling back migration');
-  await db.exec('BEGIN');
-  try {
-    await last.down(db);
+  logger.info(
+    { migration: last.name, transactional: last.transactional !== false },
+    'rolling back migration'
+  );
+  if (last.transactional === false) {
+    try {
+      await last.down(db);
+    } catch (err) {
+      logger.error({ err, migration: last.name }, 'rollback failed');
+      throw err;
+    }
     await db.run(`DELETE FROM migrations WHERE name = ?`, last.name);
-    await db.exec('COMMIT');
-  } catch (err) {
-    await db.exec('ROLLBACK').catch(() => {});
-    logger.error({ err, migration: last.name }, 'rollback failed');
-    throw err;
+  } else {
+    await db.exec('BEGIN');
+    try {
+      await last.down(db);
+      await db.run(`DELETE FROM migrations WHERE name = ?`, last.name);
+      await db.exec('COMMIT');
+    } catch (err) {
+      await db.exec('ROLLBACK').catch(() => {});
+      logger.error({ err, migration: last.name }, 'rollback failed');
+      throw err;
+    }
   }
   logger.info({ migration: last.name }, 'rollback complete');
   return last.name;
@@ -322,12 +374,18 @@ export async function getStatus(db: Database, options: { migrations?: Migration[
     `SELECT name, applied_at FROM migrations`
   );
   const appliedMap = new Map(appliedRows.map((r) => [r.name, r.applied_at]));
+  const schemaSet = new Set(SCHEMA_MIGRATION_NAMES);
   return migrations.map((m) => {
     const appliedAt = appliedMap.get(m.name) ?? null;
+    // Only schema migrations are eligible for shadow status — a real apply
+    // that somehow lands on the bootstrap timestamp (clock skew, hand-edited
+    // SQL, restore from an ancient backup) for a non-schema migration is
+    // misclassified if we trust the timestamp alone.
+    const isShadow = appliedAt === BOOTSTRAP_SHADOW_TIMESTAMP && schemaSet.has(m.name);
     return {
       name: m.name,
       appliedAt,
-      isShadow: appliedAt === BOOTSTRAP_SHADOW_TIMESTAMP,
+      isShadow,
     };
   });
 }

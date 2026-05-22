@@ -38,7 +38,14 @@ export async function up(db: Database): Promise<void> {
   }
 }
 
-export async function down(db: Database): Promise<void> {
-  // Removes only rows tied to legacy users — leaves any future app_users alone.
-  await db.run(`DELETE FROM app_users WHERE legacy_user_id IS NOT NULL`);
+export async function down(_db: Database): Promise<void> {
+  // `DELETE FROM app_users WHERE legacy_user_id IS NOT NULL` would seem
+  // surgical, but in production every active user (Samuel + María) has a
+  // legacy_user_id, so it would wipe the household and cascade into sessions,
+  // categories.owner_user_id, goals, etc. The runner's in-order rollback rule
+  // makes this hard to reach via the CLI, but refusing is the safer default.
+  throw new Error(
+    '003_sync_app_users_from_legacy is not rollback-safe — removing app_users rows ' +
+      'cascades into sessions/categories/goals and would delete the household.'
+  );
 }
