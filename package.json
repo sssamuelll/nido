@@ -21,6 +21,8 @@
     "test:ci": "vitest run --exclude=src/components/**"
   },
   "dependencies": {
+    "@sentry/node": "^8.55.2",
+    "@sentry/react": "^8.55.2",
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.0",
     "bcryptjs": "^2.4.3",
@@ -43,6 +45,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@sentry/vite-plugin": "^2.23.1",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.0.0",

@@ -1,6 +1,11 @@
+// Must be the very first import: @sentry/node patches `http`/`express` at
+// require time, so any module that pulls those in before instrument.ts has
+// already locked in un-instrumented references. See server/instrument.ts.
+import './instrument.js';
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import express from 'express';
+import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import path from 'path';
 import helmet from 'helmet';
@@ -324,12 +329,28 @@ app.get('/api/household/members', authenticateToken, apiLimiter, async (req: Aut
   }
 });
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Polled by the deploy.yml post-deploy check and (post-merge) an external
+// uptime monitor. `db.get('SELECT 1')` exercises the SQLite handle — a 503
+// here correctly fails the deploy if the DB never initialized, and pages
+// oncall via the uptime tool.
+app.get('/api/health', async (req, res) => {
+  try {
+    const db = getDatabase();
+    await db.get('SELECT 1');
+    res.json({ status: 'ok', db: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    req.log.error({ err }, 'health check db failed');
+    res.status(503).json({ status: 'degraded', db: 'error', timestamp: new Date().toISOString() });
+  }
 });
 
 const clientBuildPath = path.join(__dirname, '../client');
 app.use(express.static(clientBuildPath));
+
+// Captures errors that propagate through `next(err)` from any of the routers
+// above. Pairs with the pino→Sentry hook in logger.ts (which catches manual
+// `req.log.error({err})` calls). Safe no-op when SENTRY_DSN_SERVER is unset.
+Sentry.setupExpressErrorHandler(app);
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
