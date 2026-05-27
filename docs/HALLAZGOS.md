@@ -174,7 +174,9 @@ Sin comentario, el siguiente refactor no puede distinguir si la decisión fue de
 
 Cleanup post-audit: añadir 1 línea de comentario en cada uno de los 7 sitios explicando qué fetch background-tolerante representa. Trabajo trivial (~7 minutos), pero importante para que el patrón sobreviva a la próxima persona/agente.
 
-#### Sub-hallazgo: `{ silent: true }` en mutations user-init de NotificationCenter — Discovered 2026-05-27
+#### Sub-hallazgo: `{ silent: true }` en mutations user-init de NotificationCenter — Resolved 2026-05-27
+
+**Status**: Resolved 2026-05-27 by this PR. Removed `{ silent: true }` from both `markAsRead` (line 39) and `markAllAsRead` (line 49) handlers in `src/components/NotificationCenter.tsx` — they now follow the canonical Cat 3-user-init pattern from AGENTS.md (`handleApiError(err, fallback)` without silent → toast surfaces on failure). Optimistic update was considered and deferred: rolling back state on error would introduce a new pattern to the repo with no precedent, and the simple fix already addresses the documented bug (silent failure on click). If end-users report perceived latency on notification clicks, optimistic update is a trivial follow-up. Body retained below for historical context.
 
 `NotificationCenter.tsx:39` (`markAsRead`) y `:49` (`markAllAsRead`) son **acciones user-init** (Cat 3-user-init en la taxonomía de `AGENTS.md`) pero usan `{ silent: true }`. El flujo es:
 
