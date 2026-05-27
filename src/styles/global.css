@@ -1035,12 +1035,12 @@ a:hover { color: var(--text) }
 }
 
 .dashboard__metric-cards {
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px; margin-bottom: 24px;
 }
 
 .dashboard__bottom {
-  display: grid; grid-template-columns: 1fr 1fr;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -2360,11 +2360,15 @@ input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
   .nido-name .couple-ring { width: 30px; height: 30px; font-size: 12px }
   .nido-name h1 { font-size: 20px }
 
-  /* Grids to single/two column */
+  /* Grids to single/two column — use minmax(0, 1fr) so flex children with
+     min-width:0 can actually shrink. Plain 1fr collapses to minmax(auto, 1fr)
+     and any grid item whose min-content exceeds the track width forces the
+     grid to overflow its container — that was the source of the cards
+     visually sticking out to the right on mobile. */
   .balance-row-3,
   .dashboard__metric-cards,
-  .dashboard__balances { grid-template-columns: 1fr !important }
-  .dashboard__bottom { grid-template-columns: 1fr !important }
+  .dashboard__balances { grid-template-columns: minmax(0, 1fr) !important }
+  .dashboard__bottom { grid-template-columns: minmax(0, 1fr) !important }
   .goals__grid { grid-template-columns: 1fr }
   .stats-row, .goals__stats { display: grid; grid-template-columns: 1fr 1fr }
   .settings-grid, .settings__columns { grid-template-columns: 1fr }
