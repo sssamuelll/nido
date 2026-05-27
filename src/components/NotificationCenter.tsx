@@ -38,7 +38,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
       cacheBus.invalidate(CACHE_KEYS.notifications);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
     } catch (err) {
-      handleApiError(err, 'Error al marcar como leída', { silent: true });
+      // Cat 3-user-init: el click del usuario espera feedback. Sin silent,
+      // handleApiError emite toast para que sepa que la operación falló.
+      handleApiError(err, 'Error al marcar como leída');
     }
   };
 
@@ -48,7 +50,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
       cacheBus.invalidate(CACHE_KEYS.notifications);
       setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
     } catch (err) {
-      handleApiError(err, 'Error al marcar todas como leídas', { silent: true });
+      // Cat 3-user-init: ver markAsRead arriba.
+      handleApiError(err, 'Error al marcar todas como leídas');
     }
   };
 
