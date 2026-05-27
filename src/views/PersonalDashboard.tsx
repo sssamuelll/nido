@@ -59,6 +59,8 @@ export const PersonalDashboard: React.FC = () => {
 
   const loadPersonalDashboard = useCallback(async () => {
     const cycle = await Api.getCurrentCycle().catch((err) => {
+      // Cat 3-auto: cycle fetch es soporte, no la fetch principal del dashboard;
+      // null se acepta y el path de abajo cae a getSummary/getExpenses sin range.
       handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
       return null;
     });

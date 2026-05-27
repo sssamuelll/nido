@@ -17,11 +17,15 @@ Nido muestra fechas en **4 formatos distintos según vista**:
 
 Puede ser intencional o drift de UX. **No se unifica en este refactor — requiere decisión de diseño** ("¿queremos un único formato de fecha cross-app, o cada vista mantiene su propio?"). Si se unifica, tocará al menos firmas: ¿agregamos parámetros (`verbose`, `casing`, `withWeekday`)? ¿o un puñado de helpers nombrados (`formatDayMonth`, `formatWeekdayDay`, etc.)?
 
-### Sub-hallazgo: pattern buggy de "ayer" en History
+### Sub-hallazgo: pattern buggy de "ayer" en History — Resolved 2026-05-27
+
+**Status**: Resolved by PR #232 (`unify/DATE-1-today-yesterday`). El patrón `Date.now() - 86400000` ya no existe en `views/History.tsx`; la lógica de "Ayer" se migró a `lib/dates.yesterdayISO` (DST-safe). Verificación 2026-05-27: grep en `History.tsx` para `86400000`/`yesterday`/`Ayer` no devuelve matches. Body retained below for historical context.
 
 `views/History.tsx:388` calcula yesterday vía `format(new Date(Date.now() - 86400000), 'yyyy-MM-dd')`. En días de cambio de horario en España (2 veces al año) esto cae en el día equivocado. Si en el futuro se unifica esa función con `lib/dates.yesterdayISO`, el fix viene gratis. Bajo impacto (2 días/año, comparación de date string solo afecta el label "Ayer").
 
-### Sub-hallazgo: `todayStr` duplicado en Goals.tsx
+### Sub-hallazgo: `todayStr` duplicado en Goals.tsx — Resolved 2026-05-27
+
+**Status**: Resolved by Date-arc PRs (#232/#249). El `const todayStr` ya no existe en `views/Goals.tsx`; el archivo usa `todayISO()` directamente desde `lib/dates`. Verificación 2026-05-27: `Goals.tsx:30` usa `start_date: todayISO()` en `EMPTY_FORM`. Body retained below for historical context.
 
 `views/Goals.tsx:21` define `const todayStr = () => format(new Date(), 'yyyy-MM-dd');` que es funcionalmente idéntico a `lib/dates.todayISO`. No se reemplazó porque está fuera del scope estricto del eje (function name distinta, no es un copy-paste de la función unificada). Reemplazo trivial en un follow-up.
 
@@ -92,7 +96,9 @@ El componente lee `cycle.requested_by`, pero el server (`server/routes/cycles.ts
 
 ## Eje E.a — hallazgos detectados durante la migración (2026-04-28)
 
-### 1. 14 tests pre-existentes rotos en `main`
+### 1. 14 tests pre-existentes rotos en `main` — Resolved 2026-05-27
+
+**Status**: Resolved 2026-05-27. `npm run test:run` ejecutado en `main` (commit `9403601`) reporta 30/30 archivos verdes, 540/540 tests pasando. Los 14 tests originalmente rotos se resolvieron progresivamente vía PRs #235 (refresh i18n/schema/avatar assertions), #236 (rewrite analytics cycle-based mocks), y #229 (unify D-2). El gate CI activo desde PR #237 previene regresión. Body retained below for historical context.
 
 Detectado al validar Eje E.a. Verificado vía `git stash` que los 14 también fallan en main limpio — **no introducidos por la migración**. Patrón común: rot de tests vs cambios deliberados de comportamiento (refactors de respuesta del server, privacy, schema). No flakes — todos son assertion mismatches reproducibles.
 
@@ -117,7 +123,9 @@ Detectado al validar Eje E.a. Verificado vía `git stash` que los 14 también fa
 
 **Acción sugerida**: PR aparte que actualiza estas 14 aserciones para reflejar el comportamiento actual (o, donde el comportamiento sea regresión, revertirlo). No es trabajo del Eje O.
 
-### 2. `tsc --noEmit` del cliente está roto en este repo
+### 2. `tsc --noEmit` del cliente está roto en este repo — Resolved 2026-04-30
+
+**Status**: Resolved 2026-04-30 by the TS strictness split (PRs #239-#243, ver hallazgo #6) — `typescript` bump a 5.9 (PR #226) + cleanup del backlog + activación del gate `Type-check client` en `.github/workflows/test.yml` (PR #243). Verificación 2026-05-27: `npx tsc --noEmit -p tsconfig.json` reporta exit 0, sin errores. Cross-referenciar con "Process gaps → Client TypeScript not type-checked in CI gate" (también Resolved 2026-04-30). Body retained below for historical context.
 
 Ejecutar `npx tsc --noEmit -p tsconfig.json` falla con 4 errores **en el propio `tsconfig.json`**, antes de tocar código fuente:
 
@@ -147,7 +155,16 @@ Conclusión: **el cliente no se type-checkea en CI/CLI**. Solo el editor (que tr
 
 `src/views/Dashboard.tsx:114` declara `const currentMonth = format(new Date(), 'yyyy-MM');` y la incluye en las deps del `useCallback` de `loadDashboardDataFn` (línea 161). **No se usa en el body del callback**, ni en ninguna otra parte del componente. Es un dep fantasma — heredado del refactor previo cuando el load por mes calendario fue reemplazado por load por ciclo de facturación, y el local quedó sin consumidor. Comportamiento idéntico al de antes (la string es estable dentro del minuto, así que no dispara refetch espurio), pero deuda visible. Cleanup trivial post-audit: borrar la línea y la entrada del array de deps. Fuera del scope de Eje E.a por la regla "cero cambios fuera del eje".
 
-### 5. Eje I — comentario justificando `{ silent: true }` no aplicado uniformemente
+### 5. Eje I — comentario justificando `{ silent: true }` no aplicado uniformemente — Partially Resolved 2026-05-27
+
+**Status**: Partially Resolved 2026-05-27 by this PR. Inventario actualizado vía grep en `src/`:
+
+- **`auth.tsx:57`, `:101`** — ya tenían comentario (pre-existente).
+- **Originales del hallazgo que siguen vivos**: `RecurringSection.tsx:77`, `useCategoryManagement.ts:28` (era :25), `Settings.tsx:243` (era :250), `PersonalDashboard.tsx:62` (era :57). **Comentados en este PR.**
+- **Originales del hallazgo que ya no existen**: `Analytics.tsx:409`, `AddExpense.tsx:60`, `Dashboard.tsx:139`. Eliminados por refactores posteriores (no se necesita acción).
+- **Nuevos sitios silent no contemplados en el hallazgo original**: `NotificationCenter.tsx:23` (load inicial, Cat 3-auto — **comentado en este PR**), `NotificationCenter.tsx:39` y `:49` (markAsRead / markAllAsRead — ver sub-hallazgo nuevo abajo).
+
+Resuelto excepto por los 2 sitios cuestionables de `NotificationCenter` que se documentan como sub-hallazgo separado. Body retained below for historical context.
 
 En `src/auth.tsx:53` y `:94`, los dos sitios silent llevan un comentario en línea explicando **por qué** son silent (bootstrap implícito; logout limpia local state en finally — toast confundiría). En los otros 7 sitios silent migrados en Eje I (RecurringSection.tsx:77, useCategoryManagement.ts:25, Analytics.tsx:409, AddExpense.tsx:60, Settings.tsx:250, PersonalDashboard.tsx:57, Dashboard.tsx:139) **no hay comentario equivalente** — el `{ silent: true }` queda sin justificación textual.
 
@@ -156,6 +173,26 @@ Sin comentario, el siguiente refactor no puede distinguir si la decisión fue de
 - O añadir flag a sitios nuevos sin pensar (degradar la observabilidad si era Cat 2 o 3-user-init).
 
 Cleanup post-audit: añadir 1 línea de comentario en cada uno de los 7 sitios explicando qué fetch background-tolerante representa. Trabajo trivial (~7 minutos), pero importante para que el patrón sobreviva a la próxima persona/agente.
+
+#### Sub-hallazgo: `{ silent: true }` en mutations user-init de NotificationCenter — Discovered 2026-05-27
+
+`NotificationCenter.tsx:39` (`markAsRead`) y `:49` (`markAllAsRead`) son **acciones user-init** (Cat 3-user-init en la taxonomía de `AGENTS.md`) pero usan `{ silent: true }`. El flujo es:
+
+```ts
+const markAsRead = async (id: number) => {
+  try {
+    await Api.markNotificationAsRead(id);            // espera al server
+    cacheBus.invalidate(CACHE_KEYS.notifications);
+    setNotifications(prev => prev.map(...));         // actualiza state SOLO si éxito
+  } catch (err) {
+    handleApiError(err, 'Error al marcar como leída', { silent: true });
+  }
+};
+```
+
+**Síntoma observable si falla**: el usuario hace click sobre la notificación, el state local NO se actualiza (porque está después del `await`), y no hay toast. Visualmente parece que el click no tuvo efecto. El usuario podría volver a clickear o asumir que la notificación quedó leída — sin manera de saber que el server rechazó la operación.
+
+**Decisión por revisar**: aquí silent contradice el principio "si el usuario está esperando feedback, dáselo" del AGENTS.md. Las 5 sitios load-background sí son Cat 3-auto correctamente; estos 2 son drift. No se corrige en este PR para mantener el alcance ("doc + fixes triviales") y porque cambiar la decisión requiere considerar el flujo completo (¿toast? ¿optimistic update?). Trigger para acción: cualquier PR que toque `NotificationCenter`, o un bug reportado de "click en notificación parece no funcionar".
 
 ### 6. Deuda de strictness TS — 31 errores latentes tras bump a TS 5.9.3 — Resolved 2026-04-30
 

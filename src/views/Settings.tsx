@@ -240,6 +240,8 @@ export const Settings: React.FC = () => {
 
   const loadDataFn = useCallback(async () => {
     const cycle = await Api.getCurrentCycle().catch((err) => {
+      // Cat 3-auto: cycle fetch es metadata para la sección de info de Settings;
+      // null se acepta y la UI omite el bloque dependiente de ciclo.
       handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
       return null;
     });

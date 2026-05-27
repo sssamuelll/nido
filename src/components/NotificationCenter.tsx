@@ -20,6 +20,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
       const data = await Api.getNotifications();
       setNotifications(data);
     } catch (err) {
+      // Cat 3-auto: load inicial del panel; el render path muestra loading→empty
+      // si falla (sin notificaciones cargadas el panel ya transmite el estado).
       handleApiError(err, 'Error al cargar notificaciones', { silent: true });
     } finally {
       setLoading(false);

@@ -74,6 +74,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     const [recurring, currentCycle] = await Promise.all([
       Api.getRecurring(),
       Api.getCurrentCycle().catch((err) => {
+        // Cat 3-auto: cycle fetch es soporte del listado de recurrentes;
+        // null se acepta y los lectores aguas abajo usan cycle?.* (UI tolerante).
         handleApiError(err, 'Error al cargar ciclo activo', { silent: true });
         return null;
       }),
