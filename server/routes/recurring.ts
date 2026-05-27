@@ -176,28 +176,42 @@ router.put('/:id', validate(recurringExpenseUpdateSchema), async (req: AuthReque
       }
     }
 
-    await db.run(
-      `UPDATE recurring_expenses SET
-        name = COALESCE(?, name),
-        emoji = COALESCE(?, emoji),
-        amount = COALESCE(?, amount),
-        category = COALESCE(?, category),
-        category_id = COALESCE(?, category_id),
-        type = COALESCE(?, type),
-        notes = CASE WHEN ?1 = 1 THEN ?2 ELSE notes END,
-        every_n_cycles = COALESCE(?, every_n_cycles)
-      WHERE id = ?`,
-      data.name,
-      data.emoji,
-      data.amount,
-      data.category,
-      categoryId ?? null,
-      data.type,
-      data.notes !== undefined ? 1 : 0,
-      data.notes !== undefined ? (data.notes ?? null) : null,
-      data.every_n_cycles ?? null,
-      id
-    );
+    // Build the UPDATE dynamically so we only touch fields the caller sent.
+    // Previously this used `COALESCE(?, col)` plus a `CASE WHEN ?1 = 1 THEN ?2`
+    // trick to distinguish "notes omitted" from "notes set to null". That
+    // collided positional ? with named ?1/?2 binding name/emoji as the flag and
+    // value of notes — SQLite then mismatched the trailing every_n_cycles and
+    // id placeholders, raising SQLITE_RANGE on every edit. See PR fixing
+    // Maria's "Error al guardar" report.
+    const updates: string[] = [];
+    const args: Array<string | number | null> = [];
+    const setField = (col: string, value: string | number | null | undefined) => {
+      if (value === undefined) return;
+      updates.push(`${col} = ?`);
+      args.push(value);
+    };
+    setField('name', data.name);
+    setField('emoji', data.emoji);
+    setField('amount', data.amount);
+    setField('category', data.category);
+    if (data.category !== undefined || data.category_id !== undefined) {
+      updates.push('category_id = ?');
+      args.push(categoryId ?? null);
+    }
+    setField('type', data.type);
+    if (data.notes !== undefined) {
+      updates.push('notes = ?');
+      args.push(data.notes ?? null);
+    }
+    setField('every_n_cycles', data.every_n_cycles);
+
+    if (updates.length > 0) {
+      args.push(id);
+      await db.run(
+        `UPDATE recurring_expenses SET ${updates.join(', ')} WHERE id = ?`,
+        ...args
+      );
+    }
 
     const updated = await db.get('SELECT * FROM recurring_expenses WHERE id = ?', id);
     res.json(updated);
