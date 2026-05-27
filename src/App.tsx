@@ -77,7 +77,9 @@ const AppRoutes: React.FC = () => {
     <div id="confetti-container" className="confetti-container" />
     <div className="toast" id="global-toast">
       <div className="toast-icon">
-        <svg width="16" height="16" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2.5}><path d="M5 13l4 4L19 7" /></svg>
+        <svg className="toast-icon__svg toast-icon__svg--success" width="16" height="16" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M5 13l4 4L19 7" /></svg>
+        <svg className="toast-icon__svg toast-icon__svg--error" width="16" height="16" fill="none" stroke="#F87171" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <svg className="toast-icon__svg toast-icon__svg--info" width="16" height="16" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>
       </div>
       <span id="global-toast-msg"></span>
     </div>
