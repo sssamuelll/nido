@@ -25,6 +25,8 @@ export const useCategoryManagement = (context: 'shared' | 'personal' = 'shared')
         })));
       })
       .catch((err) => {
+        // Cat 3-auto: hook compartido por múltiples views vía cacheBus.subscribe;
+        // el fallback a lista vacía abajo es el indicador visual de la falla.
         handleApiError(err, 'Error al cargar categorías', { silent: true });
         setCategories([]);
       });
