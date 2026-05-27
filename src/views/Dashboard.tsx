@@ -123,10 +123,17 @@ export const Dashboard: React.FC = () => {
     : personalRecentTxRaw.length;
   const metricBudgetTarget = activeContext === 'shared' ? availableSharedRaw : personalBudgetRaw;
   const metricSpentTarget = activeContext === 'shared' ? totalSharedSpentRaw : personalSpentRaw;
+  // Card 1 ("Presupuesto compartido") now leads with what's left, not the
+  // total — the total was redundant info next to a "€X gastados" line that
+  // already lives in card 2. useCountUp clamps negatives to 0, so when the
+  // household has overspent the big number reads €0 and the subtitle takes
+  // over with "excedido por €X" (red). See Maria's Trello "Arreglar
+  // Visualización de montos en el Dashboard" for the product call.
+  const metricRemainingTarget = Math.max(0, metricBudgetTarget - metricSpentTarget);
   const metricAvgTarget = activeContext === 'shared'
     ? (sharedMonthTransactions.length > 0 ? Math.round(sharedMonthTransactions.reduce((sum: number, t: VisibleExpense) => sum + toNum(t.amount), 0) / sharedMonthTransactions.length) : 0)
     : (personalTxCountRaw > 0 ? Math.round(personalSpentRaw / personalTxCountRaw) : 0);
-  const animBudget = useCountUp(metricBudgetTarget);
+  const animRemaining = useCountUp(metricRemainingTarget);
   const animSpent = useCountUp(metricSpentTarget);
   const animAvg = useCountUp(metricAvgTarget);
 
@@ -277,25 +284,32 @@ export const Dashboard: React.FC = () => {
         <div className="dashboard__metric-cards an d3">
           <div className="card metric-card" style={{ '--metric-glow': 'rgba(96,165,250,.15)' } as React.CSSProperties}>
             <div className="accent-bar" style={{ background: '#60A5FA', boxShadow: '0 0 8px #60A5FA' }} />
-            <div className="label">{activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}</div>
+            <div className="label">{activeContext === 'shared' ? 'Disponible compartido' : 'Disponible personal'}</div>
             <div style={{ fontSize: '32px', fontWeight: 700 }}>
-              {formatMoney(animBudget)}
+              {formatMoney(animRemaining)}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ts)', marginTop: '8px' }}>
               {(() => {
                 const budget = activeContext === 'shared' ? availableShared : toNum(data?.personal?.budget);
                 const spent = activeContext === 'shared' ? totalSharedSpent : toNum(data?.personal?.spent);
-                const remaining = budget - spent;
-                const pct = budget > 0 ? Math.round((remaining / budget) * 100) : 0;
+                const overspent = spent - budget;
+                const pct = budget > 0 ? Math.max(0, Math.round(((budget - spent) / budget) * 100)) : 0;
+                const totalLabel = activeContext === 'shared' ? 'compartidos' : 'personales';
+                if (overspent > 0) {
+                  return (
+                    <>
+                      de <strong style={{ color: 'var(--text)', fontWeight: 500 }}>{formatMoney(budget)}</strong> {totalLabel}
+                      {' · '}
+                      <span style={{ color: 'var(--red)', fontWeight: 500 }}>
+                        excedido por {formatMoney(overspent)}
+                      </span>
+                    </>
+                  );
+                }
                 return (
                   <>
-                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>
-                      {formatMoney(spent)} gastados
-                    </span>
-                    {' '}· <span style={{ color: remaining >= 0 ? 'var(--ts)' : 'var(--red)', fontWeight: 500 }}>
-                      {formatMoney(Math.abs(remaining))} {remaining >= 0 ? 'disponible' : 'excedido'}
-                    </span>
-                    {' '}({pct}%)
+                    de <strong style={{ color: 'var(--text)', fontWeight: 500 }}>{formatMoney(budget)}</strong> {totalLabel}
+                    {' · '}{pct}% restante
                   </>
                 );
               })()}
