@@ -1,143 +1,159 @@
 import React, { useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Api } from '../api';
-import { ChevronLeft } from 'lucide-react';
 import { formatMoney, formatMoneyExact } from '../lib/money';
 import { formatDayLabelWithWeekday } from '../lib/dates';
-import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorView } from '../components/ErrorView';
 import { useResource } from '../hooks/useResource';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { CACHE_KEYS } from '../lib/cacheBus';
+import { NidoShell } from '../components/nido/NidoShell';
+import { Card, Eyebrow, Pill, Bar, CatIcon, Txn, Who, Icon } from '../components/nido';
 
-interface EventCategoryRow {
-  category: string;
-  total: number;
-  emoji: string | null;
-  color: string | null;
-}
+interface EventCategoryRow { category: string; total: number; emoji: string | null; color: string | null }
+interface EventExpense { id: number; description: string; amount: number; category: string; date: string; paid_by: string }
 
-interface EventExpense {
-  id: number; description: string; amount: number; category: string; date: string; paid_by: string;
-}
+const FALLBACK_COLOR = 'var(--clay)';
+const toNum = (v: unknown, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
-const FALLBACK_CATEGORY_COLOR = '#60A5FA';
-
-const EventDonut: React.FC<{ categories: EventCategoryRow[] }> = ({ categories }) => {
-  const total = categories.reduce((s, c) => s + (c.total ?? 0), 0);
-  if (total === 0) return null;
-  const size = 200, cx = size / 2, cy = size / 2, r = 70;
-  const circumference = 2 * Math.PI * r;
-  let offset = 0;
-
+/* paper donut, same shape as Analytics' */
+const EventDonut: React.FC<{ categories: EventCategoryRow[]; total: number }> = ({ categories, total }) => {
+  if (total <= 0) return null;
+  const size = 180, cx = size / 2, cy = size / 2, r = (size / 2) - 20;
+  const c = 2 * Math.PI * r;
+  let acc = 0;
   return (
-    <div className="ev-donut-section">
-      <svg viewBox={`0 0 ${size} ${size}`} className="ev-donut-svg">
-        {categories.map((cat, i) => {
-          const amount = cat.total ?? 0;
-          const pct = amount / total;
-          const dash = pct * circumference;
-          const gap = circumference - dash;
-          const currentOffset = offset;
-          offset += dash;
-          return (
-            <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={cat.color ?? FALLBACK_CATEGORY_COLOR} strokeWidth="24"
-              strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-currentOffset}
-              style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
-          );
-        })}
-        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--text)" fontSize="20" fontWeight="700">
-          {formatMoney(total)}
-        </text>
-        <text x={cx} y={cy + 14} textAnchor="middle" fill="var(--ts)" fontSize="11">gastado</text>
-      </svg>
-      <div className="ev-donut-legend">
-        {categories.map((cat, i) => {
-          const amount = cat.total ?? 0;
-          const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
-          return (
-            <div key={i} className="ev-donut-legend__item">
-              <span className="ev-donut-legend__emoji">{cat.emoji ?? '📂'}</span>
-              <span className="ev-donut-legend__name">{cat.category}:</span>
-              <span className="ev-donut-legend__amount">{formatMoney(amount)}</span>
-              <span className="ev-donut-legend__pct">({pct}%)</span>
-              <div className="ev-donut-legend__bar" style={{ '--bar-color': cat.color ?? FALLBACK_CATEGORY_COLOR } as React.CSSProperties} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--inset)" strokeWidth={20} />
+      {categories.map((cat, i) => {
+        const frac = Math.max(0, toNum(cat.total) / total);
+        const dash = frac * c;
+        const el = (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={cat.color ?? FALLBACK_COLOR} strokeWidth={20}
+            strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-(acc / total) * c} transform={`rotate(-90 ${cx} ${cy})`} />
+        );
+        acc += toNum(cat.total);
+        return el;
+      })}
+      <text x={cx} y={cy - 2} textAnchor="middle" className="serif" style={{ fontSize: 26, fill: 'var(--ink)' }}>{formatMoney(total)}</text>
+      <text x={cx} y={cy + 18} textAnchor="middle" style={{ fontSize: 11.5, fill: 'var(--ink-3)' }}>gastado</text>
+    </svg>
   );
 };
+
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 export const EventDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const loadEvent = useCallback(() => Api.getEventDetail(Number(id)), [id]);
-  const { data, loading } = useResource<any>(loadEvent, {
-    invalidationKeys: [CACHE_KEYS.events, CACHE_KEYS.expenses],
+  const isMobile = useIsMobile();
+  const eventId = Number(id);
+
+  const loadDetail = useCallback(() => Api.getEventDetail(eventId), [eventId]);
+  const { data, loading, error, reload } = useResource(loadDetail, {
+    fallbackMessage: 'Error al cargar el evento',
+    invalidationKey: CACHE_KEYS.events,
   });
 
-  if (loading) return <LoadingScreen />;
-  if (!data) return <ErrorView message="Evento no encontrado" />;
+  const back = (
+    <button type="button" aria-label="Volver" onClick={() => navigate(-1)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-2)', background: 'none', border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+      <Icon.back /> Volver
+    </button>
+  );
 
-  const { event, kpis, categories, expenses } = data;
-  // The API may return categories as "categories" or "categoryBreakdown" — handle both
-  const cats: EventCategoryRow[] = categories || data.categoryBreakdown || [];
-  const exps: EventExpense[] = expenses || [];
-  const pctUsed = kpis.budget > 0 ? Math.round((kpis.spent / kpis.budget) * 100) : 0;
+  const screen = (inner: React.ReactNode) => {
+    const body = <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>{back}{inner}</div>;
+    if (isMobile) return <div className="nido grain" style={{ minHeight: '100vh' }}><div style={{ padding: '16px 20px 40px' }}>{body}</div></div>;
+    return <NidoShell>{body}</NidoShell>;
+  };
 
-  const grouped: Record<string, EventExpense[]> = {};
-  for (const exp of exps) { if (!grouped[exp.date]) grouped[exp.date] = []; grouped[exp.date].push(exp); }
-  const dateGroups = Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
+  if (loading) return screen(<div className="card" style={{ height: 260, opacity: 0.5 }} />);
+  if (error || !data) return screen(<ErrorView message={error || 'Evento no encontrado'} onRetry={reload} />);
 
-  return (
+  const { event, categories, expenses } = data as {
+    event: { id: number; name: string; emoji: string; budget_amount: number; total_spent: number; start_date: string; end_date: string };
+    categories: EventCategoryRow[];
+    expenses: EventExpense[];
+  };
+
+  const spent = toNum(event.total_spent);
+  const budget = toNum(event.budget_amount);
+  const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+  const over = budget > 0 && spent > budget;
+  const remaining = Math.max(0, budget - spent);
+  const catTotal = categories.reduce((s, c) => s + toNum(c.total), 0);
+
+  return screen(
     <>
-      <div className="topbar">
-        <button className="ev-back" onClick={() => navigate('/')}>
-          <ChevronLeft size={18} /> Volver al dashboard
-        </button>
-      </div>
-      <h1 className="ev-title">{event.emoji} {event.name}</h1>
-      <div className="ev-kpis">
-        <div className="card ev-kpi">
-          <div className="ev-kpi__label">Presupuesto Total</div>
-          <div className="ev-kpi__value">{formatMoney(kpis.budget)}</div>
-          <div className="ev-kpi__bar"><div className="ev-kpi__bar-fill ev-kpi__bar-fill--neutral" style={{ width: `${pctUsed}%` }} /></div>
-          <div className="ev-kpi__sub">{pctUsed}%</div>
-        </div>
-        <div className="card ev-kpi">
-          <div className="ev-kpi__label">Gastado</div>
-          <div className="ev-kpi__value" style={{ color: 'var(--green)' }}>{formatMoney(kpis.spent)}</div>
-          <div className="ev-kpi__bar"><div className="ev-kpi__bar-fill ev-kpi__bar-fill--green" style={{ width: `${pctUsed}%` }} /></div>
-        </div>
-        <div className="card ev-kpi">
-          <div className="ev-kpi__label">Restante</div>
-          <div className="ev-kpi__value" style={{ color: kpis.remaining < 0 ? 'var(--red)' : 'var(--orange)' }}>{formatMoney(Math.abs(kpis.remaining))}</div>
-          <div className="ev-kpi__bar"><div className="ev-kpi__bar-fill ev-kpi__bar-fill--orange" style={{ width: `${Math.max(0, 100 - pctUsed)}%` }} /></div>
+      {/* header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+        <CatIcon tone="plum" size={52} radius={16}><span style={{ fontSize: 26 }}>{event.emoji || '📅'}</span></CatIcon>
+        <div style={{ minWidth: 0 }}>
+          <h1 className="serif" style={{ fontSize: isMobile ? 26 : 34, lineHeight: 1 }}>{event.name}</h1>
+          <div className="psub" style={{ marginTop: 3 }}>{formatDayLabelWithWeekday(event.start_date)} — {formatDayLabelWithWeekday(event.end_date)}</div>
         </div>
       </div>
-      {cats.length > 0 && <div className="card ev-breakdown"><EventDonut categories={cats} /></div>}
-      <div className="card ev-transactions">
-        <h3>Transacciones del evento</h3>
-        {dateGroups.length === 0 && <div className="empty-view"><div className="empty-view__text">No hay gastos registrados en este evento</div></div>}
-        {dateGroups.map(([date, exps]) => (
-          <div key={date}>
-            <div className="ev-date-label">{formatDayLabelWithWeekday(date)}</div>
-            {exps.map(exp => (
-              <div key={exp.id} className="ev-expense-row">
-                <div className="ev-expense-row__left">
-                  <div className="ev-expense-row__desc">{exp.description}</div>
-                  <div className="ev-expense-row__cat">{exp.category}</div>
-                </div>
-                <div className="ev-expense-row__right">
-                  <div className="ev-expense-row__amount">−{formatMoneyExact(exp.amount)}</div>
-                  <div className="ev-expense-row__who">{exp.paid_by}</div>
-                </div>
-              </div>
-            ))}
+
+      {/* budget hero */}
+      <Card pad style={{ marginBottom: 18, background: over ? 'linear-gradient(140deg, var(--surface) 55%, var(--honey-tint))' : 'linear-gradient(140deg, var(--surface) 60%, var(--pine-tint))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+          <Eyebrow>Presupuesto del evento</Eyebrow>
+          {budget <= 0 ? <Pill tone="mute">sin tope</Pill> : over ? <Pill tone="over">excedido</Pill> : <Pill tone="ok">{Math.max(0, 100 - pct)}% disponible</Pill>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 12 }}>
+          <span style={{ fontSize: isMobile ? 40 : 48, fontWeight: 700, lineHeight: 0.9, letterSpacing: '-.02em' }}>{formatMoney(spent)}</span>
+          {budget > 0 ? <span style={{ color: 'var(--ink-2)', marginBottom: 6 }}>de {formatMoney(budget)}</span> : null}
+        </div>
+        <Bar pct={budget > 0 ? Math.min(100, pct) : 0} over={over} fill="pine" height={9} />
+        <div style={{ fontSize: 13, marginTop: 10, color: 'var(--ink-2)' }}>
+          {over
+            ? <>Se ha pasado <b style={{ color: 'var(--honey)' }}>{formatMoney(spent - budget)}</b> del tope</>
+            : budget > 0
+              ? <>Quedan <b style={{ color: 'var(--pine-2)' }}>{formatMoney(remaining)}</b></>
+              : <>Sin presupuesto fijado para este evento</>}
+        </div>
+      </Card>
+
+      {/* by category */}
+      {categories.length > 0 && catTotal > 0 ? (
+        <Card pad style={{ marginBottom: 18 }}>
+          <h3 className="serif" style={{ fontSize: 20, marginBottom: 6 }}>Por categoría</h3>
+          <div style={{ display: 'grid', placeItems: 'center', marginBottom: 6 }}>
+            <EventDonut categories={categories} total={catTotal} />
           </div>
-        ))}
-      </div>
+          {categories.map((cat, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: cat.color ?? FALLBACK_COLOR, flex: '0 0 auto' }} />
+              <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{cat.emoji ? `${cat.emoji} ` : ''}{cat.category}</span>
+              <span style={{ fontSize: 12.5, color: 'var(--ink-3)', minWidth: 34, textAlign: 'right' }}>{Math.round((toNum(cat.total) / catTotal) * 100)}%</span>
+              <span style={{ fontSize: 13.5, fontWeight: 700, minWidth: 56, textAlign: 'right' }}>{formatMoney(toNum(cat.total))}</span>
+            </div>
+          ))}
+        </Card>
+      ) : null}
+
+      {/* expenses */}
+      <Card pad>
+        <h3 className="serif" style={{ fontSize: 20, marginBottom: 6 }}>Gastos del evento</h3>
+        {expenses.length === 0 ? (
+          <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 14 }}>Aún no hay gastos en este evento.</div>
+        ) : (
+          expenses.map((exp) => {
+            const who = exp.paid_by === 'maria' ? 'María' : exp.paid_by === 'samuel' ? 'Samuel' : cap(exp.paid_by || '—');
+            const mine = exp.paid_by === 'samuel';
+            return (
+              <Txn key={exp.id}>
+                <div className="meta">
+                  <div className="name">{exp.description}</div>
+                  <div className="sub">{exp.category}</div>
+                </div>
+                <Who mine={mine}>{who}</Who>
+                <div className="amt amt-neg" style={{ minWidth: 78, textAlign: 'right' }}>−{formatMoneyExact(toNum(exp.amount))}</div>
+              </Txn>
+            );
+          })
+        )}
+      </Card>
     </>
   );
 };

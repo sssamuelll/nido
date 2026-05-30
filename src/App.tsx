@@ -5,9 +5,6 @@ import { Login } from './views/Login';
 import { Setup } from './views/Setup';
 import { Invite } from './views/Invite';
 import { PinPage } from './views/PinPage';
-import { BottomNav } from './components/BottomNav';
-import { Sidebar } from './components/Sidebar';
-import { MeshBackground } from './components/MeshBackground';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { LoadingScreen } from './components/LoadingScreen';
 import { NidoShell } from './components/nido/NidoShell';
@@ -68,8 +65,6 @@ const AppRoutes: React.FC = () => {
   if (isLocked) {
     return <PinPage />;
   }
-
-  const isAddView = location.pathname === '/add';
 
   // Redesigned routes render the warm paper UI and skip the legacy glass chrome.
   // Un-migrated routes keep Sidebar/BottomNav. This grows one screen per PR
@@ -148,30 +143,22 @@ const AppRoutes: React.FC = () => {
     );
   }
 
-  return (
-    <>
-    <MeshBackground />
-    <div className="app-layout">
-      <Sidebar />
-      <div className="content-area" key={location.pathname}>
-        <Routes>
-          <Route path="/" element={<Dashboard key={refreshKey} />} />
-          <Route path="/personal" element={<Navigate to="/" replace />} />
-          <Route path="/history" element={<History key={refreshKey} />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/add" element={<AddExpense />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/events/:id" element={<EventDetail />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-      {!isAddView && <BottomNav />}
-    </div>
-    <div id="confetti-container" className="confetti-container" />
-    <GlobalToast />
-    </>
-  );
+  // Event detail: dynamic route, brings its own chrome (rail on desktop, bare
+  // back-arrow screen on mobile), like Nuevo gasto.
+  if (location.pathname.startsWith('/events/')) {
+    return (
+      <>
+        <EventDetail />
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  // Every real route is handled by a redesigned branch above. Anything left
+  // (/personal, unknown paths) redirects home. The legacy glass shell
+  // (MeshBackground/Sidebar/BottomNav) is gone.
+  return <Navigate to="/" replace />;
 };
 
 const App: React.FC = () => {
