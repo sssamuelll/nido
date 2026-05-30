@@ -1,17 +1,17 @@
 import React, { useCallback, useState } from 'react';
-import { GoalCard } from '../components/GoalCard';
-import { EmojiPicker } from '../components/EmojiPicker';
 import { type Goal } from '../types';
 import { Api } from '../api';
+import { EmojiPicker } from '../components/EmojiPicker';
 import { launchConfetti } from '../components/Confetti';
 import { showToast } from '../components/Toast';
 import { formatDayLabel, todayISO } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
 import { useResource } from '../hooks/useResource';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import { ErrorView } from '../components/ErrorView';
-
+import { Card, Eyebrow, Pill, Btn, Seg, StatCard, GoalCard as NidoGoalCard, Icon, CONTEXT_SEG_OPTIONS } from '../components/nido';
 
 interface GoalFormData {
   name: string;
@@ -20,42 +20,47 @@ interface GoalFormData {
   start_date: string;
   deadline: string;
   owner_type: 'shared' | 'personal';
-  color: string;
 }
 
 const EMPTY_FORM: GoalFormData = {
-  name: '',
-  icon: '✨',
-  target: '',
-  start_date: todayISO(),
-  deadline: '',
-  owner_type: 'shared',
-  color: '#60A5FA',
+  name: '', icon: '✨', target: '', start_date: todayISO(), deadline: '', owner_type: 'shared',
 };
 
+/* warm palette assigned per-goal by index (the data has no colour) */
+const GOAL_COLORS = ['var(--clay)', 'var(--pine)', 'var(--plum)', 'var(--honey)', 'var(--berry)'];
+
 export const Goals: React.FC = () => {
+  const isMobile = useIsMobile();
   const loadGoals = useCallback(() => Api.getGoals(), []);
-  const { data: goalsData, loading, error, reload: fetchGoals } =
-    useResource<Goal[]>(loadGoals, {
-      fallbackMessage: 'Error al cargar objetivos',
-      invalidationKey: CACHE_KEYS.goals,
-    });
+  const { data: goalsData, loading, error, reload: fetchGoals } = useResource<Goal[]>(loadGoals, {
+    fallbackMessage: 'Error al cargar objetivos',
+    invalidationKey: CACHE_KEYS.goals,
+  });
   const goals = goalsData ?? [];
 
+  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [formData, setFormData] = useState<GoalFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [showStartDate, setShowStartDate] = useState(false);
-  const [activeContext, setActiveContext] = useState<'shared' | 'personal'>('shared');
   const [contributeGoal, setContributeGoal] = useState<Goal | null>(null);
   const [contributeAmount, setContributeAmount] = useState('');
   const [contributing, setContributing] = useState(false);
 
-  const openContributeModal = (goal: Goal) => {
-    setContributeGoal(goal);
-    setContributeAmount('50');
-    setContributing(false);
+  const filteredGoals = goals.filter((g) => g.owner_type === activeContext);
+  const totalSaved = filteredGoals.reduce((sum, g) => sum + g.current, 0);
+  const totalTarget = filteredGoals.reduce((sum, g) => sum + g.target, 0);
+  const nextDeadlineGoal = filteredGoals.filter((g) => g.deadline).sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))[0] ?? null;
+
+  const openContributeModal = (goal: Goal) => { setContributeGoal(goal); setContributeAmount('50'); setContributing(false); };
+  const openCreateModal = () => { setEditingGoal(null); setFormData({ ...EMPTY_FORM, owner_type: activeContext }); setShowStartDate(false); setShowCreateModal(true); };
+
+  const handleEdit = (goal: Goal) => {
+    setEditingGoal(goal);
+    setFormData({ name: goal.name, icon: goal.icon, target: String(goal.target), start_date: goal.start_date || '', deadline: goal.deadline || '', owner_type: goal.owner_type });
+    setShowStartDate(!!goal.start_date);
+    setShowCreateModal(true);
   };
 
   const handleContributeSubmit = async () => {
@@ -68,39 +73,20 @@ export const Goals: React.FC = () => {
       cacheBus.invalidate(CACHE_KEYS.goals);
       setContributeGoal(null);
       launchConfetti();
-      showToast(`¡€${amount} añadidos a ${contributeGoal.name}! 🚀`, 'success');
+      showToast(`Has aportado ${formatMoney(amount)} a ${contributeGoal.name}`, 'success');
     } catch (err) {
-      handleApiError(err, 'Error al contribuir');
-    } finally {
-      setContributing(false);
-    }
-  };
-
-  const handleEdit = (goal: Goal) => {
-    setEditingGoal(goal);
-    setFormData({
-      name: goal.name,
-      icon: goal.icon,
-      target: String(goal.target),
-      start_date: goal.start_date || '',
-      deadline: goal.deadline || '',
-      owner_type: goal.owner_type,
-      color: '#60A5FA',
-    });
-    setShowStartDate(!!goal.start_date);
-    setShowCreateModal(true);
+      handleApiError(err, 'Error al aportar');
+    } finally { setContributing(false); }
   };
 
   const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar este objetivo? Esta acción no se puede deshacer.')) return;
     try {
       await Api.deleteGoal(id);
       cacheBus.invalidate(CACHE_KEYS.goals);
-      setShowCreateModal(false);
-      setEditingGoal(null);
+      setShowCreateModal(false); setEditingGoal(null);
       showToast('Objetivo eliminado', 'success');
-    } catch (err) {
-      handleApiError(err, 'Error al eliminar');
-    }
+    } catch (err) { handleApiError(err, 'Error al eliminar'); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,331 +95,206 @@ export const Goals: React.FC = () => {
     try {
       if (editingGoal) {
         await Api.updateGoal(editingGoal.id, {
-          name: formData.name,
-          icon: formData.icon,
-          target: Number(formData.target),
-          start_date: formData.start_date || null,
-          deadline: formData.deadline || null,
+          name: formData.name, icon: formData.icon, target: Number(formData.target),
+          start_date: formData.start_date || null, deadline: formData.deadline || null,
         });
         cacheBus.invalidate(CACHE_KEYS.goals);
         showToast('Objetivo actualizado', 'success');
       } else {
         await Api.createGoal({
-          name: formData.name,
-          icon: formData.icon,
-          target: Number(formData.target),
-          start_date: formData.start_date || undefined,
-          deadline: formData.deadline || undefined,
+          name: formData.name, icon: formData.icon, target: Number(formData.target),
+          start_date: formData.start_date || undefined, deadline: formData.deadline || undefined,
           owner_type: formData.owner_type,
         });
         cacheBus.invalidate(CACHE_KEYS.goals);
-        showToast('¡Nuevo objetivo creado!', 'success');
+        showToast('Nuevo objetivo creado', 'success');
       }
-      setShowCreateModal(false);
-      setEditingGoal(null);
-      setFormData(EMPTY_FORM);
+      setShowCreateModal(false); setEditingGoal(null); setFormData(EMPTY_FORM);
     } catch (err) {
       handleApiError(err, 'Error al guardar objetivo');
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
-  const openCreateModal = () => {
-    setEditingGoal(null);
-    setFormData(EMPTY_FORM);
-    setShowStartDate(false);
-    setShowCreateModal(true);
-  };
+  const header = (
+    <div style={{ display: 'flex', alignItems: isMobile ? 'center' : 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: isMobile ? 14 : 20 }}>
+      <div>
+        <h1 className={isMobile ? 'serif' : 'ptitle'} style={isMobile ? { fontSize: 26, lineHeight: 1 } : undefined}>Objetivos</h1>
+        <div className="psub" style={isMobile ? { fontSize: 12, marginTop: 2 } : undefined}>Vuestras metas de ahorro, juntos</div>
+      </div>
+      {!isMobile ? <Btn variant="pine" onClick={openCreateModal}><Icon.plusS /> Nuevo objetivo</Btn> : null}
+    </div>
+  );
 
-  const filteredGoals = goals.filter(g => g.owner_type === activeContext);
-
-  const totalSaved = filteredGoals.reduce((sum, g) => sum + g.current, 0);
-  const activeGoals = filteredGoals.length;
-  const nextDeadline = filteredGoals
-    .filter(g => g.deadline)
-    .sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''))[0]?.deadline || '-';
-
-  const summaryStats = [
-    { label: 'TOTAL AHORRADO', value: formatMoney(totalSaved), color: 'var(--green)' },
-    { label: 'OBJ. ACTIVOS', value: String(activeGoals), color: undefined },
-    { label: 'MEJOR RACHA', value: filteredGoals.length > 0 ? `${filteredGoals.length} obj` : '-', color: 'var(--orange)' },
-    { label: 'PRÓXIMO HITO', value: nextDeadline, color: 'var(--red)' },
-  ];
-  const col1Goals = filteredGoals.filter((_, i) => i % 2 === 0);
-  const col2Goals = filteredGoals.filter((_, i) => i % 2 === 1);
+  const contextRow = (
+    <div style={{ marginBottom: isMobile ? 14 : 20 }}>
+      <Seg value={activeContext} options={CONTEXT_SEG_OPTIONS} onChange={setActiveContext} full={isMobile} />
+    </div>
+  );
 
   if (loading) {
-    return (
-      <div className="u-flex-gap-24">
-        <div className="goals__header an d1">
-          <div>
-            <h1 className="goals__title">Objetivos</h1>
-            <p className="goals__subtitle">Cargando...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return (<>{header}{contextRow}<div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 18 }}>{[0, 1].map((i) => <div key={i} className="card" style={{ height: 200, opacity: 0.5 - i * 0.1 }} />)}</div></>);
   }
+  if (error) return <>{header}{contextRow}<ErrorView message={error} onRetry={fetchGoals} /></>;
 
-  if (error) return <ErrorView message={error} onRetry={fetchGoals} />;
+  const hero = (
+    <Card pad style={{ marginBottom: isMobile ? 14 : 18, background: 'linear-gradient(140deg, var(--surface) 55%, var(--pine-tint))', padding: isMobile ? '20px 22px' : '24px 28px' }}>
+      <Eyebrow>Ahorrado en total</Eyebrow>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, margin: '7px 0 4px' }}>
+        <div style={{ fontSize: isMobile ? 48 : 56, fontWeight: 700, lineHeight: 0.85, letterSpacing: '-.02em', color: 'var(--pine-2)' }}>{formatMoney(totalSaved)}</div>
+        <Pill tone="ok" style={{ marginBottom: isMobile ? 7 : 10 }}>{filteredGoals.length} {filteredGoals.length === 1 ? 'activo' : 'activos'}</Pill>
+      </div>
+      <div style={{ fontSize: 13.5, color: 'var(--ink-2)' }}>
+        {totalTarget > 0 ? <>de {formatMoney(totalTarget)} entre {filteredGoals.length === 1 ? 'el bote' : 'todos los botes'}</> : 'Aún sin metas en este contexto'}
+      </div>
+    </Card>
+  );
+
+  const stats = (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 12, marginBottom: isMobile ? 16 : 20 }}>
+      <StatCard label="Objetivos activos" value={String(filteredGoals.length)} sub={activeContext === 'shared' ? 'compartidos' : 'personales'} />
+      <StatCard label="Próximo hito" value={nextDeadlineGoal?.deadline ? formatDayLabel(nextDeadlineGoal.deadline) : '—'} sub={nextDeadlineGoal?.name ?? 'sin fecha límite'} valueColor="var(--honey)" />
+      <StatCard label="Por reunir" value={formatMoney(Math.max(0, totalTarget - totalSaved))} sub="para cerrar todo" valueColor="var(--clay)" />
+    </div>
+  );
+
+  const goalCards = filteredGoals.length === 0 ? (
+    <Card pad style={{ textAlign: 'center', padding: '48px 24px' }}>
+      <div style={{ fontSize: 15, color: 'var(--ink-2)', fontWeight: 600, marginBottom: 4 }}>Aún no tenéis metas {activeContext === 'shared' ? 'compartidas' : 'personales'}</div>
+      <div style={{ fontSize: 13.5, color: 'var(--ink-3)', marginBottom: 18 }}>Un viaje, un fondo, un capricho. Empezad por la primera.</div>
+      <Btn variant="pine" onClick={openCreateModal} style={{ margin: '0 auto' }}><Icon.plusS /> Crear objetivo</Btn>
+    </Card>
+  ) : (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 18 }}>
+      {filteredGoals.map((goal, i) => {
+        const color = GOAL_COLORS[i % GOAL_COLORS.length];
+        const pct = goal.target > 0 ? Math.round((goal.current / goal.target) * 100) : 0;
+        const left = Math.max(0, goal.target - goal.current);
+        const note = pct >= 100 ? '¡Meta alcanzada!' : `Faltan ${formatMoney(left)}${goal.deadline ? ` · cierra el ${formatDayLabel(goal.deadline)}` : ''}`;
+        const GoalGlyph: React.FC = () => <span style={{ fontSize: 18 }}>{goal.icon}</span>;
+        return (
+          <NidoGoalCard
+            key={goal.id}
+            icon={GoalGlyph}
+            color={color}
+            title={goal.name}
+            savedLabel={formatMoney(goal.current)}
+            targetLabel={formatMoney(goal.target)}
+            from={goal.start_date ? formatDayLabel(goal.start_date) : 'inicio'}
+            to={goal.deadline ? formatDayLabel(goal.deadline) : 'sin límite'}
+            note={note}
+            pct={Math.min(100, pct)}
+            onContribute={() => openContributeModal(goal)}
+            onMenu={() => handleEdit(goal)}
+          />
+        );
+      })}
+    </div>
+  );
 
   return (
-    <div className="u-flex-gap-24">
-      {/* Header — matches design: title left, button right */}
-      <div className="topbar an d1">
-        <div>
-          <h1>Objetivos</h1>
-          <p>Vuestras metas de ahorro</p>
-        </div>
-        <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={openCreateModal}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M12 4v16m-8-8h16"/></svg>
-          Nuevo Objetivo
-        </button>
-      </div>
+    <>
+      {header}
+      {contextRow}
+      {hero}
+      {stats}
+      {goalCards}
+      {isMobile ? <Btn variant="pine" onClick={openCreateModal} style={{ width: '100%', height: 52, fontSize: 16, marginTop: 16 }}><Icon.plusS /> Nuevo objetivo</Btn> : null}
 
-      {/* Context tabs — same as Analytics/Dashboard */}
-      <div className="analytics__context-tabs an d1">
-        <button className={`analytics__context-tab ${activeContext === 'shared' ? 'analytics__context-tab--active' : ''}`} onClick={() => setActiveContext('shared')}>
-          <div className="dot sh-d" />
-          Compartido
-        </button>
-        <button className={`analytics__context-tab ${activeContext === 'personal' ? 'analytics__context-tab--active' : ''}`} onClick={() => setActiveContext('personal')}>
-          <div className="dot ps-d" />
-          Personal
-        </button>
-      </div>
-
-      {/* Stats — reflect filtered context */}
-      <div className="goals__stats an d2">
-        {summaryStats.map(stat => (
-          <div key={stat.label} className="goals__stat-card">
-            <span className="goals__stat-value" style={stat.color ? { color: stat.color } : undefined}>
-              {stat.value}
-            </span>
-            <span className="goals__stat-label">{stat.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Goals grid */}
-      <div className="goals__grid">
-        <div className="goals__column">
-          {col1Goals.map((goal, i) => (
-            <div key={goal.id} className={`an d${3 + i * 2}`}>
-              <GoalCard {...goal} onContribute={() => openContributeModal(goal)} onEdit={() => handleEdit(goal)} />
-            </div>
-          ))}
-        </div>
-        <div className="goals__column">
-          {col2Goals.map((goal, i) => (
-            <div key={goal.id} className={`an d${4 + i * 2}`}>
-              <GoalCard {...goal} onContribute={() => openContributeModal(goal)} onEdit={() => handleEdit(goal)} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Modal — 1:1 design reference */}
-      {showCreateModal && (
+      {/* create / edit modal — interim glass overlay (restyled in widgets pass) */}
+      {showCreateModal ? (
         <div className="modal-overlay open" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{editingGoal ? 'Editar Objetivo' : 'Nuevo Objetivo'}</h3>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{editingGoal ? 'Editar objetivo' : 'Nuevo objetivo'}</h3>
             <p>{editingGoal ? 'Modifica los datos del objetivo' : 'Crea una meta de ahorro para ti o para los dos'}</p>
             <form onSubmit={handleSubmit}>
-              {/* Name */}
               <div className="form-row">
                 <label>Nombre</label>
-                <input className="form-input" type="text" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Vacaciones, Fondo..." required />
+                <input className="form-input" type="text" value={formData.name} onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))} placeholder="Ej: Viaje a Venezuela…" required />
               </div>
-
-              {/* Target amount */}
               <div className="form-row">
                 <label>Meta</label>
                 <span style={{ color: 'var(--tm)' }}>€</span>
-                <input className="form-input" type="number" value={formData.target} onChange={e => setFormData(prev => ({ ...prev, target: e.target.value }))} placeholder="5000" required min="1" step="any" style={{ width: 120, textAlign: 'right' }} />
+                <input className="form-input" type="number" value={formData.target} onChange={(e) => setFormData((p) => ({ ...p, target: e.target.value }))} placeholder="3000" required min="1" step="any" style={{ width: 120, textAlign: 'right' }} />
               </div>
-
-              {/* Emoji picker — replaces old SVG icon + color pickers */}
               <div className="form-row">
                 <label>Emoji</label>
-                <EmojiPicker value={formData.icon} onChange={icon => setFormData(prev => ({ ...prev, icon }))} />
+                <EmojiPicker value={formData.icon} onChange={(icon) => setFormData((p) => ({ ...p, icon }))} />
               </div>
-
-              {/* Type toggle — Compartido / Personal as buttons */}
-              {!editingGoal && (
+              {!editingGoal ? (
                 <div className="form-row">
                   <label>Tipo</label>
                   <div style={{ display: 'flex', gap: 8, flex: 1 }}>
-                    <div
-                      onClick={() => setFormData(prev => ({ ...prev, owner_type: 'shared' }))}
-                      style={{
-                        flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
-                        textAlign: 'center', fontSize: 13, fontWeight: 500,
-                        border: formData.owner_type === 'shared' ? '2px solid var(--blue)' : '1px solid var(--glass-border)',
-                        background: formData.owner_type === 'shared' ? 'var(--bl)' : 'var(--surface)',
-                        color: formData.owner_type === 'shared' ? 'var(--blue)' : 'var(--ts)',
-                      }}
-                    >
-                      Compartido
-                    </div>
-                    <div
-                      onClick={() => setFormData(prev => ({ ...prev, owner_type: 'personal' }))}
-                      style={{
-                        flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer',
-                        textAlign: 'center', fontSize: 13, fontWeight: 500,
-                        border: formData.owner_type === 'personal' ? '2px solid var(--blue)' : '1px solid var(--glass-border)',
-                        background: formData.owner_type === 'personal' ? 'var(--bl)' : 'var(--surface)',
-                        color: formData.owner_type === 'personal' ? 'var(--blue)' : 'var(--ts)',
-                      }}
-                    >
-                      Personal
-                    </div>
+                    {(['shared', 'personal'] as const).map((t) => (
+                      <div key={t} onClick={() => setFormData((p) => ({ ...p, owner_type: t }))} style={{ flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 500, border: formData.owner_type === t ? '2px solid var(--green)' : '1px solid var(--glass-border)', background: formData.owner_type === t ? 'var(--gl)' : 'var(--surface)', color: formData.owner_type === t ? 'var(--green)' : 'var(--ts)' }}>
+                        {t === 'shared' ? 'Compartido' : 'Personal'}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-
-              {/* Date range — Desde uses pill pattern like AddExpense */}
+              ) : null}
               <div className="form-row">
                 <label>Desde</label>
                 {!showStartDate ? (
-                  <button
-                    type="button"
-                    className="expense-date-toggle"
-                    onClick={() => setShowStartDate(true)}
-                  >
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-                    </svg>
+                  <button type="button" className="expense-date-toggle" onClick={() => setShowStartDate(true)}>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
                     {formatDayLabel(formData.start_date || todayISO())}
-                    {formData.start_date && formData.start_date !== todayISO() && <span className="expense-date-dot" />}
                   </button>
                 ) : (
                   <div className="expense-date-picker">
-                    <input
-                      className="expense-date-input"
-                      type="date"
-                      value={formData.start_date || todayISO()}
-                      onChange={e => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                    />
-                    {formData.start_date !== todayISO() && (
-                      <button
-                        type="button"
-                        className="expense-date-today"
-                        onClick={() => { setFormData(prev => ({ ...prev, start_date: todayISO() })); setShowStartDate(false); }}
-                      >
-                        Hoy
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="expense-date-close"
-                      onClick={() => setShowStartDate(false)}
-                    >
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
+                    <input className="expense-date-input" type="date" value={formData.start_date || todayISO()} onChange={(e) => setFormData((p) => ({ ...p, start_date: e.target.value }))} />
+                    <button type="button" className="expense-date-close" onClick={() => setShowStartDate(false)}>
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
                   </div>
                 )}
               </div>
               <div className="form-row">
                 <label>Hasta</label>
-                <input
-                  className="form-input"
-                  type="date"
-                  value={formData.deadline}
-                  onChange={e => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                  placeholder="Sin fecha límite"
-                />
+                <input className="form-input" type="date" value={formData.deadline} onChange={(e) => setFormData((p) => ({ ...p, deadline: e.target.value }))} />
               </div>
-
-              {/* Actions */}
               <div className="modal-actions">
-                {editingGoal && (
-                  <button type="button" onClick={() => handleDelete(editingGoal.id)} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>
-                    Eliminar
-                  </button>
-                )}
-                <button type="button" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }} className="btn btn-outline">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary">
-                  {submitting ? 'Guardando...' : editingGoal ? 'Actualizar' : 'Crear Objetivo'}
-                </button>
+                {editingGoal ? (
+                  <button type="button" onClick={() => handleDelete(editingGoal.id)} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>Eliminar</button>
+                ) : null}
+                <button type="button" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }} className="btn btn-outline">Cancelar</button>
+                <button type="submit" disabled={submitting} className="btn btn-primary">{submitting ? 'Guardando…' : editingGoal ? 'Actualizar' : 'Crear objetivo'}</button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Contribute modal */}
-      {contributeGoal && (
+      {/* contribute modal — interim glass overlay */}
+      {contributeGoal ? (
         <div className="modal-overlay open" onClick={() => setContributeGoal(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Contribuir a {contributeGoal.name}</h3>
-            <p>
-              Progreso actual: {formatMoney(contributeGoal.current)} de {formatMoney(contributeGoal.target)}
-              {' '}({contributeGoal.target > 0 ? Math.round((contributeGoal.current / contributeGoal.target) * 100) : 0}%)
-            </p>
-
-            {/* Amount with quick-select buttons */}
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Aportar a {contributeGoal.name}</h3>
+            <p>Progreso: {formatMoney(contributeGoal.current)} de {formatMoney(contributeGoal.target)} ({contributeGoal.target > 0 ? Math.round((contributeGoal.current / contributeGoal.target) * 100) : 0}%)</p>
             <div className="form-row">
               <label>Monto</label>
               <div className="contribute-amount-wrap">
                 <span className="contribute-currency">€</span>
-                <input
-                  className="form-input contribute-input"
-                  type="number"
-                  min="1"
-                  step="any"
-                  value={contributeAmount}
-                  onChange={e => setContributeAmount(e.target.value)}
-                  autoFocus
-                />
+                <input className="form-input contribute-input" type="number" min="1" step="any" value={contributeAmount} onChange={(e) => setContributeAmount(e.target.value)} autoFocus />
               </div>
             </div>
-
-            {/* Quick amount chips */}
             <div className="contribute-chips">
-              {[25, 50, 100, 200].map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  className={`contribute-chip ${contributeAmount === String(v) ? 'contribute-chip--active' : ''}`}
-                  onClick={() => setContributeAmount(String(v))}
-                >
-                  €{v}
-                </button>
+              {[25, 50, 100, 200].map((v) => (
+                <button key={v} type="button" className={`contribute-chip ${contributeAmount === String(v) ? 'contribute-chip--active' : ''}`} onClick={() => setContributeAmount(String(v))}>€{v}</button>
               ))}
-              {/* "Remaining" chip - fills the rest to reach target */}
-              {contributeGoal.target > contributeGoal.current && (
-                <button
-                  type="button"
-                  className={`contribute-chip contribute-chip--fill`}
-                  onClick={() => setContributeAmount(String(Math.round(contributeGoal.target - contributeGoal.current)))}
-                >
+              {contributeGoal.target > contributeGoal.current ? (
+                <button type="button" className="contribute-chip contribute-chip--fill" onClick={() => setContributeAmount(String(Math.round(contributeGoal.target - contributeGoal.current)))}>
                   Completar (€{Math.round(contributeGoal.target - contributeGoal.current)})
                 </button>
-              )}
+              ) : null}
             </div>
-
-            {/* Info: where the money comes from */}
-            <div className="contribute-info">
-              Este monto se descuenta del presupuesto {contributeGoal.owner_type === 'shared' ? 'compartido' : 'personal'}
-            </div>
-
+            <div className="contribute-info">Este monto se descuenta del presupuesto {contributeGoal.owner_type === 'shared' ? 'compartido' : 'personal'}.</div>
             <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setContributeGoal(null)} disabled={contributing}>
-                Cancelar
-              </button>
-              <button className="btn btn-primary" onClick={handleContributeSubmit} disabled={contributing}>
-                {contributing ? 'Guardando...' : `Añadir €${contributeAmount || '0'}`}
-              </button>
+              <button className="btn btn-outline" onClick={() => setContributeGoal(null)} disabled={contributing}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleContributeSubmit} disabled={contributing}>{contributing ? 'Guardando…' : `Aportar €${contributeAmount || '0'}`}</button>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+    </>
   );
 };

@@ -122,6 +122,18 @@ const AppRoutes: React.FC = () => {
     );
   }
 
+  if (location.pathname === '/goals') {
+    return (
+      <>
+        <NidoShell active="goals">
+          <Goals />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
   return (
     <>
     <MeshBackground />
