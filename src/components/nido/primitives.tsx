@@ -66,7 +66,9 @@ export const CatIcon: React.FC<{
   bg?: string;
   className?: string;
   style?: React.CSSProperties;
-}> = ({ cat, icon, tone, size, radius, color, bg, className, style }) => {
+  /** Real categories carry an emoji; pass it as children to render in the tile. */
+  children?: React.ReactNode;
+}> = ({ cat, icon, tone, size, radius, color, bg, className, style, children }) => {
   const I = icon || (cat ? Cat[cat] : null);
   return (
     <div
@@ -79,7 +81,7 @@ export const CatIcon: React.FC<{
         ...style,
       }}
     >
-      {I ? <I /> : null}
+      {children != null ? children : I ? <I /> : null}
     </div>
   );
 };

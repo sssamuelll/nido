@@ -10,6 +10,7 @@ import { Sidebar } from './components/Sidebar';
 import { MeshBackground } from './components/MeshBackground';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { LoadingScreen } from './components/LoadingScreen';
+import { NidoShell } from './components/nido/NidoShell';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -19,6 +20,19 @@ import { Goals } from './views/Goals';
 import { EventDetail } from './views/EventDetail';
 import './styles/global.css';
 import './styles/nido.css';
+
+/* The toast host: showToast() writes into #global-toast / #global-toast-msg,
+   so this markup must be present in every layout branch. */
+const GlobalToast: React.FC = () => (
+  <div className="toast" id="global-toast">
+    <div className="toast-icon">
+      <svg className="toast-icon__svg toast-icon__svg--success" width="16" height="16" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M5 13l4 4L19 7" /></svg>
+      <svg className="toast-icon__svg toast-icon__svg--error" width="16" height="16" fill="none" stroke="#F87171" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      <svg className="toast-icon__svg toast-icon__svg--info" width="16" height="16" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>
+    </div>
+    <span id="global-toast-msg"></span>
+  </div>
+);
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLocked, isLoading } = useAuth();
@@ -55,6 +69,26 @@ const AppRoutes: React.FC = () => {
 
   const isAddView = location.pathname === '/add';
 
+  // Redesigned routes render inside the warm NidoShell (its own rail + tab bar)
+  // and skip the legacy glass chrome. Un-migrated routes keep Sidebar/BottomNav.
+  // This list shrinks the glass chrome one PR at a time until the cutover.
+  const REDESIGNED_PATHS = ['/'];
+  const isRedesigned = REDESIGNED_PATHS.includes(location.pathname);
+
+  if (isRedesigned) {
+    return (
+      <>
+        <NidoShell>
+          <Routes>
+            <Route path="/" element={<Dashboard key={refreshKey} />} />
+          </Routes>
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
   return (
     <>
     <MeshBackground />
@@ -76,14 +110,7 @@ const AppRoutes: React.FC = () => {
       {!isAddView && <BottomNav />}
     </div>
     <div id="confetti-container" className="confetti-container" />
-    <div className="toast" id="global-toast">
-      <div className="toast-icon">
-        <svg className="toast-icon__svg toast-icon__svg--success" width="16" height="16" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M5 13l4 4L19 7" /></svg>
-        <svg className="toast-icon__svg toast-icon__svg--error" width="16" height="16" fill="none" stroke="#F87171" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        <svg className="toast-icon__svg toast-icon__svg--info" width="16" height="16" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>
-      </div>
-      <span id="global-toast-msg"></span>
-    </div>
+    <GlobalToast />
     </>
   );
 };

@@ -316,3 +316,34 @@
 .nido .ghead{ display: flex; align-items: center; gap: 9px; padding: 15px 16px 7px; }
 .nido .ghead .gsub{ font-size: 13px; color: var(--ink-3); }
 .nido .ghead .gtot{ margin-left: auto; font-size: 13.5px; color: var(--ink-2); font-weight: 700; }
+
+/* ============================================================
+   PRODUCTION SHELL (real app, not the fixed presentation artboard)
+   The prototype used fixed sizes (.phone 390px, .app min-height:100%).
+   In the app the shell is responsive: a sticky 84px rail + scrolling
+   main on desktop, full-width content + a fixed tab bar on mobile.
+   Desktop and mobile render different trees (see NidoShell), so these
+   rules don't fight each other — each only applies to what's mounted.
+   ============================================================ */
+.nido { min-height: 100vh; }
+.nido .app { min-height: 100vh; }
+.nido .rail { position: sticky; top: 0; height: 100vh; }
+
+/* mobile: content scrolls under a fixed tab bar */
+.nido .screen-scroll { padding: 16px 18px 104px; }
+.nido .tabbar { position: fixed; max-width: 100%; }
+
+/* the prototype's .main caps width for large screens; keep that but let it
+   breathe full-width on tablet between the rail and the viewport edge */
+@media (max-width: 1100px) {
+  .nido .main { padding: 30px 28px 64px; }
+}
+
+/* focus visibility (a11y) — warm ring, never the browser default blue */
+.nido :is(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.nido .rail-ico:focus-visible,
+.nido .tab:focus-visible { outline-offset: -2px; }
