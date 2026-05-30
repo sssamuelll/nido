@@ -69,20 +69,29 @@ const AppRoutes: React.FC = () => {
 
   const isAddView = location.pathname === '/add';
 
-  // Redesigned routes render inside the warm NidoShell (its own rail + tab bar)
-  // and skip the legacy glass chrome. Un-migrated routes keep Sidebar/BottomNav.
-  // This list shrinks the glass chrome one PR at a time until the cutover.
-  const REDESIGNED_PATHS = ['/'];
-  const isRedesigned = REDESIGNED_PATHS.includes(location.pathname);
-
-  if (isRedesigned) {
+  // Redesigned routes render the warm paper UI and skip the legacy glass chrome.
+  // Un-migrated routes keep Sidebar/BottomNav. This grows one screen per PR
+  // until the cutover, when the glass branch below is deleted.
+  //
+  // Inicio uses the shared NidoShell (rail + tab bar). Nuevo gasto is a stacked
+  // screen that brings its own chrome (rail on desktop, no tab bar on mobile),
+  // so it renders bare.
+  if (location.pathname === '/') {
     return (
       <>
-        <NidoShell>
-          <Routes>
-            <Route path="/" element={<Dashboard key={refreshKey} />} />
-          </Routes>
+        <NidoShell active="home">
+          <Dashboard key={refreshKey} />
         </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  if (location.pathname === '/add') {
+    return (
+      <>
+        <AddExpense />
         <div id="confetti-container" className="confetti-container" />
         <GlobalToast />
       </>

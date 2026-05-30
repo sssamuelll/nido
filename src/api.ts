@@ -229,6 +229,7 @@ export class Api {
     paid_by?: string;
     type: string;
     status?: string;
+    event_id?: number;
     cycle_id?: number | null;
   }) {
     return this.request('/expenses', {
