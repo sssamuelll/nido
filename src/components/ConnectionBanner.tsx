@@ -11,10 +11,12 @@ export const ConnectionBanner: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Rendered at the App root, outside any `.nido` scope, so the warm tokens are
-  // applied via a `.nido` wrapper (position:fixed → no layout impact).
+  // Rendered at the App root, outside any screen `.nido` scope. Uses
+  // `.nido nido-portal` so it carries warm tokens WITHOUT the 100vh min-height
+  // of a normal `.nido` block (which would inject a phantom full-viewport band
+  // above the app). The banner itself is position:fixed.
   return (
-    <div className="nido">
+    <div className="nido nido-portal">
       <div
         role="status"
         style={{
