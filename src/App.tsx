@@ -11,6 +11,7 @@ import { MeshBackground } from './components/MeshBackground';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { LoadingScreen } from './components/LoadingScreen';
 import { NidoShell } from './components/nido/NidoShell';
+import { useIsMobile } from './hooks/useMediaQuery';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -37,6 +38,7 @@ const GlobalToast: React.FC = () => (
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLocked, isLoading } = useAuth();
   const location = useLocation();
+  const isMobileViewport = useIsMobile();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const prevPath = React.useRef(location.pathname);
