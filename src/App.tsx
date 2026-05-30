@@ -110,6 +110,18 @@ const AppRoutes: React.FC = () => {
     );
   }
 
+  if (location.pathname === '/analytics') {
+    return (
+      <>
+        <NidoShell active="chart">
+          <Analytics />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
   return (
     <>
     <MeshBackground />
