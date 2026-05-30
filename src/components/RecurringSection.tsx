@@ -28,7 +28,7 @@ interface RecurringSectionProps {
 }
 
 const TagIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
+  <svg width="16" height="16" fill="none" stroke="var(--ink-3)" viewBox="0 0 24 24" strokeWidth={2}>
     <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
   </svg>
 );
@@ -300,7 +300,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                         </span>
                       )}
                       {(item.every_n_cycles ?? 1) > 1 && (
-                        <span className="recurring-card__pill" style={{ background: 'var(--gl)', color: 'var(--green)' }}>
+                        <span className="recurring-card__pill" style={{ background: 'var(--pine-tint)', color: 'var(--pine-2)' }}>
                           cada {item.every_n_cycles} ciclos
                         </span>
                       )}
@@ -373,7 +373,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             {/* Amount */}
             <div className="form-row">
               <label>Importe</label>
-              <span style={{ color: 'var(--tm)' }}>€</span>
+              <span style={{ color: 'var(--ink-3)' }}>€</span>
               <input className="form-input" type="number" inputMode="decimal" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="900" min="0" step="0.01" style={{ width: 120, textAlign: 'right' }} />
             </div>
 
@@ -382,20 +382,14 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
               <label>Tipo</label>
               <div style={{ display: 'flex', gap: 8, flex: 1 }}>
                 <div
-                  className="type-sel"
+                  className={`type-sel${formType === 'shared' ? ' type-sel--active' : ''}`}
                   onClick={() => setFormType('shared')}
-                  style={formType === 'shared'
-                    ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                    : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
                 >
                   Compartido
                 </div>
                 <div
-                  className="type-sel"
+                  className={`type-sel${formType === 'personal' ? ' type-sel--active' : ''}`}
                   onClick={() => setFormType('personal')}
-                  style={formType === 'personal'
-                    ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                    : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
                 >
                   Personal
                 </div>
@@ -412,7 +406,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                     const catDef = getCategoryDef(formCategory);
                     return (
                       <span className="cmd-selected">
-                        <div className="cmd-icon" style={{ background: catDef?.iconBg ?? 'var(--gl)', width: 20, height: 20 }}>
+                        <div className="cmd-icon" style={{ background: catDef?.iconBg ?? 'var(--inset)', width: 20, height: 20 }}>
                           <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
                         </div>
                         {formCategory}
@@ -436,7 +430,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                         className={`cmd-option${formCategory === item.name ? ' selected' : ''}`}
                         onClick={() => { setFormCategory(item.name); setCategorySearch(''); setCmdOpen(false); }}
                       >
-                        <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
+                        <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--inset)' }}>
                           <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
                         </div>
                         {item.name}
@@ -492,7 +486,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
                 </button>
               )}
               {editItem && (
-                <button className="btn btn-outline" onClick={handleDelete} disabled={saving} style={{ color: 'var(--red)', borderColor: 'rgba(248,113,113,0.3)', marginRight: 'auto' }}>
+                <button className="btn btn-danger-outline" onClick={handleDelete} disabled={saving} style={{ marginRight: 'auto' }}>
                   Eliminar
                 </button>
               )}

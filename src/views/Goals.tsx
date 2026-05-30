@@ -215,7 +215,7 @@ export const Goals: React.FC = () => {
               </div>
               <div className="form-row">
                 <label>Meta</label>
-                <span style={{ color: 'var(--tm)' }}>€</span>
+                <span style={{ color: 'var(--ink-3)' }}>€</span>
                 <input className="form-input" type="number" value={formData.target} onChange={(e) => setFormData((p) => ({ ...p, target: e.target.value }))} placeholder="3000" required min="1" step="any" style={{ width: 120, textAlign: 'right' }} />
               </div>
               <div className="form-row">
@@ -256,7 +256,7 @@ export const Goals: React.FC = () => {
               </div>
               <div className="modal-actions">
                 {editingGoal ? (
-                  <button type="button" onClick={() => handleDelete(editingGoal.id)} className="btn btn-sm" style={{ color: 'var(--red)', border: '1px solid var(--red)', background: 'transparent', marginRight: 'auto' }}>Eliminar</button>
+                  <button type="button" onClick={() => handleDelete(editingGoal.id)} className="btn btn-danger-outline btn-sm" style={{ marginRight: 'auto' }}>Eliminar</button>
                 ) : null}
                 <button type="button" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }} className="btn btn-outline">Cancelar</button>
                 <button type="submit" disabled={submitting} className="btn btn-primary">{submitting ? 'Guardando…' : editingGoal ? 'Actualizar' : 'Crear objetivo'}</button>

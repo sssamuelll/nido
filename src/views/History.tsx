@@ -582,7 +582,7 @@ export const History: React.FC = () => {
               <div className="form-row" style={{ marginBottom: 16 }}>
                 <label>Monto</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--tm)' }}>€</span>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }}>€</span>
                   <input className="form-input" style={{ paddingLeft: 32 }} type="number" inputMode="decimal" min="0" step="0.01" value={editAmount} onChange={(e) => { setEditAmount(e.target.value); if (editError) setEditError(''); }} />
                 </div>
               </div>
@@ -594,7 +594,7 @@ export const History: React.FC = () => {
                       const def = getCategoryDef(editCategory);
                       return (
                         <span className="cmd-selected">
-                          <div className="cmd-icon" style={{ background: def?.iconBg ?? 'var(--gl)', width: 20, height: 20 }}><span style={{ fontSize: 12 }}>{def?.emoji ?? '📂'}</span></div>
+                          <div className="cmd-icon" style={{ background: def?.iconBg ?? 'var(--inset)', width: 20, height: 20 }}><span style={{ fontSize: 12 }}>{def?.emoji ?? '📂'}</span></div>
                           {editCategory}
                           <span className="cmd-x" onClick={(e) => { e.stopPropagation(); setEditCategory(''); }}>&times;</span>
                         </span>
@@ -606,7 +606,7 @@ export const History: React.FC = () => {
                     <div className="cmd-list">
                       {categories.filter((c) => c.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === '').map((item) => (
                         <div key={item.id ?? item.name} className={`cmd-option${editCategory === item.name ? ' selected' : ''}`} onClick={() => { setEditCategory(item.name); setCategorySearch(''); setCmdOpen(false); }}>
-                          <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}><span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span></div>
+                          <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--inset)' }}><span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span></div>
                           {item.name}
                         </div>
                       ))}

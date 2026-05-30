@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Api } from '../api';
-import { X, Bell, Check } from 'lucide-react';
+import { Icon } from './nido';
 import { formatRelative } from '../lib/dates';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
@@ -61,18 +61,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
     <div className="notification-center__overlay" onClick={onClose}>
       <div className="notification-center__panel" onClick={e => e.stopPropagation()}>
         <div className="notification-center__header">
-          <div className="u-flex-center">
-            <Bell size={20} color="var(--color-samuel)" />
+          <div className="u-flex-center" style={{ color: 'var(--clay)' }}>
+            <Icon.bell />
             <h2 className="notification-center__title">Notificaciones</h2>
           </div>
           <div className="u-flex-center" style={{ gap: '8px' }}>
             {unreadCount > 0 && (
               <button onClick={markAllAsRead} className="notification-center__mark-all" title="Marcar todas como leídas">
-                <Check size={16} />
+                <Icon.check />
               </button>
             )}
             <button onClick={onClose} className="notification-center__close">
-              <X size={20} />
+              <Icon.x />
             </button>
           </div>
         </div>
@@ -89,7 +89,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onClose 
             notifications.map(n => (
               <div key={n.id} className={`notification-item ${n.is_read ? 'notification-item--read' : ''}`} onClick={() => !n.is_read && markAsRead(n.id)}>
                 <div className="notification-item__icon">
-                  <Bell size={18} />
+                  <Icon.bell />
                 </div>
                 <div className="notification-item__content">
                   <div className="notification-item__header">
