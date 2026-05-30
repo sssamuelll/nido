@@ -103,6 +103,8 @@ export const AddExpense: React.FC = () => {
   const [date, setDate] = useState(todayISO());
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<1 | 2>(1); // mobile only
+  const [repeatCount, setRepeatCount] = useState(1); // log N identical expenses at once
+  const [categorySearch, setCategorySearch] = useState(''); // filter existing / create new
 
   const preset = location.state as { initialContext?: 'shared' | 'personal'; initialCategory?: string; eventId?: number } | null;
   useEffect(() => {
@@ -196,7 +198,9 @@ export const AddExpense: React.FC = () => {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      await Api.createExpense({
+      // A brand-new category name (not in the existing list) self-heals on the
+      // server: the expense POST creates + links the category row (AGENTS.md).
+      const payload = {
         description: description.trim() || category || 'Gasto',
         amount: numericAmount,
         category: category || 'Otros',
@@ -205,9 +209,15 @@ export const AddExpense: React.FC = () => {
         type,
         event_id: selectedEventId || undefined,
         cycle_id: targetCycleId,
-      });
-      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.budget);
-      showToast('Gasto añadido', 'success');
+      };
+      const n = Math.max(1, Math.min(20, repeatCount));
+      for (let i = 0; i < n; i++) {
+        await Api.createExpense(payload);
+      }
+      // Include `categories`: a new category may have been created server-side,
+      // so the cached category list must refresh.
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.budget, CACHE_KEYS.categories);
+      showToast(n > 1 ? `${n} gastos añadidos` : 'Gasto añadido', 'success');
       navigate('/');
     } catch (err) {
       handleApiError(err, 'No se pudo añadir el gasto');
@@ -273,31 +283,69 @@ export const AddExpense: React.FC = () => {
     />
   );
 
-  const categoryChips = (scroll: boolean) => (
-    <div
-      style={scroll
-        ? { display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px 2px' }
-        : { display: 'flex', flexWrap: 'wrap', gap: 9 }}
-    >
-      {categories.map((c: CategoryDef) => (
-        <FilterChip
-          key={c.name}
-          on={category === c.name}
-          hasIcon
-          onClick={() => setCategory(c.name)}
-          style={scroll ? { flex: '0 0 auto' } : undefined}
-        >
-          <CatIcon color={c.color} bg={c.color ? `${c.color}1A` : undefined} size={24} radius={7}>
-            <span style={{ fontSize: 14 }}>{c.emoji}</span>
-          </CatIcon>
-          {c.name}
-        </FilterChip>
-      ))}
-      {categories.length === 0 ? (
-        <span style={{ fontSize: 13, color: 'var(--ink-3)', padding: '7px 4px' }}>Aún no hay categorías. Crea una desde Inicio.</span>
-      ) : null}
+  const trimmedCatSearch = categorySearch.trim();
+  const filteredCats = categories.filter((c) => c.name.toLowerCase().includes(trimmedCatSearch.toLowerCase()));
+  const customSelected = category !== '' && !categories.some((c) => c.name === category);
+  const canCreateCat = trimmedCatSearch !== '' && !categories.some((c) => c.name.toLowerCase() === trimmedCatSearch.toLowerCase());
+
+  const categoryPicker = (scroll: boolean) => (
+    <div>
+      <input
+        value={categorySearch}
+        onChange={(e) => setCategorySearch(e.target.value)}
+        placeholder="Buscar o crear categoría…"
+        style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 14, outline: 'none', marginBottom: 10 }}
+      />
+      <div style={scroll ? { display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px 2px' } : { display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+        {/* a custom (newly-typed) category stays visible as the selected chip */}
+        {customSelected ? (
+          <FilterChip on hasIcon onClick={() => {}} style={scroll ? { flex: '0 0 auto' } : undefined}>
+            <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.tag /></span>
+            {category}
+          </FilterChip>
+        ) : null}
+        {filteredCats.map((c: CategoryDef) => (
+          <FilterChip
+            key={c.name}
+            on={category === c.name}
+            hasIcon
+            onClick={() => { setCategory(c.name); setCategorySearch(''); }}
+            style={scroll ? { flex: '0 0 auto' } : undefined}
+          >
+            <CatIcon color={c.color} bg={c.color ? `${c.color}1A` : undefined} size={24} radius={7}>
+              <span style={{ fontSize: 14 }}>{c.emoji}</span>
+            </CatIcon>
+            {c.name}
+          </FilterChip>
+        ))}
+        {canCreateCat && trimmedCatSearch.toLowerCase() !== category.toLowerCase() ? (
+          <FilterChip hasIcon onClick={() => { setCategory(trimmedCatSearch); setCategorySearch(''); }} style={{ ...(scroll ? { flex: '0 0 auto' } : null), borderStyle: 'dashed' }}>
+            <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.plusS /></span>
+            Crear «{trimmedCatSearch}»
+          </FilterChip>
+        ) : null}
+        {categories.length === 0 && !trimmedCatSearch ? (
+          <span style={{ fontSize: 13, color: 'var(--ink-3)', padding: '7px 4px' }}>Escribe el nombre de una categoría para crearla.</span>
+        ) : null}
+      </div>
     </div>
   );
+
+  const repeatStepper = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>Repetir gasto</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Añade varias copias iguales</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-2)' }}>
+        <button type="button" aria-label="Menos" onClick={() => setRepeatCount((c) => Math.max(1, c - 1))} disabled={repeatCount <= 1} style={{ font: 'inherit', cursor: 'pointer', border: 0, background: 'transparent', color: 'var(--ink-2)', width: 40, height: 40, fontSize: 18, fontWeight: 600, opacity: repeatCount <= 1 ? 0.4 : 1 }}>−</button>
+        <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 700, fontSize: 15 }}>×{repeatCount}</span>
+        <button type="button" aria-label="Más" onClick={() => setRepeatCount((c) => Math.min(20, c + 1))} disabled={repeatCount >= 20} style={{ font: 'inherit', cursor: 'pointer', border: 0, background: 'transparent', color: 'var(--ink-2)', width: 40, height: 40, fontSize: 18, fontWeight: 600, opacity: repeatCount >= 20 ? 0.4 : 1 }}>+</button>
+      </div>
+    </div>
+  );
+
+  const submitLabel = submitting ? 'Guardando…' : repeatCount > 1 ? `Añadir ${repeatCount} gastos` : 'Añadir gasto';
 
   const budgetImpact = impact ? (
     <div style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--inset)', border: '1px solid var(--line)' }}>
@@ -384,7 +432,7 @@ export const AddExpense: React.FC = () => {
 
               <div>
                 <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
-                {categoryChips(true)}
+                {categoryPicker(true)}
               </div>
 
               <div>
@@ -408,8 +456,10 @@ export const AddExpense: React.FC = () => {
 
               {budgetImpact}
 
+              {repeatStepper}
+
               <Btn variant="primary" onClick={handleSubmit} disabled={submitting} style={{ width: '100%', height: 54, fontSize: 16, marginTop: 4 }}>
-                <Icon.check /> {submitting ? 'Guardando…' : 'Añadir gasto'}
+                <Icon.check /> {submitLabel}
               </Btn>
             </div>
           )}
@@ -455,7 +505,7 @@ export const AddExpense: React.FC = () => {
           </div>
           <div>
             <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
-            {categoryChips(false)}
+            {categoryPicker(false)}
           </div>
           <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
@@ -475,8 +525,9 @@ export const AddExpense: React.FC = () => {
             </div>
           ) : null}
           {budgetImpact}
+          {repeatStepper}
           <Btn variant="primary" onClick={handleSubmit} disabled={submitting} style={{ width: '100%', justifyContent: 'center', height: 52, fontSize: 16 }}>
-            <Icon.check /> {submitting ? 'Guardando…' : 'Añadir gasto'}
+            <Icon.check /> {submitLabel}
           </Btn>
         </Card>
       </div>
