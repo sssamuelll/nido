@@ -79,9 +79,12 @@ const pressKey = (s: CalcState, k: string): CalcState => {
 };
 
 const calcDisplay = (s: CalcState): string => {
-  if (s.entry !== '') return s.entry;
-  const v = s.acc ?? 0;
-  return v.toLocaleString('es-ES', { maximumFractionDigits: 2 });
+  // While typing the first operand (no operator pending), show the raw entry so
+  // in-progress decimals like "42," render. Once an operator is pending, show
+  // the live computed value (calcValue) so the displayed number ALWAYS equals
+  // what submit will post — there is no "=" key to resolve it otherwise.
+  if (s.entry !== '' && !(s.acc !== null && s.op)) return s.entry;
+  return calcValue(s).toLocaleString('es-ES', { maximumFractionDigits: 2 });
 };
 
 const KEYS = ['1', '2', '3', '÷', '4', '5', '6', '×', '7', '8', '9', '−', ',', '0', '⌫', '+'];

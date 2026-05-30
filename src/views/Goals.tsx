@@ -11,7 +11,7 @@ import { useResource } from '../hooks/useResource';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import { ErrorView } from '../components/ErrorView';
-import { Card, Eyebrow, Pill, Btn, Seg, StatCard, GoalCard as NidoGoalCard, Icon, CONTEXT_SEG_OPTIONS } from '../components/nido';
+import { Card, Eyebrow, Pill, Btn, Seg, StatCard, GoalCard as NidoGoalCard, Icon, CONTEXT_SEG_OPTIONS, Portal } from '../components/nido';
 
 interface GoalFormData {
   name: string;
@@ -200,8 +200,10 @@ export const Goals: React.FC = () => {
       {goalCards}
       {isMobile ? <Btn variant="pine" onClick={openCreateModal} style={{ width: '100%', height: 52, fontSize: 16, marginTop: 16 }}><Icon.plusS /> Nuevo objetivo</Btn> : null}
 
-      {/* create / edit modal — interim glass overlay (restyled in widgets pass) */}
+      {/* create / edit modal — interim glass overlay, portaled to body so it
+          escapes the .nido cascade (restyled to paper in the widgets pass) */}
       {showCreateModal ? (
+        <Portal>
         <div className="modal-overlay open" onClick={() => { setShowCreateModal(false); setEditingGoal(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editingGoal ? 'Editar objetivo' : 'Nuevo objetivo'}</h3>
@@ -262,10 +264,12 @@ export const Goals: React.FC = () => {
             </form>
           </div>
         </div>
+        </Portal>
       ) : null}
 
-      {/* contribute modal — interim glass overlay */}
+      {/* contribute modal — interim glass overlay, portaled to body */}
       {contributeGoal ? (
+        <Portal>
         <div className="modal-overlay open" onClick={() => setContributeGoal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Aportar a {contributeGoal.name}</h3>
@@ -294,6 +298,7 @@ export const Goals: React.FC = () => {
             </div>
           </div>
         </div>
+        </Portal>
       ) : null}
     </>
   );

@@ -2,6 +2,7 @@
    Import from here: `import { Card, Pill, Bar, Icon, Cat } from '../components/nido';` */
 export { Icon, Cat } from './icons';
 export type { IconName, CatName } from './icons';
+export { Portal } from './Portal';
 export {
   Card,
   Eyebrow,

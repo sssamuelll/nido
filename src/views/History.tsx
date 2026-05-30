@@ -17,7 +17,7 @@ import { handleApiError } from '../lib/handleApiError';
 import type { Expense } from '../api-types/expenses';
 import {
   Card, Eyebrow, Bar, CatIcon, Seg, IconBtn, Btn, FilterChip, Who, Icon,
-  CONTEXT_SEG_OPTIONS,
+  CONTEXT_SEG_OPTIONS, Portal,
 } from '../components/nido';
 
 type GroupMode = 'day' | 'cat' | 'person';
@@ -218,7 +218,8 @@ export const History: React.FC = () => {
   const handleUpdateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingExpense) return;
-    if (parseFloat(editAmount) <= 0) return setEditError('Ingresa un monto válido');
+    const editAmt = parseFloat(editAmount);
+    if (!Number.isFinite(editAmt) || editAmt <= 0) return setEditError('Ingresa un monto válido');
     if (!editDescription.trim()) return setEditError('Ingresa una descripción');
     if (!editCategory.trim()) return setEditError('Selecciona una categoría');
     if (!editDate) return setEditError('Selecciona una fecha');
@@ -226,7 +227,7 @@ export const History: React.FC = () => {
       setSavingEdit(true); setEditError('');
       await Api.updateExpense(editingExpense.id, {
         description: editDescription.trim(),
-        amount: parseFloat(editAmount),
+        amount: editAmt,
         category: editCategory.trim(),
         date: editDate,
         type: editType,
@@ -259,15 +260,19 @@ export const History: React.FC = () => {
 
   const handleDuplicateExpense = async () => {
     if (!editingExpense) return;
+    const dupAmt = parseFloat(editAmount);
+    if (!Number.isFinite(dupAmt) || dupAmt <= 0) { setEditError('Ingresa un monto válido'); return; }
+    if (!editDescription.trim() || !editCategory.trim() || !editDate) { setEditError('Completa los campos antes de duplicar'); return; }
     try {
-      setSavingEdit(true);
+      setSavingEdit(true); setEditError('');
       await Api.createExpense({
         description: editDescription.trim(),
-        amount: parseFloat(editAmount),
+        amount: dupAmt,
         category: editCategory.trim(),
         category_id: categories.find((c) => c.name === editCategory.trim())?.id,
         date: editDate,
         type: editType,
+        cycle_id: editTargetCycleId,
       });
       cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
       showToast('Gasto duplicado', 'success');
@@ -564,6 +569,7 @@ export const History: React.FC = () => {
       ) : null}
 
       {editingExpense ? (
+        <Portal>
         <div className="modal-overlay open" onClick={closeEditModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560, width: 'calc(100% - 24px)' }}>
             <h3>Editar gasto</h3>
@@ -651,6 +657,7 @@ export const History: React.FC = () => {
             </form>
           </div>
         </div>
+        </Portal>
       ) : null}
     </>
   );

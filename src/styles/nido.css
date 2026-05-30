@@ -347,3 +347,13 @@
 }
 .nido .rail-ico:focus-visible,
 .nido .tab:focus-visible { outline-offset: -2px; }
+
+/* PIN-entry shake (Settings). Referenced by name from the component's inline
+   style, so it lives unscoped here. */
+@keyframes nido-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}

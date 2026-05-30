@@ -27,8 +27,11 @@ const Donut: React.FC<{ slices: Array<{ pct: number; color: string }>; centerVal
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--inset)" strokeWidth={20} />
       {slices.map((s, i) => {
-        const frac = Math.max(0, Math.min(100, s.pct)) / 100;
-        const dash = frac * c;
+        // Clamp the SAME value used for both dash length and the running offset,
+        // so a dirty pct (negative, or slices summing past 100) can't make a
+        // slice's drawn arc and the next slice's start position disagree.
+        const clampedPct = Math.max(0, Math.min(100, s.pct));
+        const dash = (clampedPct / 100) * c;
         const el = (
           <circle
             key={i}
@@ -43,7 +46,7 @@ const Donut: React.FC<{ slices: Array<{ pct: number; color: string }>; centerVal
             transform={`rotate(-90 ${cx} ${cy})`}
           />
         );
-        acc += s.pct;
+        acc += clampedPct;
         return el;
       })}
       <text x={cx} y={cy - 2} textAnchor="middle" className="serif" style={{ fontSize: 28, fill: 'var(--ink)' }}>{centerValue}</text>

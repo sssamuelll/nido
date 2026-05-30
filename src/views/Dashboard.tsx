@@ -12,13 +12,13 @@ import { useCategoryModal } from '../hooks/useCategoryModal';
 import { CategoryModal } from '../components/CategoryModal';
 import { RecurringSection } from '../components/RecurringSection';
 import { formatMoney, formatMoneyExact } from '../lib/money';
-import { formatCycleRange, formatDayLabelWithWeekday } from '../lib/dates';
+import { formatCycleRange, formatDayLabel, formatDayLabelWithWeekday } from '../lib/dates';
 import { ErrorView } from '../components/ErrorView';
 import { useAsyncEffect, useResource } from '../hooks/useResource';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import {
   Card, Eyebrow, Pill, Bar, CatIcon, Seg, IconBtn, Btn, Txn, Who, Icon,
-  CONTEXT_SEG_OPTIONS, type PillTone,
+  CONTEXT_SEG_OPTIONS, Portal, type PillTone,
 } from '../components/nido';
 import type { CycleDetail } from '../api-types/cycles';
 import type { Notification } from '../api-types/notifications';
@@ -374,7 +374,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <Bar pct={Math.min(100, pct)} fill="pine" />
               <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 8 }}>
-                Faltan {formatMoney(left)}{nearestGoal.deadline ? ` · cierra el ${nearestGoal.deadline}` : ''}
+                Faltan {formatMoney(left)}{nearestGoal.deadline ? ` · cierra el ${formatDayLabel(nearestGoal.deadline)}` : ''}
               </div>
             </>
           );
@@ -520,7 +520,7 @@ export const Dashboard: React.FC = () => {
   );
 
   const modals = (
-    <>
+    <Portal>
       {showNotifications && <NotificationCenter onClose={() => setShowNotifications(false)} />}
       <CategoryModal
         isOpen={catModal.showModal}
@@ -576,7 +576,7 @@ export const Dashboard: React.FC = () => {
         onEventGoalIdChange={setEventGoalId}
         goals={goals}
       />
-    </>
+    </Portal>
   );
 
   if (isMobile) {

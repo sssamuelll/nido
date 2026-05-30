@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Api } from '../api';
+import { Portal } from './nido';
 import { showToast } from './Toast';
 import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
@@ -353,8 +354,10 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
         </div>
       </div>
 
-      {/* Edit / Add Modal */}
+      {/* Edit / Add Modal — portaled to body so it escapes the .nido cascade
+          (this card renders inside the paper Dashboard). */}
       {isModalOpen && (
+        <Portal>
         <div className="modal-overlay open" onClick={closeModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>{editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}</h3>
@@ -500,6 +503,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </>
   );

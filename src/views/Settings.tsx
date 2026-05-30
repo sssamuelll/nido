@@ -43,7 +43,7 @@ const moneyField = (value: number, onChange: (v: number) => void) => (
     <input
       type="number"
       value={value === 0 ? '' : value}
-      onChange={(e) => onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))}
+      onChange={(e) => { const n = parseFloat(e.target.value); onChange(e.target.value === '' || !Number.isFinite(n) ? 0 : n); }}
       placeholder="0"
       style={{ flex: 1, padding: '13px 15px', fontSize: 16, fontWeight: 600, border: 0, background: 'transparent', outline: 'none', fontFamily: 'inherit', color: 'var(--ink)', width: '100%' }}
     />
