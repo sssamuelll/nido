@@ -16,7 +16,7 @@ import { ErrorView } from '../components/ErrorView';
 import { handleApiError } from '../lib/handleApiError';
 import type { Expense } from '../api-types/expenses';
 import {
-  Card, Eyebrow, Pill, Bar, CatIcon, Seg, IconBtn, Btn, FilterChip, Who, Icon,
+  Card, Eyebrow, Bar, CatIcon, Seg, IconBtn, Btn, FilterChip, Who, Icon,
   CONTEXT_SEG_OPTIONS,
 } from '../components/nido';
 
@@ -228,7 +228,6 @@ export const History: React.FC = () => {
         description: editDescription.trim(),
         amount: parseFloat(editAmount),
         category: editCategory.trim(),
-        category_id: categories.find((c) => c.name === editCategory.trim())?.id,
         date: editDate,
         type: editType,
         status: editingExpense.status ?? 'paid',
