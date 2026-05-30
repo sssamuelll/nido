@@ -92,10 +92,8 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .nido .brand-mark svg{ width: 26px; height: 26px; }
 
 /* ============================================================
-   DESKTOP SHELL
+   RAIL + PAGE HEADER (consumed by the single-tree .shell, see bottom of file)
    ============================================================ */
-.nido .app { display: grid; grid-template-columns: 84px 1fr; min-height: 100%; }
-
 .nido .rail {
   background: var(--surface);
   border-right: 1px solid var(--line);
@@ -123,8 +121,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 }
 .nido .rail-sp{ flex: 1; }
 .nido .rail-ico svg{ width: 22px; height: 22px; }
-
-.nido .main { padding: 38px 46px 64px; max-width: 1240px; }
 
 /* page header */
 .nido .phead{ display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
@@ -325,26 +321,31 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .nido .ghead .gsub{ font-size: 13px; color: var(--ink-3); }
 .nido .ghead .gtot{ margin-left: auto; font-size: 13.5px; color: var(--ink-2); font-weight: 700; }
 
-/* ============================================================
-   PRODUCTION SHELL (real app, not the fixed presentation artboard)
-   The prototype used fixed sizes (.phone 390px, .app min-height:100%).
-   In the app the shell is responsive: a sticky 84px rail + scrolling
-   main on desktop, full-width content + a fixed tab bar on mobile.
-   Desktop and mobile render different trees (see NidoShell), so these
-   rules don't fight each other — each only applies to what's mounted.
-   ============================================================ */
 .nido { min-height: 100vh; }
-.nido .app { min-height: 100vh; }
-.nido .rail { position: sticky; top: 0; height: 100vh; }
 
-/* mobile: content scrolls under a fixed tab bar */
-.nido .screen-scroll { padding: 16px 18px 104px; }
-.nido .tabbar { position: fixed; max-width: 100%; }
+/* ============================================================
+   SHELL — single DOM tree, CSS-switched chrome (see NidoShell.tsx)
+   The rail and the tab bar are BOTH always in the DOM; the breakpoint
+   only toggles their visibility, so `{children}` never changes position
+   and the screen never remounts on resize / rotation.
+   Mobile-first: no rail, content scrolls under a fixed tab bar.
+   ≥768px: 84px sticky rail + scrolling main, tab bar hidden.
+   ============================================================ */
+.nido .shell { min-height: 100vh; }
+.nido .shell > .rail { display: none; }
+.nido .shell > .shell-main { padding: 16px 18px 104px; }
+.nido .shell > .tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; max-width: 100%;
+}
 
-/* the prototype's .main caps width for large screens; keep that but let it
-   breathe full-width on tablet between the rail and the viewport edge */
-@media (max-width: 1100px) {
-  .nido .main { padding: 30px 28px 64px; }
+@media (min-width: 768px) {
+  .nido .shell { display: grid; grid-template-columns: 84px 1fr; }
+  .nido .shell > .rail { display: flex; position: sticky; top: 0; height: 100vh; }
+  .nido .shell > .shell-main { padding: 38px 46px 64px; max-width: 1240px; }
+  .nido .shell > .tabbar { display: none; }
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .nido .shell > .shell-main { padding: 30px 28px 64px; }
 }
 
 /* focus visibility (a11y) — warm ring, never the browser default blue */
