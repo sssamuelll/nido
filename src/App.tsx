@@ -98,6 +98,18 @@ const AppRoutes: React.FC = () => {
     );
   }
 
+  if (location.pathname === '/history') {
+    return (
+      <>
+        <NidoShell active="hist">
+          <History key={refreshKey} />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
   return (
     <>
     <MeshBackground />
