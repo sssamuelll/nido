@@ -1,0 +1,318 @@
+/* ============================================================
+   NIDO — Sistema visual "hogar cálido"
+   Papel hueso · tinta cálida · terracota (compartido) ·
+   pino (ahorro/personal) · ámbar tranquilo (sobregasto)
+   ------------------------------------------------------------
+   Ported 1:1 from the high-fidelity prototype (nido.css).
+   EVERYTHING is scoped under `.nido` so it coexists with the
+   legacy glass design system in global.css during the migration
+   (generic names like .card / .btn would otherwise collide).
+   Tokens live on `.nido` (not :root) for the same reason and so
+   a future warm dark theme can override them via
+   `.nido[data-theme="dark"]` without touching call sites.
+   Fonts are loaded via <link> in index.html, not @import here.
+   ============================================================ */
+
+/* ---- design tokens (scoped) ---- */
+.nido {
+  /* paper / surfaces */
+  --paper:     #F4EDE1;
+  --paper-2:   #EFE6D6;
+  --surface:   #FBF6EC;
+  --surface-2: #FFFFFF;
+  --inset:     #EDE3D2;
+
+  /* ink */
+  --ink:    #2B2620;
+  --ink-2:  #6A6155;
+  --ink-3:  #9C9384;
+  --line:   #E3D8C5;
+  --line-2: #D7CAB3;
+
+  /* brand semantics */
+  --clay:      #BC5739;   /* compartido / primario */
+  --clay-2:    #A8492E;
+  --clay-tint: #F2DDD2;
+  --pine:      #3D6B52;   /* personal / ahorro / sano */
+  --pine-2:    #325843;
+  --pine-tint: #DCE7DD;
+  --honey:     #C0852B;   /* atención calmada */
+  --honey-tint:#F1E4C6;
+  --berry:     #9E4B43;   /* negativo, calmado */
+  --berry-tint:#F0DAD4;
+  --plum:      #6C5A86;   /* acento neutro alterno */
+
+  /* type */
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans:  'Hanken Grotesk', system-ui, sans-serif;
+
+  --r-lg: 22px;
+  --r-md: 16px;
+  --r-sm: 11px;
+  --shadow: 0 1px 2px rgba(60,40,20,.04), 0 8px 28px -12px rgba(60,40,20,.14);
+  --shadow-sm: 0 1px 2px rgba(60,40,20,.05), 0 4px 14px -8px rgba(60,40,20,.12);
+}
+
+/* ---- scoped reset + base ---- */
+.nido, .nido * { box-sizing: border-box; }
+.nido {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  position: relative;
+}
+.nido :is(h1,h2,h3,h4,p){ margin: 0; }
+.nido .tnum { font-variant-numeric: tabular-nums; }
+
+/* paper grain — barely-there warmth (works whether .grain is on the
+   .nido root itself or on a descendant frame) */
+.nido.grain::before,
+.nido .grain::before{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(120% 90% at 88% -8%, rgba(188,87,57,.06), transparent 60%),
+    radial-gradient(120% 90% at -6% 104%, rgba(61,107,82,.05), transparent 55%);
+}
+.nido > *{ position: relative; z-index: 1; }
+
+/* serif display helpers */
+.nido .serif { font-family: var(--serif); font-weight: 400; letter-spacing: .01em; }
+.nido .serif-it { font-family: var(--serif); font-style: italic; }
+.nido .brand-mark svg{ width: 26px; height: 26px; }
+
+/* ============================================================
+   DESKTOP SHELL
+   ============================================================ */
+.nido .app { display: grid; grid-template-columns: 84px 1fr; min-height: 100%; }
+
+.nido .rail {
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 22px 0 18px;
+  gap: 6px;
+}
+.nido .rail-logo{
+  width: 46px; height: 46px; border-radius: 14px;
+  background: linear-gradient(150deg, var(--clay), var(--clay-2));
+  color: #fff; font-family: var(--serif); font-size: 28px;
+  display: grid; place-items: center; margin-bottom: 22px;
+  box-shadow: 0 6px 16px -6px rgba(188,87,57,.6);
+}
+.nido .rail-ico{
+  width: 46px; height: 46px; border-radius: 13px;
+  display: grid; place-items: center; color: var(--ink-3);
+  cursor: pointer; transition: .15s; position: relative;
+}
+.nido .rail-ico:hover{ background: var(--inset); color: var(--ink-2); }
+.nido .rail-ico.on{ background: var(--clay-tint); color: var(--clay); }
+.nido .rail-ico.on::before{
+  content:""; position:absolute; left:-22px; top:12px; bottom:12px; width:3px;
+  border-radius: 3px; background: var(--clay);
+}
+.nido .rail-sp{ flex: 1; }
+.nido .rail-ico svg{ width: 22px; height: 22px; }
+
+.nido .main { padding: 38px 46px 64px; max-width: 1240px; }
+
+/* page header */
+.nido .phead{ display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.nido .ptitle{ font-family: var(--serif); font-size: 42px; line-height: 1; letter-spacing: .005em; }
+.nido .psub{ color: var(--ink-2); font-size: 15px; margin-top: 7px; }
+
+/* ============================================================
+   SHARED BITS
+   ============================================================ */
+.nido .card{
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--shadow);
+}
+.nido .card-pad{ padding: 24px 26px; }
+
+.nido .eyebrow{
+  font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* segmented toggle compartido / personal */
+.nido .seg{
+  display: inline-flex; background: var(--inset); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px; gap: 3px;
+}
+.nido .seg button{
+  border: 0; background: transparent; font: inherit; cursor: pointer;
+  padding: 8px 20px; border-radius: 999px; font-weight: 600; font-size: 14px;
+  color: var(--ink-2); display: flex; align-items: center; gap: 8px; transition: .15s;
+}
+.nido .seg button .dot{ width: 7px; height: 7px; border-radius: 9px; }
+.nido .seg button.on{ background: var(--surface-2); color: var(--ink); box-shadow: var(--shadow-sm); }
+.nido .seg .dot.shared{ background: var(--clay); }
+.nido .seg .dot.personal{ background: var(--pine); }
+
+.nido .btn{
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 12px;
+  padding: 12px 18px; border: 1px solid var(--line-2); background: var(--surface-2);
+  color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 9px; transition: .15s; white-space: nowrap;
+}
+.nido .btn:hover{ border-color: var(--ink-3); }
+.nido .btn svg{ width: 17px; height: 17px; }
+.nido .btn-primary{
+  background: var(--clay); border-color: var(--clay); color: #fff;
+  box-shadow: 0 8px 20px -8px rgba(188,87,57,.7);
+}
+.nido .btn-primary:hover{ background: var(--clay-2); border-color: var(--clay-2); }
+.nido .btn-pine{ background: var(--pine); border-color: var(--pine); color:#fff; box-shadow: 0 8px 20px -8px rgba(61,107,82,.6); }
+.nido .btn-pine:hover{ background: var(--pine-2); border-color: var(--pine-2); }
+.nido .btn-ghost{ background: transparent; border-color: transparent; color: var(--ink-2); }
+.nido .btn-ghost:hover{ background: var(--inset); }
+.nido .btn:disabled,
+.nido .btn[disabled]{ opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+.nido .icon-btn{
+  width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface-2); display: grid; place-items: center; cursor: pointer;
+  color: var(--ink-2); position: relative;
+}
+.nido .icon-btn:hover{ border-color: var(--line-2); color: var(--ink); }
+.nido .icon-btn svg{ width: 19px; height: 19px; }
+.nido .badge-dot{
+  position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px; background: var(--clay); color: #fff; font-size: 11px; font-weight: 700;
+  display: grid; place-items: center; border: 2px solid var(--surface);
+}
+
+.nido .search{
+  display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--ink-3); font-size: 14px; min-width: 230px;
+}
+.nido .search svg{ width: 17px; height: 17px; }
+
+/* category mini-icon tile */
+.nido .cat-ico{
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+  flex: 0 0 auto;
+}
+.nido .cat-ico svg{ width: 19px; height: 19px; }
+.nido .ico-clay{ background: var(--clay-tint); color: var(--clay); }
+.nido .ico-pine{ background: var(--pine-tint); color: var(--pine); }
+.nido .ico-honey{ background: var(--honey-tint); color: var(--honey); }
+.nido .ico-plum{ background: #E6E0EE; color: var(--plum); }
+.nido .ico-berry{ background: var(--berry-tint); color: var(--berry); }
+.nido .ico-ink{ background: var(--inset); color: var(--ink-2); }
+
+/* status pill */
+.nido .pill{
+  font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: .01em;
+  display: inline-block;
+}
+.nido .pill-ok{ background: var(--pine-tint); color: var(--pine-2); }
+.nido .pill-warn{ background: var(--honey-tint); color: #8a5e16; }
+.nido .pill-over{ background: var(--berry-tint); color: var(--berry); }
+.nido .pill-mute{ background: var(--inset); color: var(--ink-2); }
+
+/* progress bar — calm */
+.nido .bar{ height: 7px; border-radius: 999px; background: var(--inset); overflow: hidden; position: relative; }
+.nido .bar i{ position:absolute; inset:0 auto 0 0; border-radius: 999px; display:block; }
+.nido .bar.thin{ height: 5px; }
+.nido .fill-pine{ background: var(--pine); }
+.nido .fill-honey{ background: var(--honey); }
+.nido .fill-clay{ background: var(--clay); }
+.nido .fill-berry{ background: var(--berry); }
+/* overspend stripe — calm, not loud */
+.nido .fill-over{ background: repeating-linear-gradient(45deg, var(--honey) 0 7px, #d29a44 7px 14px); }
+
+/* ============================================================
+   TRANSACTION ROW
+   ============================================================ */
+.nido .txn{ display: flex; align-items: center; gap: 14px; padding: 12px 4px; }
+.nido .txn + .txn{ border-top: 1px solid var(--line); }
+.nido .txn .meta{ flex: 1; min-width: 0; }
+.nido .txn .name{ font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nido .txn .sub{ font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+.nido .txn .amt{ font-weight: 700; font-size: 15px; white-space: nowrap; }
+.nido .amt-neg{ color: var(--berry); }
+.nido .amt-pos{ color: var(--pine); }
+.nido .who{
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: var(--inset); color: var(--ink-2);
+}
+.nido .who.maria{ background: var(--clay-tint); color: var(--clay-2); }
+.nido .who.you{ background: var(--pine-tint); color: var(--pine-2); }
+
+.nido .day-label{ font-size: 11.5px; font-weight: 700; letter-spacing: .1em; color: var(--ink-3); text-transform: uppercase; margin: 18px 4px 4px; }
+
+/* ============================================================
+   MOBILE FRAME
+   ============================================================ */
+.nido .phone{
+  width: 390px; background: var(--paper); border-radius: 0; overflow: hidden;
+  position: relative;
+}
+.nido .status-bar{
+  height: 50px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 26px 0 30px; font-size: 15px; font-weight: 700; color: var(--ink);
+}
+.nido .status-bar .right{ display: flex; align-items: center; gap: 7px; }
+.nido .tabbar{
+  position: absolute; left: 0; right: 0; bottom: 0; height: 86px;
+  background: rgba(251,246,236,.92); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  display: flex; align-items: flex-start; justify-content: space-around; padding: 12px 14px 0;
+}
+.nido .tab{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--ink-3); background: none; border: 0; font-family: inherit; cursor: pointer; }
+.nido .tab.on{ color: var(--clay); }
+.nido .tab svg{ width: 23px; height: 23px; }
+.nido .tab-add{
+  width: 58px; height: 58px; border-radius: 20px; margin-top: -26px;
+  background: linear-gradient(150deg, var(--clay), var(--clay-2)); color: #fff;
+  display: grid; place-items: center; box-shadow: 0 10px 22px -8px rgba(188,87,57,.8);
+  border: 0; cursor: pointer;
+}
+.nido .tab-add svg{ width: 26px; height: 26px; }
+
+/* ============================================================
+   HISTORIAL — fila + controles
+   ============================================================ */
+.nido .hrow{
+  display: flex; align-items: center; gap: 14px;
+  padding: 11px 14px; border-radius: 12px; transition: background .12s; position: relative;
+}
+.nido .hrow:hover{ background: var(--surface-2); box-shadow: var(--shadow-sm); }
+
+.nido .row-actions{
+  display: flex; gap: 4px; opacity: 0; transition: opacity .12s; flex: 0 0 auto;
+}
+.nido .hrow:hover .row-actions{ opacity: 1; }
+.nido .row-act{
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  color: var(--ink-3); cursor: pointer; transition: .12s; border: 0; background: none;
+}
+.nido .row-act:hover{ background: var(--inset); color: var(--ink); }
+.nido .row-act svg{ width: 16px; height: 16px; }
+
+.nido .split-pill{
+  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  letter-spacing: .01em; white-space: nowrap;
+}
+.nido .split-even{ background: var(--inset); color: var(--ink-2); }
+.nido .split-skew{ background: var(--honey-tint); color: #8a5e16; }
+
+/* filter chip (toggle) */
+.nido .fchip{
+  font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--ink-2); font-weight: 600; font-size: 13px;
+  transition: .12s; white-space: nowrap;
+}
+.nido .fchip.has-ico{ padding-left: 8px; }
+.nido .fchip:hover{ border-color: var(--line-2); color: var(--ink); }
+.nido .fchip.on{ border-color: var(--clay); background: var(--clay-tint); color: var(--clay-2); }
+
+/* group header */
+.nido .ghead{ display: flex; align-items: center; gap: 9px; padding: 15px 16px 7px; }
+.nido .ghead .gsub{ font-size: 13px; color: var(--ink-3); }
+.nido .ghead .gtot{ margin-left: auto; font-size: 13.5px; color: var(--ink-2); font-weight: 700; }
