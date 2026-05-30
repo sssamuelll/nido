@@ -1,0 +1,210 @@
+/* ============================================================
+   NIDO — INTERIM MODALS + IN-PAPER WIDGETS, REPAINTED IN PAPER
+   The overlays (CategoryModal, RecurringSection edit, NotificationCenter,
+   EmojiPicker, History/Goals edit + contribute) are portaled to <body> inside
+   `.nido nido-portal`. The RecurringSection card renders inside the paper
+   Dashboard. Everything here is the warm replacement for the glass rules in
+   global.css, scoped under `.nido` so it wins now and stands alone once
+   global.css is deleted. Loaded after nido.css (see App.tsx).
+   ============================================================ */
+
+/* portal wrapper collapses so only the fixed overlay paints */
+.nido.nido-portal { min-height: 0; background: none; }
+
+/* ---- overlay + surface ---- */
+.nido .modal-overlay {
+  position: fixed; inset: 0; background: rgba(43,38,32,.42); backdrop-filter: blur(3px);
+  z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.nido .modal-overlay.open { opacity: 1; pointer-events: auto; }
+.nido .modal {
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 26px; width: 440px; max-width: 100%; max-height: 90vh;
+  overflow-y: auto; box-shadow: 0 32px 90px -24px rgba(35,22,12,.5);
+  transform: scale(.97) translateY(8px); transition: transform .25s cubic-bezier(.16,1,.3,1);
+}
+.nido .modal-overlay.open .modal { transform: none; }
+.nido .modal h3 { font-family: var(--serif); font-weight: 400; font-size: 23px; margin-bottom: 4px; color: var(--ink); }
+.nido .modal p { font-size: 13.5px; color: var(--ink-2); margin-bottom: 20px; }
+
+/* ---- form rows + inputs ---- */
+.nido .form-row { display: flex; gap: 12px; margin-bottom: 14px; align-items: center; }
+.nido .form-row label { font-size: 13px; font-weight: 600; color: var(--ink-2); min-width: 80px; }
+.nido .label { font-size: 13px; font-weight: 600; color: var(--ink-2); display: block; margin-bottom: 8px; }
+.nido .form-input {
+  flex: 1; min-height: 44px; padding: 11px 14px; font: inherit; font-size: 14px;
+  background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.nido .form-input::placeholder { color: var(--ink-3); }
+.nido .form-input:focus { outline: none; border-color: var(--clay); box-shadow: 0 0 0 3px var(--clay-tint); }
+.nido .form-row-s { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.nido .form-input-s { flex: 1; min-height: 44px; padding: 11px 14px; font: inherit; font-size: 15px; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); }
+
+/* ---- actions + button variants (base .btn already paper from nido.css) ---- */
+.nido .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+.nido .edit-modal-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.nido .edit-modal-actions__secondary, .nido .edit-modal-actions__primary { display: flex; gap: 8px; }
+.nido .btn-outline { background: var(--surface-2); border-color: var(--line-2); color: var(--ink-2); box-shadow: none; }
+.nido .btn-outline:hover { border-color: var(--ink-3); color: var(--ink); }
+.nido .btn-sm, .nido .btn--sm { padding: 7px 14px; font-size: 13px; }
+.nido .btn-danger, .nido .btn-danger-outline { background: transparent; border: 1px solid var(--berry); color: var(--berry); box-shadow: none; }
+.nido .btn-danger:hover, .nido .btn-danger-outline:hover { background: var(--berry-tint); }
+
+/* ---- type selector (compartido / personal) ---- */
+.nido .type-sel { flex: 1; padding: 10px; border-radius: var(--r-sm); cursor: pointer; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); }
+.nido .type-sel--active { border: 2px solid var(--clay); background: var(--clay-tint); color: var(--clay-2); }
+
+/* ---- command palette (category search) ---- */
+.nido .cmd-palette { position: relative; }
+.nido .cmd-input-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 44px; padding: 6px 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.nido .cmd-input { flex: 1; min-width: 90px; border: 0; background: transparent; outline: none; font: inherit; font-size: 14px; color: var(--ink); }
+.nido .cmd-input::placeholder { color: var(--ink-3); }
+.nido .cmd-selected { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; background: var(--inset); border-radius: 999px; font-size: 13px; font-weight: 600; }
+.nido .cmd-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--inset); }
+.nido .cmd-x { cursor: pointer; color: var(--ink-3); font-size: 16px; line-height: 1; }
+.nido .cmd-dropdown { display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow); overflow: hidden; }
+.nido .cmd-dropdown.open { display: block; }
+.nido .cmd-list { max-height: 220px; overflow-y: auto; }
+.nido .cmd-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; font-size: 14px; }
+.nido .cmd-option:hover { background: var(--inset); }
+.nido .cmd-option.selected { background: var(--clay-tint); color: var(--clay-2); }
+.nido .cmd-create { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; color: var(--clay); font-weight: 600; font-size: 13.5px; border-top: 1px solid var(--line); }
+
+/* ---- cycle frequency stepper (recurring) ---- */
+.nido .cycle-stepper { display: flex; align-items: center; gap: 8px; }
+.nido .cycle-stepper__btn { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font-size: 18px; font-weight: 600; cursor: pointer; }
+.nido .cycle-stepper__btn:disabled { opacity: .4; cursor: not-allowed; }
+.nido .cycle-stepper__value { min-width: 28px; text-align: center; font-weight: 700; }
+.nido .cycle-stepper__label { font-size: 13px; color: var(--ink-3); }
+
+/* ---- cycle attribution toggle (back-dated expense) ---- */
+.nido .cycle-attribution { background: var(--honey-tint); border: 1px solid #e6d3a0; border-radius: var(--r-sm); padding: 12px 14px; }
+.nido .cycle-attribution__hint { font-size: 12.5px; color: #7a5512; margin-bottom: 10px; }
+.nido .cycle-attribution__toggle { display: flex; gap: 8px; }
+.nido .approval-note { background: var(--clay-tint); border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: 10px 14px; font-size: 12.5px; color: var(--clay-2); display: flex; align-items: center; gap: 8px; }
+
+/* ---- contribute modal (Goals) ---- */
+.nido .contribute-amount-wrap { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 14px; flex: 1; }
+.nido .contribute-currency { color: var(--ink-3); font-size: 16px; }
+.nido .contribute-input { border: 0; background: transparent; min-height: 44px; padding: 11px 0; }
+.nido .contribute-input:focus { box-shadow: none; }
+.nido .contribute-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.nido .contribute-chip { font: inherit; cursor: pointer; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); font-weight: 600; font-size: 13px; }
+.nido .contribute-chip--active { border-color: var(--clay); background: var(--clay-tint); color: var(--clay-2); }
+.nido .contribute-chip--fill { border-style: dashed; color: var(--pine-2); }
+.nido .contribute-info { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
+
+/* ---- progressive date pickers ---- */
+.nido .expense-date-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.nido .expense-date-picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nido .expense-date-input { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); font: inherit; }
+.nido .expense-date-today { font: inherit; cursor: pointer; padding: 8px 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--clay); font-weight: 600; }
+.nido .expense-date-close { font: inherit; cursor: pointer; width: 38px; height: 38px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-3); display: grid; place-items: center; }
+.nido .expense-date-dot { width: 7px; height: 7px; border-radius: 9px; background: var(--clay); }
+.nido .expense-repeat-stepper { display: flex; align-items: center; gap: 8px; }
+
+/* ---- CategoryModal: colour swatches + dual budget + event toggle ---- */
+.nido .cat-color-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.nido .cat-color-dot { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; background: var(--dot-color); border: 3px solid transparent; padding: 0; }
+.nido .cat-color-dot--active { border-color: var(--ink); }
+.nido .cat-budget-dual-wrap { flex: 1; }
+.nido .cat-budget-dual { display: flex; align-items: center; gap: 8px; }
+.nido .cat-budget-input { display: flex; align-items: center; gap: 6px; flex: 1; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 12px; }
+.nido .cat-budget-input .form-input { border: 0; background: transparent; }
+.nido .cat-budget-input .form-input:focus { box-shadow: none; }
+.nido .cat-budget-input__symbol { color: var(--ink-3); font-size: 14px; }
+.nido .cat-budget-swap { color: var(--ink-3); }
+.nido .cat-budget-bar-wrap { height: 6px; border-radius: 999px; background: var(--inset); margin-top: 10px; overflow: hidden; }
+.nido .cat-budget-bar { height: 100%; width: var(--cat-budget-pct); background: var(--pine); border-radius: 999px; }
+.nido .cat-budget-bar--warn { background: var(--honey); }
+.nido .cat-budget-bar--over { background: repeating-linear-gradient(45deg, var(--honey) 0 7px, #d29a44 7px 14px); }
+.nido .cat-budget-info { font-size: 12px; color: var(--ink-3); margin-top: 7px; }
+.nido .event-toggle-wrap label { min-width: auto; color: inherit; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.nido .event-toggle__track { width: 38px; height: 22px; border-radius: 999px; background: var(--inset); display: block; position: relative; transition: .15s; }
+.nido .event-toggle__thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); box-shadow: var(--shadow-sm); transition: .15s; }
+.nido .event-toggle--active .event-toggle__track { background: var(--clay); }
+.nido .event-toggle--active .event-toggle__thumb { transform: translateX(16px); }
+.nido .event-toggle__label { font-size: 14px; font-weight: 600; }
+
+/* ---- EmojiPicker ---- */
+.nido .ep-wrap { position: relative; display: flex; }
+.nido .ep-trigger { width: 44px; height: 44px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; display: grid; place-items: center; }
+.nido .ep-trigger:hover { border-color: var(--line-2); }
+.nido .ep-trigger-emoji { font-size: 22px; line-height: 1; }
+.nido .ep-popover { position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 320px; max-width: 86vw; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow); padding: 10px; }
+.nido .ep-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.nido .ep-search { display: flex; align-items: center; gap: 8px; flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px; }
+.nido .ep-search input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: 14px; color: var(--ink); }
+.nido .ep-search input::placeholder { color: var(--ink-3); }
+.nido .ep-grid { max-height: 240px; overflow-y: auto; }
+.nido .ep-cat-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); padding: 8px 2px 4px; }
+.nido .ep-emojis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
+.nido .ep-item { font-size: 22px; line-height: 1; padding: 6px 0; border: 0; background: transparent; cursor: pointer; border-radius: 8px; }
+.nido .ep-item:hover { background: var(--inset); }
+.nido .ep-item.selected { background: var(--clay-tint); box-shadow: 0 0 0 2px var(--clay); }
+.nido .ep-tabs { display: flex; gap: 2px; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+.nido .ep-tab { flex: 1; font-size: 18px; padding: 6px 0; border: 0; background: transparent; cursor: pointer; border-radius: 8px; }
+.nido .ep-tab:hover { background: var(--inset); }
+.nido .ep-tab.active { background: var(--clay-tint); }
+.nido .ep-fullscreen { position: fixed; inset: 0; z-index: 600; background: var(--surface); display: flex; flex-direction: column; padding: 14px 16px; }
+.nido .ep-fullscreen .ep-grid { flex: 1; max-height: none; }
+.nido .ep-fullscreen .ep-item { font-size: 28px; }
+.nido .ep-back { width: 40px; height: 40px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; display: grid; place-items: center; border-radius: var(--r-sm); }
+
+/* ---- RecurringSection card (renders inside the paper Dashboard) ---- */
+.nido .recurring-card__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nido .recurring-card__title-row { display: flex; align-items: baseline; gap: 10px; }
+.nido .sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.nido .st { font-family: var(--serif); font-size: 21px; }
+.nido .recurring-card__total { font-weight: 700; font-size: 15px; }
+.nido .recurring-card__status { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--pine-tint); color: var(--pine-2); }
+.nido .recurring-card__status--idle { background: var(--inset); color: var(--ink-3); }
+.nido .recurring-card__meta { font-size: 12.5px; color: var(--ink-3); margin-bottom: 10px; }
+.nido .recurring-card__empty { padding: 24px 0; text-align: center; color: var(--ink-3); font-size: 14px; }
+.nido .recurring-card__list { display: flex; flex-direction: column; }
+.nido .recurring-card__item { display: flex; align-items: center; gap: 14px; padding: 12px 4px; border-top: 1px solid var(--line); cursor: pointer; }
+.nido .recurring-card__item:hover { background: var(--surface-2); }
+.nido .recurring-card__item--paused { opacity: .5; }
+.nido .recurring-card__icon { width: 38px; height: 38px; border-radius: 11px; background: var(--inset); display: grid; place-items: center; flex: 0 0 auto; }
+.nido .recurring-card__emoji { font-size: 18px; }
+.nido .recurring-card__item-body { flex: 1; min-width: 0; }
+.nido .recurring-card__item-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nido .recurring-card__item-title-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.nido .recurring-card__item-title { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nido .recurring-card__subline { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+.nido .recurring-card__pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--inset); color: var(--ink-2); }
+.nido .recurring-card__pill--personal { background: var(--pine-tint); color: var(--pine-2); }
+.nido .recurring-card__pill--paused { background: var(--honey-tint); color: #8a5e16; }
+.nido .recurring-card__amount { font-weight: 700; font-size: 14.5px; white-space: nowrap; }
+.nido .recurring-card__approval-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--honey-tint); border: 1px solid #e6d3a0; }
+.nido .recurring-card__approval-text { font-size: 12.5px; color: #7a5512; font-weight: 600; }
+.nido .add-cat-row { display: flex; align-items: center; gap: 8px; color: var(--clay); font-weight: 600; font-size: 14px; cursor: pointer; }
+.nido .budget-item { display: flex; align-items: center; gap: 14px; }
+.nido .icon-c { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: 0 0 auto; }
+
+/* ---- NotificationCenter drawer ---- */
+.nido .notification-center__overlay { position: fixed; inset: 0; background: rgba(43,38,32,.42); backdrop-filter: blur(3px); z-index: 500; display: flex; justify-content: flex-end; }
+.nido .notification-center__panel { width: 380px; max-width: 100%; height: 100%; background: var(--surface); border-left: 1px solid var(--line); display: flex; flex-direction: column; box-shadow: -24px 0 60px -24px rgba(35,22,12,.4); }
+.nido .notification-center__header { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+.nido .notification-center__title { font-family: var(--serif); font-weight: 400; font-size: 22px; margin-left: 8px; }
+.nido .notification-center__mark-all, .nido .notification-center__close { width: 38px; height: 38px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); cursor: pointer; display: grid; place-items: center; }
+.nido .notification-center__list { flex: 1; overflow-y: auto; padding: 8px; }
+.nido .notification-item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; border-radius: var(--r-sm); cursor: pointer; position: relative; }
+.nido .notification-item:hover { background: var(--surface-2); }
+.nido .notification-item--read { opacity: .6; }
+.nido .notification-item__icon { width: 34px; height: 34px; border-radius: 10px; background: var(--clay-tint); color: var(--clay); display: grid; place-items: center; flex: 0 0 auto; }
+.nido .notification-item__content { flex: 1; min-width: 0; }
+.nido .notification-item__header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.nido .notification-item__title { font-weight: 600; font-size: 14px; }
+.nido .notification-item__time { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.nido .notification-item__message { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.nido .notification-item__badge { width: 8px; height: 8px; border-radius: 9px; background: var(--clay); flex: 0 0 auto; margin-top: 6px; }
+
+/* ---- shared utilities used by the modals ---- */
+.nido .empty-view { padding: 24px 0; text-align: center; color: var(--ink-3); font-size: 14px; }
+.nido .empty-view__emoji { font-size: 32px; margin-bottom: 8px; }
+.nido .empty-view__text { font-size: 14px; color: var(--ink-2); }
+.nido .u-flex-center { display: flex; align-items: center; gap: 8px; }
+.nido .u-py-60 { padding-top: 60px; padding-bottom: 60px; }
+.nido .u-text-center { text-align: center; }

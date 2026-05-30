@@ -18,6 +18,7 @@ import { Goals } from './views/Goals';
 import { EventDetail } from './views/EventDetail';
 import './styles/global.css';
 import './styles/nido.css';
+import './styles/nido-modals.css';
 
 /* The toast host: showToast() writes into #global-toast / #global-toast-msg,
    so this markup must be present in every layout branch. */
