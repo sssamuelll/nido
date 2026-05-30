@@ -16,7 +16,6 @@ import { AddExpense } from './views/AddExpense';
 import { Analytics } from './views/Analytics';
 import { Goals } from './views/Goals';
 import { EventDetail } from './views/EventDetail';
-import './styles/global.css';
 import './styles/nido.css';
 import './styles/nido-modals.css';
 

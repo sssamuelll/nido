@@ -208,3 +208,23 @@
 .nido .u-flex-center { display: flex; align-items: center; gap: 8px; }
 .nido .u-py-60 { padding-top: 60px; padding-bottom: 60px; }
 .nido .u-text-center { text-align: center; }
+
+/* ---- toast (host markup in App.tsx GlobalToast; toggled by Toast.ts) ---- */
+.nido .toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120px);
+  background: var(--ink); color: var(--paper); padding: 13px 20px; border-radius: var(--r-md);
+  display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow);
+  z-index: 2000; opacity: 0; transition: all .3s cubic-bezier(.16,1,.3,1);
+  font-size: 14px; font-weight: 600; pointer-events: none; max-width: calc(100vw - 32px);
+  border-left: 3px solid var(--ink-3);
+}
+.nido .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.nido .toast--success { border-left-color: var(--pine); }
+.nido .toast--error { border-left-color: var(--berry); }
+.nido .toast--info { border-left-color: var(--clay); }
+/* the host markup carries decorative icon <svg>s; keep them hidden (paper toast
+   reads as a calm text pill, matching the warm system) */
+.nido .toast-icon, .nido .toast-icon__svg { display: none; }
+
+/* ---- inline form error (AddExpense / History edit) ---- */
+.nido .add-expense__error-msg { font-size: 13px; color: var(--berry); margin: 8px 0 0; }

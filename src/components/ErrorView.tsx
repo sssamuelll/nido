@@ -1,30 +1,38 @@
 import React from 'react';
+import { Icon, Btn } from './nido';
 
-interface Props {
-  /** The error message to render. */
-  message: string;
-  /** Optional retry handler. If omitted, no retry button is rendered. */
+interface ErrorViewProps {
+  message?: string;
   onRetry?: () => void;
-  /**
-   * Optional escape action rendered as a subtle text-button below the
-   * primary retry. NOT a peer of retry — semantically the retry is the
-   * intended action; this is the way out (e.g. "Volver al dashboard").
-   */
-  secondaryAction?: { label: string; onClick: () => void };
+  fullScreen?: boolean;
 }
 
-export const ErrorView: React.FC<Props> = ({ message, onRetry, secondaryAction }) => (
-  <div className="error-view">
-    <div className="error-view__msg">{message}</div>
-    {onRetry && (
-      <button onClick={onRetry} className="btn btn-primary">
-        Reintentar
-      </button>
-    )}
-    {secondaryAction && (
-      <button onClick={secondaryAction.onClick} className="error-view__secondary">
-        {secondaryAction.label}
-      </button>
-    )}
-  </div>
-);
+export const ErrorView: React.FC<ErrorViewProps> = ({
+  message = 'Algo salió mal',
+  onRetry,
+  fullScreen = false,
+}) => {
+  return (
+    <div
+      className="nido grain"
+      style={{
+        display: 'grid', placeItems: 'center', textAlign: 'center', padding: 32,
+        ...(fullScreen ? { minHeight: '100vh' } : { minHeight: 280 }),
+      }}
+    >
+      <div>
+        <div
+          style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--honey-tint)', color: 'var(--honey)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}
+        >
+          <Icon.info />
+        </div>
+        <p style={{ color: 'var(--ink-2)', fontSize: 15, maxWidth: 340, margin: '0 auto 18px' }}>{message}</p>
+        {onRetry ? (
+          <Btn variant="primary" onClick={onRetry} style={{ margin: '0 auto' }}>
+            <Icon.refresh /> Reintentar
+          </Btn>
+        ) : null}
+      </div>
+    </div>
+  );
+};

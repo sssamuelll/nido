@@ -335,7 +335,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
         )}
 
         {/* Footer — matches add-cat-row pattern from budget cards */}
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="add-cat-row" style={{ flex: 1 }} onClick={openAddModal}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path d="M12 4v16m-8-8h16" />
