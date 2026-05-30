@@ -227,7 +227,7 @@ export const Goals: React.FC = () => {
                   <label>Tipo</label>
                   <div style={{ display: 'flex', gap: 8, flex: 1 }}>
                     {(['shared', 'personal'] as const).map((t) => (
-                      <div key={t} onClick={() => setFormData((p) => ({ ...p, owner_type: t }))} style={{ flex: 1, padding: 10, borderRadius: 'var(--rx)', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 500, border: formData.owner_type === t ? '2px solid var(--green)' : '1px solid var(--glass-border)', background: formData.owner_type === t ? 'var(--gl)' : 'var(--surface)', color: formData.owner_type === t ? 'var(--green)' : 'var(--ts)' }}>
+                      <div key={t} className={`type-sel${formData.owner_type === t ? ' type-sel--active' : ''}`} onClick={() => setFormData((p) => ({ ...p, owner_type: t }))}>
                         {t === 'shared' ? 'Compartido' : 'Personal'}
                       </div>
                     ))}

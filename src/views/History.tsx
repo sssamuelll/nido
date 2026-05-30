@@ -639,8 +639,8 @@ export const History: React.FC = () => {
               <div style={{ marginBottom: 16 }}>
                 <div className="label">Tipo de gasto</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <div className="type-sel" onClick={() => setEditType('shared')} style={editType === 'shared' ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' } : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}>Compartido</div>
-                  <div className="type-sel" onClick={() => setEditType('personal')} style={editType === 'personal' ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' } : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}>Personal</div>
+                  <div className={`type-sel${editType === 'shared' ? ' type-sel--active' : ''}`} onClick={() => setEditType('shared')}>Compartido</div>
+                  <div className={`type-sel${editType === 'personal' ? ' type-sel--active' : ''}`} onClick={() => setEditType('personal')}>Personal</div>
                 </div>
               </div>
               {editError ? <div className="add-expense__error-msg">{editError}</div> : null}
