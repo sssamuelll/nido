@@ -134,6 +134,18 @@ const AppRoutes: React.FC = () => {
     );
   }
 
+  // Configuración: stacked screen (own back-arrow header). On desktop it still
+  // sits inside the rail; on mobile it brings its own chrome and no tab bar.
+  if (location.pathname === '/settings') {
+    return (
+      <>
+        {isMobileViewport ? <Settings /> : <NidoShell active="set"><Settings /></NidoShell>}
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
   return (
     <>
     <MeshBackground />
