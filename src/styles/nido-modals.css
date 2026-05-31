@@ -153,6 +153,7 @@
 .nido .ep-back { width: 40px; height: 40px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; display: grid; place-items: center; border-radius: var(--r-sm); }
 
 /* ---- RecurringSection card (renders inside the paper Dashboard) ---- */
+.nido .recurring-card { padding: 24px 26px; }
 .nido .recurring-card__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .nido .recurring-card__title-row { display: flex; align-items: baseline; gap: 10px; }
 .nido .sh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
