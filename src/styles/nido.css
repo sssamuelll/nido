@@ -16,8 +16,21 @@
 /* ---- base reset (replaces the old glass global.css reset/body styles) ---- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { min-height: 100vh; background: #F4EDE1; color: #2B2620; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
-html[data-theme="dark"], html[data-theme="dark"] body { background: #181410; color: #F1E9DC; }
+/* Root paper + warm grain — lives on <body> (the viewport), not on the .shell
+   box, so wide-screen side gutters share the same gradient as the centred
+   cluster. `fixed` anchors it to the viewport instead of stretching to the
+   scroll height. */
+body {
+  min-height: 100vh;
+  background-color: #F4EDE1;
+  background-image:
+    radial-gradient(120% 90% at 88% -8%, rgba(188,87,57,.06), transparent 60%),
+    radial-gradient(120% 90% at -6% 104%, rgba(61,107,82,.05), transparent 55%);
+  background-attachment: fixed;
+  color: #2B2620; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+}
+/* background-color only (not the `background` shorthand) so the grain image survives in dark */
+html[data-theme="dark"], html[data-theme="dark"] body { background-color: #181410; color: #F1E9DC; }
 input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -392,7 +405,11 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
    Mobile-first: no rail, content scrolls under a fixed tab bar.
    ≥768px: 84px sticky rail + scrolling main, tab bar hidden.
    ============================================================ */
-.nido.shell { min-height: 100vh; }
+/* The shell is transparent so the root (body) paper + grain shows through it
+   uniformly — wide-screen gutters and the centred cluster share one gradient.
+   Its own grain ::before is disabled to avoid a doubled seam at the cluster edge. */
+.nido.shell { min-height: 100vh; background: transparent; }
+.nido.shell.grain::before { content: none; }
 .nido.shell > .rail { display: none; }
 .nido.shell > .shell-main { padding: 16px 18px 104px; }
 .nido.shell > .tabbar {
