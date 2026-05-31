@@ -106,6 +106,16 @@ const GOALS: SeedGoal[] = [
 const HOUSEHOLD_BUDGET = { total: 1625, personalSamuel: 400, personalMaria: 400 };
 
 async function main(): Promise<void> {
+  // HARD GUARD: this script DELETES all expenses/categories/goals of the first
+  // household. It must NEVER run against production data. It is excluded from
+  // the production build (server/tsconfig.json) and never imported by the
+  // server, but this refuses to run if it ever lands somewhere with a prod env.
+  if (process.env.NODE_ENV === 'production' || process.env.NIDO_ENV === 'production') {
+    // eslint-disable-next-line no-console
+    console.error('seed-dev: REHUSADO — este script borra datos de demo y jamás debe correr en producción.');
+    process.exit(1);
+  }
+
   await initDatabase();
   const db = getDatabase();
 
