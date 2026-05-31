@@ -12,5 +12,5 @@
     "outDir": "dist/server"
   },
   "include": ["**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "seed-dev.ts"]
 }
