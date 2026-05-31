@@ -19,6 +19,7 @@
     "test:coverage": "vitest --coverage",
     "test:run": "vitest run",
     "test:ci": "vitest run --exclude=src/components/**",
+    "seed:dev": "tsx server/seed-dev.ts",
     "migrate:status": "tsx server/migrate.ts status",
     "migrate:up": "tsx server/migrate.ts up",
     "migrate:down": "tsx server/migrate.ts down"
