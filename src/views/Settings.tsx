@@ -259,14 +259,27 @@ export const Settings: React.FC = () => {
     </div>
   );
 
-  const screen = (inner: React.ReactNode) => (
+  // Mobile is a bare stacked screen (own grain wrapper + back-arrow header).
+  // Desktop renders inside NidoShell like every other screen: no self-wrapper,
+  // no width cap, the standard phead title — so it fills the shell.
+  const screen = (inner: React.ReactNode) => (isMobile ? (
     <div className="nido grain" style={{ minHeight: '100vh' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '16px 20px 40px' }}>
         {headerBar}
         {inner}
       </div>
     </div>
-  );
+  ) : (
+    <>
+      <div className="phead">
+        <div>
+          <h1 className="ptitle">Configuración</h1>
+          <div className="psub">Ajustes del nido</div>
+        </div>
+      </div>
+      {inner}
+    </>
+  ));
 
   if (loading || !budget) {
     return screen(<div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{[0, 1, 2].map((i) => <div key={i} className="card" style={{ height: 140, opacity: 0.5 - i * 0.12 }} />)}</div>);
@@ -409,16 +422,16 @@ export const Settings: React.FC = () => {
   );
 
   return screen(
-    <>
-      {profileCard}
-      {isMobile ? (
-        <>{budgetCard}{cycleCard}<PinChangeSection />{devicesCard}{toolsCard}{dangerCard}</>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: 16, alignItems: 'start' }}>
-          <div>{budgetCard}{cycleCard}</div>
-          <div><PinChangeSection />{devicesCard}{toolsCard}{dangerCard}</div>
-        </div>
-      )}
-    </>
+    isMobile ? (
+      <>
+        {profileCard}
+        {budgetCard}{cycleCard}<PinChangeSection />{devicesCard}{toolsCard}{dangerCard}
+      </>
+    ) : (
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20, alignItems: 'start' }}>
+        <div>{budgetCard}{cycleCard}</div>
+        <div><PinChangeSection />{devicesCard}{toolsCard}{dangerCard}</div>
+      </div>
+    )
   );
 };
