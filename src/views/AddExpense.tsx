@@ -10,9 +10,9 @@ import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
 import { formatDayLabel, todayISO } from '../lib/dates';
 import { formatMoney, formatMoneyExact } from '../lib/money';
-import { NidoShell } from '../components/nido/NidoShell';
-import { Card, Eyebrow, Bar, CatIcon, Seg, Btn, FilterChip, Icon, CONTEXT_SEG_OPTIONS } from '../components/nido';
+import { Eyebrow, Bar, CatIcon, Seg, Btn, FilterChip, Icon, Portal, CONTEXT_SEG_OPTIONS } from '../components/nido';
 import type { CategoryDef } from '../hooks/useCategoryManagement';
+import type { Expense } from '../api-types/expenses';
 import type { CycleSummary } from '../api-types/cycles';
 
 interface SummaryBreakdownRow { category: string; total: number; budget: number; count: number }
@@ -96,7 +96,6 @@ export const AddExpense: React.FC = () => {
   const { categories } = useCategoryManagement();
 
   const [calc, setCalc] = useState<CalcState>(CALC_ZERO);
-  const [amount, setAmount] = useState(''); // desktop text path (dot-decimal)
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [type, setType] = useState<'shared' | 'personal'>('shared');
@@ -105,6 +104,8 @@ export const AddExpense: React.FC = () => {
   const [step, setStep] = useState<1 | 2>(1); // mobile only
   const [repeatCount, setRepeatCount] = useState(1); // log N identical expenses at once
   const [categorySearch, setCategorySearch] = useState(''); // filter existing / create new
+  const [catExpanded, setCatExpanded] = useState(false); // modal: reveal full category search
+  const [recentOpen, setRecentOpen] = useState(false);   // modal: repeat-a-previous-expense menu
 
   const preset = location.state as { initialContext?: 'shared' | 'personal'; initialCategory?: string; eventId?: number } | null;
   useEffect(() => {
@@ -112,6 +113,20 @@ export const AddExpense: React.FC = () => {
     if (preset?.initialCategory) setCategory(preset.initialCategory);
     if (preset?.eventId) setSelectedEventId(preset.eventId);
   }, [preset]);
+
+  // Desktop renders as a modal over the dashboard: lock background scroll and
+  // close on Escape. Mobile is a full stacked screen, so this is a no-op there.
+  useEffect(() => {
+    if (isMobile) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') navigate(-1); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isMobile, navigate]);
 
   // Cycle attribution (PR #213): a back-dated expense whose date falls outside
   // the active cycle is attributed to the cycle that owns that date, not the
@@ -146,6 +161,28 @@ export const AddExpense: React.FC = () => {
   const { data: eventsData } = useResource<EventOption[]>(loadEventsFn, { invalidationKey: CACHE_KEYS.events });
   const events = eventsData ?? [];
 
+  // Recent expenses feed the modal's "Repetir un gasto anterior" quick-fill:
+  // pick a past expense to clone its description / category / type / amount.
+  const loadRecentFn = useCallback(async () => {
+    const list = await Api.getExpenses();
+    return Array.isArray(list) ? list : [];
+  }, []);
+  const { data: recentData } = useResource<Expense[]>(loadRecentFn, { invalidationKey: CACHE_KEYS.expenses });
+  const recentExpenses = useMemo(() => {
+    const sorted = (recentData ?? []).slice().sort((a, b) =>
+      b.date.localeCompare(a.date) || (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    const seen = new Set<string>();
+    const out: Expense[] = [];
+    for (const e of sorted) {
+      const k = `${(e.description ?? '').toLowerCase()}|${e.amount}|${e.category ?? ''}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(e);
+      if (out.length >= 6) break;
+    }
+    return out;
+  }, [recentData]);
+
   // summary (for the calm budget-impact preview); optional — silent on failure
   const [summary, setSummary] = useState<AddSummary | null>(null);
   const loadSummary = useCallback(async () => {
@@ -164,7 +201,7 @@ export const AddExpense: React.FC = () => {
     invalidationKeys: [CACHE_KEYS.summary, CACHE_KEYS.expenses, CACHE_KEYS.budget, CACHE_KEYS.cycles],
   });
 
-  const numericAmount = isMobile ? calcValue(calc) : (Number(amount) || 0);
+  const numericAmount = calcValue(calc);
 
   // budget impact for the chosen category in the chosen context
   const impact = useMemo(() => {
@@ -178,12 +215,6 @@ export const AddExpense: React.FC = () => {
     const pct = Math.min(100, Math.round((after / budget) * 100));
     return { budget, after, over, pct, overBy: over ? after - budget : 0 };
   }, [category, numericAmount, type, summary]);
-
-  const handleAmountChange = (value: string) => {
-    const sanitized = value.replace(/[^0-9.,]/g, '').replace(',', '.');
-    if (sanitized.split('.').length > 2) return;
-    setAmount(sanitized);
-  };
 
   const validate = (): boolean => {
     if (numericAmount <= 0 || !Number.isFinite(numericAmount)) {
@@ -229,6 +260,18 @@ export const AddExpense: React.FC = () => {
   const goToDetails = () => {
     if (!validate()) return;
     setStep(2);
+  };
+
+  const closeModal = () => navigate(-1);
+
+  // Clone a previous expense into the form (desktop "Repetir un gasto anterior").
+  const applyRecent = (e: Expense) => {
+    setDescription(e.description ?? '');
+    setCategory(e.category ?? '');
+    setType(e.type === 'personal' ? 'personal' : 'shared');
+    const amt = Math.round((e.amount ?? 0) * 100) / 100;
+    setCalc({ acc: null, op: null, entry: amt ? String(amt).replace('.', ',') : '' });
+    setRecentOpen(false);
   };
 
   /* ── shared sub-blocks ─────────────────────────────────────── */
@@ -331,6 +374,31 @@ export const AddExpense: React.FC = () => {
     </div>
   );
 
+  // Modal category section: a compact chip row (first 6 + "Más"). "Más" reveals
+  // the full search-or-create picker, so a new category can still be created.
+  const modalCategory = catExpanded ? categoryPicker(false) : (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+      {customSelected ? (
+        <FilterChip on hasIcon onClick={() => {}}>
+          <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.tag /></span>
+          {category}
+        </FilterChip>
+      ) : null}
+      {categories.slice(0, 6).map((c: CategoryDef) => (
+        <FilterChip key={c.name} on={category === c.name} hasIcon onClick={() => setCategory(c.name)}>
+          <CatIcon color={c.color} bg={c.color ? `${c.color}1A` : undefined} size={24} radius={7}>
+            <span style={{ fontSize: 14 }}>{c.emoji}</span>
+          </CatIcon>
+          {c.name}
+        </FilterChip>
+      ))}
+      <FilterChip hasIcon onClick={() => setCatExpanded(true)} style={{ borderStyle: 'dashed' }}>
+        <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.plusS /></span>
+        Más
+      </FilterChip>
+    </div>
+  );
+
   const repeatStepper = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <div>
@@ -355,7 +423,7 @@ export const AddExpense: React.FC = () => {
       </div>
       <Bar pct={impact.pct} over={impact.over} fill="pine" thin />
       {impact.over ? (
-        <div style={{ fontSize: 11.5, color: 'var(--honey)', fontWeight: 600, marginTop: 7 }}>Se pasará {formatMoney(impact.overBy)} del tope</div>
+        <div style={{ fontSize: 11.5, color: 'var(--honey-ink)', fontWeight: 600, marginTop: 7 }}>Se pasará {formatMoney(impact.overBy)} del tope de {category}</div>
       ) : null}
     </div>
   ) : null;
@@ -468,69 +536,149 @@ export const AddExpense: React.FC = () => {
     );
   }
 
-  /* ── DESKTOP: single screen inside the rail shell ──────────── */
+  /* ── DESKTOP: a centred modal painted over the dashboard ───── */
   return (
-    <NidoShell active="add">
-      <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
-        <div className="phead">
-          <div>
-            <h1 className="ptitle">Nuevo gasto</h1>
-            <div className="psub">Apúntalo en un momento</div>
+    <Portal>
+      <div className="modal-backdrop" onClick={closeModal} style={{ padding: 24 }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nuevo gasto"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: 26,
+            width: '100%',
+            maxWidth: 860,
+            maxHeight: 'calc(100vh - 48px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 30px 70px rgba(43,38,32,.30)',
+            animation: 'nido-pop .18s cubic-bezier(.2,.9,.3,1.2)',
+          }}
+        >
+          {/* header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 26px', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ display: 'flex', color: 'var(--clay)' }}><Icon.plus /></span>
+              <h2 className="serif" style={{ fontSize: 24, lineHeight: 1 }}>Nuevo gasto</h2>
+            </div>
+            <button
+              type="button"
+              aria-label="Cerrar"
+              onClick={closeModal}
+              style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--surface-2)', color: 'var(--ink-2)', cursor: 'pointer' }}
+            >
+              <Icon.x />
+            </button>
           </div>
-          <Btn variant="ghost" onClick={() => navigate(-1)}><Icon.x /> Cancelar</Btn>
+
+          {/* body: details (left) + amount keypad (right) */}
+          <div style={{ display: 'flex', minHeight: 0, overflowY: 'auto' }}>
+            <div style={{ flex: '1 1 0', minWidth: 0, background: 'var(--inset)', padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Descripción</label>
+                {descriptionField}
+              </div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Fecha</label>
+                  {dateField}
+                </div>
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Tipo</label>
+                  {typeToggle}
+                </div>
+              </div>
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
+                {modalCategory}
+              </div>
+              {cycleNote}
+              {eventSelector ? (
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Evento</label>
+                  {eventSelector}
+                </div>
+              ) : null}
+              {budgetImpact}
+            </div>
+
+            <div style={{ flex: '0 0 332px', display: 'flex', flexDirection: 'column', padding: '22px 24px', gap: 18 }}>
+              <div style={{ textAlign: 'right' }}>
+                <Eyebrow style={{ marginBottom: 6 }}>Importe</Eyebrow>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6 }}>
+                  <span style={{ fontSize: 26, color: 'var(--ink-3)' }}>€</span>
+                  <span style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{calcDisplay(calc)}</span>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, flex: 1, minHeight: 0 }}>
+                {KEYS.map((k) => {
+                  const op = isOp(k) || k === '⌫';
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setCalc((s) => pressKey(s, k))}
+                      style={{ font: 'inherit', cursor: 'pointer', border: '1px solid var(--line)', minHeight: 56, background: op ? 'var(--inset)' : 'var(--surface-2)', color: op ? 'var(--ink-2)' : 'var(--ink)', borderRadius: 14, fontSize: op ? 19 : 22, fontWeight: 600, display: 'grid', placeItems: 'center' }}
+                    >
+                      {k}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* footer */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 26px', borderTop: '1px solid var(--line)' }}>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                disabled={recentExpenses.length === 0}
+                onClick={() => setRecentOpen((o) => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'inherit', fontSize: 13.5, fontWeight: 600, color: recentExpenses.length ? 'var(--ink-2)' : 'var(--ink-3)', background: 'none', border: 0, cursor: recentExpenses.length ? 'pointer' : 'default', padding: '6px 4px' }}
+              >
+                <Icon.repeat /> Repetir un gasto anterior
+              </button>
+              {recentOpen && recentExpenses.length ? (
+                <>
+                  <div onClick={() => setRecentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1 }} />
+                  <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 2, width: 300, maxHeight: 320, overflowY: 'auto', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 16, boxShadow: '0 18px 44px rgba(43,38,32,.22)', padding: 6 }}>
+                    {recentExpenses.map((e) => {
+                      const def = categories.find((c) => c.name === e.category);
+                      return (
+                        <button
+                          key={e.id}
+                          type="button"
+                          onClick={() => applyRecent(e)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left', font: 'inherit', background: 'none', border: 0, borderRadius: 11, padding: '9px 10px', cursor: 'pointer' }}
+                          onMouseEnter={(ev) => { ev.currentTarget.style.background = 'var(--inset)'; }}
+                          onMouseLeave={(ev) => { ev.currentTarget.style.background = 'none'; }}
+                        >
+                          <CatIcon color={def?.color} bg={def?.color ? `${def.color}1A` : 'var(--inset)'} size={32} radius={9}>
+                            <span style={{ fontSize: 16 }}>{def?.emoji ?? '🧾'}</span>
+                          </CatIcon>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: 'block', fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || e.category || 'Gasto'}</span>
+                            <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-3)' }}>{e.category || 'Sin categoría'}</span>
+                          </span>
+                          <span style={{ fontWeight: 700, fontSize: 14 }}>{formatMoney(e.amount)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <Btn variant="primary" onClick={handleSubmit} disabled={submitting} style={{ height: 50, fontSize: 15.5, paddingInline: 22 }}>
+              <Icon.check /> {submitLabel}
+            </Btn>
+          </div>
         </div>
-
-        {/* amount hero */}
-        <Card pad style={{ marginBottom: 18, textAlign: 'center', padding: '34px 26px' }}>
-          <Eyebrow style={{ marginBottom: 10 }}>Importe</Eyebrow>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <span style={{ fontSize: 34, color: 'var(--ink-3)' }}>€</span>
-            <input
-              value={amount}
-              onChange={(e) => handleAmountChange(e.target.value)}
-              inputMode="decimal"
-              placeholder="0"
-              autoFocus
-              size={Math.max(2, amount.length || 1)}
-              style={{ fontSize: 64, fontWeight: 700, letterSpacing: '-.02em', border: 0, background: 'transparent', textAlign: 'center', outline: 'none', fontFamily: 'inherit', color: 'var(--ink)' }}
-            />
-          </div>
-        </Card>
-
-        {/* details */}
-        <Card pad style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
-            <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Descripción</label>
-            {descriptionField}
-          </div>
-          <div>
-            <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
-            {categoryPicker(false)}
-          </div>
-          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Fecha</label>
-              {dateField}
-            </div>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Tipo</label>
-              {typeToggle}
-            </div>
-          </div>
-          {cycleNote}
-          {eventSelector ? (
-            <div>
-              <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Evento</label>
-              {eventSelector}
-            </div>
-          ) : null}
-          {budgetImpact}
-          {repeatStepper}
-          <Btn variant="primary" onClick={handleSubmit} disabled={submitting} style={{ width: '100%', justifyContent: 'center', height: 52, fontSize: 16 }}>
-            <Icon.check /> {submitLabel}
-          </Btn>
-        </Card>
       </div>
-    </NidoShell>
+    </Portal>
   );
 };

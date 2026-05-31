@@ -87,8 +87,22 @@ const AppRoutes: React.FC = () => {
   }
 
   if (location.pathname === '/add') {
+    // Mobile keeps the full stacked 2-step keypad screen. On desktop, Nuevo
+    // gasto is a centred modal (AddExpense portals it to the body); we render
+    // the dashboard behind it so the rail + dimmed home show through, matching
+    // the approved design.
+    if (isMobileViewport) {
+      return (
+        <>
+          <AddExpense />
+          <div id="confetti-container" className="confetti-container" />
+          <GlobalToast />
+        </>
+      );
+    }
     return (
       <>
+        <NidoShell active="add"><Dashboard /></NidoShell>
         <AddExpense />
         <div id="confetti-container" className="confetti-container" />
         <GlobalToast />
