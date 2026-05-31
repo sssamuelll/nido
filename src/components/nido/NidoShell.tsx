@@ -77,6 +77,7 @@ export const NidoShell: React.FC<NidoShellProps> = ({ children, active }) => {
             style={{ border: 0, background: 'none' }}
           >
             <Glyph />
+            <span className="rail-label">{label}</span>
           </button>
         ))}
         <div className="rail-sp" />
@@ -89,6 +90,7 @@ export const NidoShell: React.FC<NidoShellProps> = ({ children, active }) => {
           style={{ border: 0, background: 'none' }}
         >
           <SETTINGS.Glyph />
+          <span className="rail-label">{SETTINGS.label}</span>
         </button>
       </nav>
 
