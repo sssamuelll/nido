@@ -539,7 +539,10 @@ export const AddExpense: React.FC = () => {
   /* ── DESKTOP: a centred modal painted over the dashboard ───── */
   return (
     <Portal>
-      <div className="modal-backdrop" onClick={closeModal} style={{ padding: 24 }}>
+      <div
+        onClick={closeModal}
+        style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(43,38,32,.42)', backdropFilter: 'blur(3px)' }}
+      >
         <div
           role="dialog"
           aria-modal="true"
