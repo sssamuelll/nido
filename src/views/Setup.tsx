@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Api } from '../api';
+import { Card, Eyebrow, Btn, Icon } from '../components/nido';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '13px 15px', border: '1px solid var(--line)', borderRadius: 12,
+  background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 15, fontFamily: 'inherit', outline: 'none',
+};
 
 export const Setup: React.FC = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) {
-      setError('Ingresa tu nombre');
-      return;
-    }
+    if (!username.trim()) { setError('Ingresa tu nombre'); return; }
     try {
       setIsLoading(true);
       setError('');
@@ -31,60 +34,21 @@ export const Setup: React.FC = () => {
   };
 
   return (
-    <div className="login-page visible">
-      <div className="login-left">
-        <div className="login-mesh">
-          <div className="mesh-orb orb1" />
-          <div className="mesh-orb orb2" />
-          <div className="mesh-orb orb3" />
-        </div>
-        <div className="login-brand">
-          <div className="brand-icon">N</div>
-          <span>nido</span>
-        </div>
-        <div className="login-headline">Tu hogar financiero como pareja</div>
-        <div className="login-sub">
-          Gestiona gastos compartidos, ahorra juntos y alcanza vuestras metas financieras
-        </div>
-        <div className="login-pills">
-          <div className="login-pill">
-            <svg width="14" height="14" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth="2"><path d="M9 12l2 2 4-4" /></svg>
-            Presupuestos
-          </div>
-          <div className="login-pill">
-            <svg width="14" height="14" fill="none" stroke="#FBBF24" viewBox="0 0 24 24" strokeWidth="2"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4" /></svg>
-            Objetivos
-          </div>
-          <div className="login-pill">
-            <svg width="14" height="14" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6" /></svg>
-            Analytics
-          </div>
-          <div className="login-pill">
-            <svg width="14" height="14" fill="none" stroke="#A78BFA" viewBox="0 0 24 24" strokeWidth="2"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-            Compartido
-          </div>
-        </div>
-      </div>
-      <div className="login-right">
-        <h2>Bienvenido a Nido</h2>
-        <div className="login-desc">Crea tu cuenta para empezar</div>
-        <form onSubmit={handleSetup}>
-          <div className="login-field">
-            <div className="label">Tu nombre</div>
-            <input
-              className="login-input"
-              placeholder="Ej: Samuel"
-              value={username}
-              onChange={e => { setUsername(e.target.value); if (error) setError(''); }}
-              disabled={isLoading}
-            />
-          </div>
-          {error && <div className="error-view__msg u-text-center">{error}</div>}
-          <button className="login-btn" type="submit" disabled={isLoading}>
-            {isLoading ? 'Creando...' : 'Crear cuenta'}
-          </button>
+    <div className="nido grain" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <Card pad style={{ width: '100%', maxWidth: 400, padding: '34px 30px', textAlign: 'center' }}>
+        <div className="brand-mark" style={{ width: 56, height: 56, borderRadius: 18, background: 'linear-gradient(150deg, var(--pine), var(--clay))', color: '#fff', fontFamily: 'var(--serif)', fontSize: 30, display: 'grid', placeItems: 'center', margin: '0 auto 18px' }}>n</div>
+        <h1 className="serif" style={{ fontSize: 30, lineHeight: 1 }}>Bienvenido a Nido</h1>
+        <p className="psub" style={{ marginTop: 8, marginBottom: 24 }}>Crea tu cuenta para empezar vuestro nido</p>
+        <form onSubmit={handleSetup} style={{ textAlign: 'left' }}>
+          <Eyebrow style={{ display: 'block', marginBottom: 8 }}>Tu nombre</Eyebrow>
+          <input style={inputStyle} placeholder="Ej: Samuel" value={username} onChange={(e) => { setUsername(e.target.value); if (error) setError(''); }} disabled={isLoading} autoFocus maxLength={30} />
+          {error ? <div style={{ fontSize: 13, color: 'var(--berry)', marginTop: 12 }}>{error}</div> : null}
+          <Btn variant="primary" type="submit" disabled={isLoading} style={{ width: '100%', justifyContent: 'center', height: 52, fontSize: 16, marginTop: 18 }}>
+            <Icon.check /> {isLoading ? 'Creando…' : 'Crear cuenta'}
+          </Btn>
         </form>
-      </div>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 16 }}>Usaremos una passkey de tu dispositivo para entrar de forma segura.</p>
+      </Card>
     </div>
   );
 };

@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
 import { ErrorView } from './components/ErrorView';
+import { initThemeOnce } from './hooks/useTheme';
+
+// Apply the saved theme before React paints, so there's no light flash.
+initThemeOnce();
 
 const dsn = import.meta.env.VITE_SENTRY_DSN_CLIENT;
 

@@ -1,714 +1,711 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { showToast } from '../components/Toast';
-import { EmojiPicker } from '../components/EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
-import { useResource } from '../hooks/useResource';
+import { useAsyncEffect, useResource } from '../hooks/useResource';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { resolveCycleForDate } from '../lib/resolveCycleForDate';
 import { handleApiError } from '../lib/handleApiError';
 import { CACHE_KEYS, cacheBus } from '../lib/cacheBus';
-import type { CycleSummary } from '../api-types/cycles';
 import { formatDayLabel, todayISO } from '../lib/dates';
-import { formatMoneyExact } from '../lib/money';
+import { formatMoney, formatMoneyExact } from '../lib/money';
+import { Eyebrow, Bar, CatIcon, Seg, Btn, FilterChip, Icon, Portal, CONTEXT_SEG_OPTIONS } from '../components/nido';
+import type { CategoryDef } from '../hooks/useCategoryManagement';
+import type { Expense } from '../api-types/expenses';
+import type { CycleSummary } from '../api-types/cycles';
 
-const ChevronLeftIcon = () => (
-  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-    <path d="M15 19l-7-7 7-7" />
-  </svg>
-);
+interface SummaryBreakdownRow { category: string; total: number; budget: number; count: number }
+interface EventOption { id: number; name: string; emoji?: string; end_date: string }
+interface AddSummary {
+  categoryBreakdown?: SummaryBreakdownRow[];
+  personalCategoryBreakdown?: SummaryBreakdownRow[];
+}
 
-const TagIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
-    <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-  </svg>
-);
+const toNum = (v: unknown, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
-const PlusIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-    <path d="M12 4v16m-8-8h16" />
-  </svg>
-);
+/* ── amount keypad calculator (mobile) ─────────────────────────
+   Digit entry is the 99% path and is exact; the operator keys do a
+   simple left-to-right calculation (no expression parsing), rounded to
+   céntimos. Values are held with a comma decimal (es-ES) and converted to
+   a dot-decimal numeric string only at submit. */
+type Op = '+' | '−' | '×' | '÷';
+interface CalcState { acc: number | null; op: Op | null; entry: string }
+const CALC_ZERO: CalcState = { acc: null, op: null, entry: '' };
+const isOp = (k: string): k is Op => k === '+' || k === '−' || k === '×' || k === '÷';
 
-const COLOR_OPTIONS = ['#F87171', '#60A5FA', '#FBBF24', '#A78BFA', '#34D399'];
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const applyOp = (a: number, op: Op, b: number): number => {
+  if (op === '+') return round2(a + b);
+  if (op === '−') return round2(a - b);
+  if (op === '×') return round2(a * b);
+  return b === 0 ? a : round2(a / b); // ÷ by zero is a no-op
+};
+const entryToNum = (entry: string) => parseFloat(entry.replace(',', '.')) || 0;
+
+const calcValue = (s: CalcState): number => {
+  if (s.entry !== '') {
+    const e = entryToNum(s.entry);
+    return s.acc !== null && s.op ? applyOp(s.acc, s.op, e) : e;
+  }
+  return s.acc ?? 0;
+};
+
+const pressKey = (s: CalcState, k: string): CalcState => {
+  if (k === '⌫') {
+    if (s.entry !== '') return { ...s, entry: s.entry.slice(0, -1) };
+    if (s.op) return { ...s, op: null };
+    if (s.acc !== null) return { ...s, acc: null };
+    return s;
+  }
+  if (k === ',') {
+    if (s.entry.includes(',')) return s;
+    return { ...s, entry: (s.entry === '' ? '0' : s.entry) + ',' };
+  }
+  if (isOp(k)) {
+    if (s.entry === '') return { ...s, acc: s.acc ?? 0, op: k };
+    const e = entryToNum(s.entry);
+    const newAcc = s.acc !== null && s.op ? applyOp(s.acc, s.op, e) : e;
+    return { acc: newAcc, op: k, entry: '' };
+  }
+  // digit: cap whole part at 9 digits and decimals at 2
+  if (s.entry.includes(',')) {
+    const dec = s.entry.split(',')[1] ?? '';
+    if (dec.length >= 2) return s;
+  } else if (s.entry.replace(/[^0-9]/g, '').length >= 9) {
+    return s;
+  }
+  return { ...s, entry: s.entry === '0' ? k : s.entry + k };
+};
+
+const calcDisplay = (s: CalcState): string => {
+  // While typing the first operand (no operator pending), show the raw entry so
+  // in-progress decimals like "42," render. Once an operator is pending, show
+  // the live computed value (calcValue) so the displayed number ALWAYS equals
+  // what submit will post — there is no "=" key to resolve it otherwise.
+  if (s.entry !== '' && !(s.acc !== null && s.op)) return s.entry;
+  return calcValue(s).toLocaleString('es-ES', { maximumFractionDigits: 2 });
+};
+
+const KEYS = ['1', '2', '3', '÷', '4', '5', '6', '×', '7', '8', '9', '−', ',', '0', '⌫', '+'];
 
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
+  const { categories } = useCategoryManagement();
+
+  const [calc, setCalc] = useState<CalcState>(CALC_ZERO);
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('');
   const [type, setType] = useState<'shared' | 'personal'>('shared');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [expenseDate, setExpenseDate] = useState(() => todayISO());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const isToday = expenseDate === todayISO();
+  const [date, setDate] = useState(todayISO());
+  const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1); // mobile only
+  const [repeatCount, setRepeatCount] = useState(1); // log N identical expenses at once
+  const [categorySearch, setCategorySearch] = useState(''); // filter existing / create new
+  const [catExpanded, setCatExpanded] = useState(false); // modal: reveal full category search
+  const [recentOpen, setRecentOpen] = useState(false);   // modal: repeat-a-previous-expense menu
 
+  const preset = location.state as { initialContext?: 'shared' | 'personal'; initialCategory?: string; eventId?: number } | null;
+  useEffect(() => {
+    if (preset?.initialContext) setType(preset.initialContext);
+    if (preset?.initialCategory) setCategory(preset.initialCategory);
+    if (preset?.eventId) setSelectedEventId(preset.eventId);
+  }, [preset]);
+
+  // Desktop renders as a modal over the dashboard: lock background scroll and
+  // close on Escape. Mobile is a full stacked screen, so this is a no-op there.
+  useEffect(() => {
+    if (isMobile) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') navigate(-1); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isMobile, navigate]);
+
+  // Cycle attribution (PR #213): a back-dated expense whose date falls outside
+  // the active cycle is attributed to the cycle that owns that date, not the
+  // active one. We surface a small note + toggle only when that mismatch exists.
   const loadCyclesFn = useCallback(async () => {
-    const data = await Api.listCycles();
-    return Array.isArray(data) ? data : [];
+    const d = await Api.listCycles();
+    return Array.isArray(d) ? d : [];
   }, []);
   const { data: cyclesData } = useResource<CycleSummary[]>(loadCyclesFn, {
     fallbackMessage: 'Error al cargar ciclos',
     invalidationKey: CACHE_KEYS.cycles,
   });
   const cycles = cyclesData ?? [];
+  const activeCycle = cycles.find((c) => c.status === 'active');
   const [targetCycleId, setTargetCycleId] = useState<number | null>(null);
-  const activeCycle = cycles.find(c => c.status === 'active');
-  const cycleResolution = useMemo(
-    () => resolveCycleForDate(expenseDate, cycles),
-    [expenseDate, cycles]
-  );
+  const cycleResolution = useMemo(() => resolveCycleForDate(date, cycles), [date, cycles]);
   useEffect(() => {
-    if (cycleResolution.kind === 'in-active') {
-      setTargetCycleId(null);
-    } else if (cycleResolution.kind === 'in-closed') {
-      setTargetCycleId(cycleResolution.cycle.id);
-    } else {
-      setTargetCycleId(activeCycle?.id ?? null);
-    }
+    if (cycleResolution.kind === 'in-active') setTargetCycleId(null);
+    else if (cycleResolution.kind === 'in-closed') setTargetCycleId(cycleResolution.cycle.id);
+    else setTargetCycleId(activeCycle?.id ?? null);
   }, [cycleResolution.kind, cycleResolution.kind === 'in-closed' ? cycleResolution.cycle.id : null, activeCycle?.id]);
 
-  const { categories, getCategoryDef } = useCategoryManagement(type);
-  const [categorySearch, setCategorySearch] = useState('');
-  const [cmdOpen, setCmdOpen] = useState(false);
-  const [showNewCatModal, setShowNewCatModal] = useState(false);
-  const [newCatEmoji, setNewCatEmoji] = useState('');
-  const [newCatColor, setNewCatColor] = useState(COLOR_OPTIONS[0]);
-  const [savingCat, setSavingCat] = useState(false);
-  const [repeatCount, setRepeatCount] = useState(1);
+  // Event tagging: shared expense → shared events; personal expense → shared +
+  // own personal events (a personal souvenir during a shared trip). Active only.
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const loadEventsFn = useCallback(async () => {
-    // Shared expense → only shared events.
-    // Personal expense → user can also tag own expenses (e.g. a souvenir during a shared trip)
-    // to a shared event, so include both shared and own personal events.
     const lists = type === 'shared'
       ? [await Api.getEvents('shared')]
       : await Promise.all([Api.getEvents('shared'), Api.getEvents('personal')]);
-    const merged = lists.flat();
-    return merged.filter((ev: any) => new Date(ev.end_date) >= new Date());
+    return lists.flat().filter((ev: EventOption) => new Date(ev.end_date) >= new Date());
   }, [type]);
-  const { data: eventsData } = useResource<any[]>(loadEventsFn, {
-    invalidationKey: CACHE_KEYS.events,
-  });
+  const { data: eventsData } = useResource<EventOption[]>(loadEventsFn, { invalidationKey: CACHE_KEYS.events });
   const events = eventsData ?? [];
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  const cmdRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (categories.length === 0) {
-      setCategory('');
-      return;
-    }
-
-    setCategory((current) => {
-      const existsInCurrentContext = categories.some((item) => item.name === current);
-      return existsInCurrentContext ? current : categories[0].name;
-    });
-  }, [categories, type]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (cmdRef.current && !cmdRef.current.contains(e.target as Node)) {
-        setCmdOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  // Recent expenses feed the modal's "Repetir un gasto anterior" quick-fill:
+  // pick a past expense to clone its description / category / type / amount.
+  const loadRecentFn = useCallback(async () => {
+    const list = await Api.getExpenses();
+    return Array.isArray(list) ? list : [];
   }, []);
-
-  useEffect(() => {
-    const incomingState = location.state as any;
-    if (incomingState?.eventId) {
-      setSelectedEventId(incomingState.eventId);
+  const { data: recentData } = useResource<Expense[]>(loadRecentFn, { invalidationKey: CACHE_KEYS.expenses });
+  const recentExpenses = useMemo(() => {
+    const sorted = (recentData ?? []).slice().sort((a, b) =>
+      b.date.localeCompare(a.date) || (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    const seen = new Set<string>();
+    const out: Expense[] = [];
+    for (const e of sorted) {
+      const k = `${(e.description ?? '').toLowerCase()}|${e.amount}|${e.category ?? ''}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(e);
+      if (out.length >= 6) break;
     }
-  }, []);
+    return out;
+  }, [recentData]);
 
-  const OPS = ['+', '-', '×', '÷'] as const;
-  const isOp = (ch: string) => OPS.includes(ch as any);
-  const lastChar = amount[amount.length - 1];
-
-  // Safe expression evaluator (no eval) — supports +, -, ×, ÷
-  const evaluateExpr = (expr: string): number => {
-    const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    // Tokenize into numbers and operators
-    const tokens = sanitized.match(/(\d+\.?\d*|[+\-*/])/g);
-    if (!tokens) return 0;
-
-    // First pass: multiply and divide
-    const stack: (number | string)[] = [];
-    for (const t of tokens) {
-      if (t === '*' || t === '/') {
-        stack.push(t);
-      } else if (!isNaN(Number(t))) {
-        const prev = stack[stack.length - 1];
-        if (prev === '*' || prev === '/') {
-          const op = stack.pop() as string;
-          const left = stack.pop() as number;
-          stack.push(op === '*' ? left * Number(t) : left / Number(t));
-        } else {
-          stack.push(Number(t));
-        }
-      } else {
-        stack.push(t);
-      }
-    }
-
-    // Second pass: add and subtract
-    let result = stack[0] as number;
-    for (let i = 1; i < stack.length; i += 2) {
-      const op = stack[i] as string;
-      const val = stack[i + 1] as number;
-      if (op === '+') result += val;
-      else if (op === '-') result -= val;
-    }
-    return isNaN(result) || !isFinite(result) ? 0 : result;
-  };
-
-  const hasOperator = OPS.some(op => amount.includes(op));
-  const computedResult = hasOperator ? evaluateExpr(amount) : null;
-
-  // Physical keyboard support (desktop only)
-  useEffect(() => {
-    if (window.innerWidth < 768) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if (e.key >= '0' && e.key <= '9') handleKey(e.key);
-      else if (e.key === '.' || e.key === ',') handleKey('.');
-      else if (e.key === '+') handleKey('+');
-      else if (e.key === '-') handleKey('-');
-      else if (e.key === '*') handleKey('×');
-      else if (e.key === '/') { e.preventDefault(); handleKey('÷'); }
-      else if (e.key === 'Backspace') handleKey('del');
-      else if (e.key === '=' || e.key === 'Enter') {
-        if (hasOperator) handleKey('=');
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [amount, hasOperator]);
-
-  const handleKey = (key: string) => {
-    // keydown listener holds a stale handleKey closure across re-renders;
-    // functional updater reads latest state without coupling listener deps to error.
-    setError(prev => prev ? '' : prev);
-    if (key === 'del') {
-      setAmount(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
-    } else if (key === '=') {
-      // Resolve expression to result
-      if (hasOperator) {
-        const result = evaluateExpr(amount);
-        setAmount(result > 0 ? String(parseFloat(result.toFixed(2))) : '0');
-      }
-    } else if (isOp(key)) {
-      // Don't allow operator as first char or double operators
-      if (amount === '0' && key !== '-') return;
-      if (isOp(lastChar)) {
-        setAmount(prev => prev.slice(0, -1) + key);
-      } else {
-        setAmount(prev => prev + key);
-      }
-    } else if (key === '.') {
-      // Only one dot per number segment (split by operators)
-      const segments = amount.split(/[+\-×÷]/);
-      const currentSegment = segments[segments.length - 1];
-      if (!currentSegment.includes('.')) setAmount(prev => prev + '.');
-    } else {
-      setAmount(prev => prev === '0' ? key : prev + key);
-    }
-  };
-
-  const filteredCategories = categories.filter((item) =>
-    item.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
-  );
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Evaluate expression if it contains operators
-    const finalAmount = hasOperator ? evaluateExpr(amount) : parseFloat(amount);
-    if (finalAmount <= 0 || isNaN(finalAmount)) return setError('Ingresa un monto valido');
-    if (!description) return setError('Ingresa una descripcion');
-    if (!category.trim()) return setError('Selecciona una categoría');
-
+  // summary (for the calm budget-impact preview); optional — silent on failure
+  const [summary, setSummary] = useState<AddSummary | null>(null);
+  const loadSummary = useCallback(async () => {
     try {
-      setLoading(true);
-      setError('');
-      const expenseData = {
-        description,
-        amount: parseFloat(finalAmount.toFixed(2)),
-        category,
-        category_id: categories.find(c => c.name === category)?.id,
-        date: expenseDate,
+      const cycle = await Api.getCurrentCycle();
+      const s = cycle?.start_date
+        ? await Api.getSummary({ start_date: cycle.start_date, end_date: cycle.end_date ?? undefined, cycle_id: cycle.id })
+        : await Api.getSummary();
+      setSummary(s);
+    } catch {
+      setSummary(null); // preview just won't render
+    }
+  }, []);
+  useAsyncEffect(loadSummary, {
+    fallbackMessage: 'Error al cargar presupuesto',
+    invalidationKeys: [CACHE_KEYS.summary, CACHE_KEYS.expenses, CACHE_KEYS.budget, CACHE_KEYS.cycles],
+  });
+
+  const numericAmount = calcValue(calc);
+
+  // budget impact for the chosen category in the chosen context
+  const impact = useMemo(() => {
+    if (!category || numericAmount <= 0) return null;
+    const rows = type === 'shared' ? summary?.categoryBreakdown : summary?.personalCategoryBreakdown;
+    const row = rows?.find((r) => r.category === category);
+    if (!row || toNum(row.budget) <= 0) return null;
+    const budget = toNum(row.budget);
+    const after = toNum(row.total) + numericAmount;
+    const over = after > budget;
+    const pct = Math.min(100, Math.round((after / budget) * 100));
+    return { budget, after, over, pct, overBy: over ? after - budget : 0 };
+  }, [category, numericAmount, type, summary]);
+
+  const validate = (): boolean => {
+    if (numericAmount <= 0 || !Number.isFinite(numericAmount)) {
+      showToast('Ingresa un monto válido', 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      // A brand-new category name (not in the existing list) self-heals on the
+      // server: the expense POST creates + links the category row (AGENTS.md).
+      const payload = {
+        description: description.trim() || category || 'Gasto',
+        amount: numericAmount,
+        category: category || 'Otros',
+        category_id: categories.find((c) => c.name === category)?.id,
+        date,
         type,
         event_id: selectedEventId || undefined,
         cycle_id: targetCycleId,
       };
-      for (let i = 0; i < repeatCount; i++) {
-        await Api.createExpense(expenseData);
+      const n = Math.max(1, Math.min(20, repeatCount));
+      for (let i = 0; i < n; i++) {
+        await Api.createExpense(payload);
       }
-      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.categories);
-
-      const isNewCategory = !categories.some(
-        (c) => c.name.toLowerCase() === category.trim().toLowerCase()
-      );
-
-      const msg = repeatCount > 1 ? `${repeatCount} gastos añadidos ✔` : 'Gasto añadido ✔';
-      if (isNewCategory) {
-        showToast(msg, 'success');
-        setShowNewCatModal(true);
-      } else {
-        setSuccess(true);
-        showToast(msg, 'success');
-        setTimeout(() => navigate('/'), 1500);
-      }
+      // Include `categories`: a new category may have been created server-side,
+      // so the cached category list must refresh.
+      cacheBus.invalidate(CACHE_KEYS.expenses, CACHE_KEYS.summary, CACHE_KEYS.budget, CACHE_KEYS.categories);
+      showToast(n > 1 ? `${n} gastos añadidos` : 'Gasto añadido', 'success');
+      navigate('/');
     } catch (err) {
-      handleApiError(err, 'Error al guardar el gasto');
+      handleApiError(err, 'No se pudo añadir el gasto');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  if (success) {
+  const goToDetails = () => {
+    if (!validate()) return;
+    setStep(2);
+  };
+
+  const closeModal = () => navigate(-1);
+
+  // Clone a previous expense into the form (desktop "Repetir un gasto anterior").
+  const applyRecent = (e: Expense) => {
+    setDescription(e.description ?? '');
+    setCategory(e.category ?? '');
+    setType(e.type === 'personal' ? 'personal' : 'shared');
+    const amt = Math.round((e.amount ?? 0) * 100) / 100;
+    setCalc({ acc: null, op: null, entry: amt ? String(amt).replace('.', ',') : '' });
+    setRecentOpen(false);
+  };
+
+  /* ── shared sub-blocks ─────────────────────────────────────── */
+
+  const dateField = (
+    <label style={{ position: 'relative', display: 'block' }}>
+      <div style={{ padding: '14px 16px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600 }}>
+        <Icon.cal /> {formatDayLabel(date)}
+      </div>
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Fecha del gasto"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 0, cursor: 'pointer' }}
+      />
+    </label>
+  );
+
+  // Compact, centred date field for the desktop modal. The label opens the
+  // native picker (showPicker) so back-dating a gasto is one click; the overlay
+  // input stays as a fallback for browsers without showPicker.
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const dateFieldModal = (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => dateInputRef.current?.showPicker?.()}
+        style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', color: 'var(--ink)', font: 'inherit', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}
+      >
+        <Icon.cal /> {formatDayLabel(date)}
+      </button>
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Fecha del gasto"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 0, cursor: 'pointer' }}
+      />
+    </div>
+  );
+
+  const typeToggle = (
+    <Seg value={type} options={CONTEXT_SEG_OPTIONS} onChange={setType} full />
+  );
+
+  const eventSelector = events.length > 0 ? (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <FilterChip on={selectedEventId === null} onClick={() => setSelectedEventId(null)}>Sin evento</FilterChip>
+      {events.map((ev) => (
+        <FilterChip key={ev.id} on={selectedEventId === ev.id} onClick={() => setSelectedEventId(ev.id)}>
+          {ev.emoji ? `${ev.emoji} ` : ''}{ev.name}
+        </FilterChip>
+      ))}
+    </div>
+  ) : null;
+
+  const cycleNote = (cycleResolution.kind !== 'in-active' && activeCycle) ? (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '12px 14px', borderRadius: 12, background: 'var(--honey-tint)', border: '1px solid #e6d3a0' }}>
+      <span style={{ color: 'var(--honey)', flex: '0 0 auto', marginTop: 1 }}><Icon.info /></span>
+      <div style={{ fontSize: 12.5, color: '#7a5512', lineHeight: 1.4 }}>
+        {cycleResolution.kind === 'in-closed'
+          ? <>Esta fecha cae en un ciclo ya cerrado. El gasto se atribuirá a <b>ese</b> ciclo, no al actual.</>
+          : <>No hay ciclo registrado en esa fecha. El gasto se atribuirá al ciclo actual.</>}
+      </div>
+    </div>
+  ) : null;
+
+  const descriptionField = (
+    <input
+      value={description}
+      onChange={(e) => setDescription(e.target.value)}
+      placeholder="¿En qué gastaste?"
+      style={{ width: '100%', padding: '14px 16px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 15, fontFamily: 'inherit', outline: 'none' }}
+    />
+  );
+
+  const trimmedCatSearch = categorySearch.trim();
+  const filteredCats = categories.filter((c) => c.name.toLowerCase().includes(trimmedCatSearch.toLowerCase()));
+  const customSelected = category !== '' && !categories.some((c) => c.name === category);
+  const canCreateCat = trimmedCatSearch !== '' && !categories.some((c) => c.name.toLowerCase() === trimmedCatSearch.toLowerCase());
+
+  const categoryPicker = (scroll: boolean) => (
+    <div>
+      <input
+        value={categorySearch}
+        onChange={(e) => setCategorySearch(e.target.value)}
+        placeholder="Buscar o crear categoría…"
+        style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 14, outline: 'none', marginBottom: 10 }}
+      />
+      <div style={scroll ? { display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px 2px' } : { display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+        {/* a custom (newly-typed) category stays visible as the selected chip */}
+        {customSelected ? (
+          <FilterChip on hasIcon onClick={() => {}} style={scroll ? { flex: '0 0 auto' } : undefined}>
+            <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.tag /></span>
+            {category}
+          </FilterChip>
+        ) : null}
+        {filteredCats.map((c: CategoryDef) => (
+          <FilterChip
+            key={c.name}
+            on={category === c.name}
+            hasIcon
+            onClick={() => { setCategory(c.name); setCategorySearch(''); }}
+            style={scroll ? { flex: '0 0 auto' } : undefined}
+          >
+            <CatIcon color={c.color} bg={c.color ? `${c.color}1A` : undefined} size={24} radius={7}>
+              <span style={{ fontSize: 14 }}>{c.emoji}</span>
+            </CatIcon>
+            {c.name}
+          </FilterChip>
+        ))}
+        {canCreateCat && trimmedCatSearch.toLowerCase() !== category.toLowerCase() ? (
+          <FilterChip hasIcon onClick={() => { setCategory(trimmedCatSearch); setCategorySearch(''); }} style={{ ...(scroll ? { flex: '0 0 auto' } : null), borderStyle: 'dashed' }}>
+            <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.plusS /></span>
+            Crear «{trimmedCatSearch}»
+          </FilterChip>
+        ) : null}
+        {categories.length === 0 && !trimmedCatSearch ? (
+          <span style={{ fontSize: 13, color: 'var(--ink-3)', padding: '7px 4px' }}>Escribe el nombre de una categoría para crearla.</span>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  // Modal category section: a compact chip row (first 6 + "Más"). "Más" reveals
+  // the full search-or-create picker, so a new category can still be created.
+  const modalCategory = catExpanded ? categoryPicker(false) : (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+      {customSelected ? (
+        <FilterChip on hasIcon onClick={() => {}}>
+          <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.tag /></span>
+          {category}
+        </FilterChip>
+      ) : null}
+      {categories.slice(0, 6).map((c: CategoryDef) => (
+        <FilterChip key={c.name} on={category === c.name} hasIcon onClick={() => setCategory(c.name)}>
+          <CatIcon color={c.color} bg={c.color ? `${c.color}1A` : undefined} size={24} radius={7}>
+            <span style={{ fontSize: 14 }}>{c.emoji}</span>
+          </CatIcon>
+          {c.name}
+        </FilterChip>
+      ))}
+      <FilterChip hasIcon onClick={() => setCatExpanded(true)} style={{ borderStyle: 'dashed' }}>
+        <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.plusS /></span>
+        Más
+      </FilterChip>
+    </div>
+  );
+
+  const repeatStepper = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>Repetir gasto</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Añade varias copias iguales</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-2)' }}>
+        <button type="button" aria-label="Menos" onClick={() => setRepeatCount((c) => Math.max(1, c - 1))} disabled={repeatCount <= 1} style={{ font: 'inherit', cursor: 'pointer', border: 0, background: 'transparent', color: 'var(--ink-2)', width: 40, height: 40, fontSize: 18, fontWeight: 600, opacity: repeatCount <= 1 ? 0.4 : 1 }}>−</button>
+        <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 700, fontSize: 15 }}>×{repeatCount}</span>
+        <button type="button" aria-label="Más" onClick={() => setRepeatCount((c) => Math.min(20, c + 1))} disabled={repeatCount >= 20} style={{ font: 'inherit', cursor: 'pointer', border: 0, background: 'transparent', color: 'var(--ink-2)', width: 40, height: 40, fontSize: 18, fontWeight: 600, opacity: repeatCount >= 20 ? 0.4 : 1 }}>+</button>
+      </div>
+    </div>
+  );
+
+  const submitLabel = submitting ? 'Guardando…' : repeatCount > 1 ? `Añadir ${repeatCount} gastos` : 'Añadir gasto';
+
+  const budgetImpact = impact ? (
+    <div style={{ padding: '14px 16px', borderRadius: 14, background: 'var(--inset)', border: '1px solid var(--line)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600 }}>Tras añadirlo · {category}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 700 }}>{formatMoney(impact.after)}<span style={{ color: 'var(--ink-3)' }}>/{formatMoney(impact.budget)}</span></span>
+      </div>
+      <Bar pct={impact.pct} over={impact.over} fill="pine" thin />
+      {impact.over ? (
+        <div style={{ fontSize: 11.5, color: 'var(--honey-ink)', fontWeight: 600, marginTop: 7 }}>Se pasará {formatMoney(impact.overBy)} del tope de {category}</div>
+      ) : null}
+    </div>
+  ) : null;
+
+  /* ── MOBILE: two stacked steps ─────────────────────────────── */
+  if (isMobile) {
     return (
-      <div className="u-vh-center">
-        <div className="u-text-center">
-          <div className="add-expense__success-icon">&#10003;</div>
-          <div className="settings__title">Gasto guardado!</div>
-          <div className="settings__subtitle">Redirigiendo...</div>
+      <div className="nido grain" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '14px 20px 24px', maxWidth: 480, width: '100%', margin: '0 auto' }}>
+          {/* header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                aria-label={step === 1 ? 'Cancelar' : 'Volver al importe'}
+                onClick={() => (step === 1 ? navigate(-1) : setStep(1))}
+                style={{ color: 'var(--ink-2)', background: 'none', border: 0, cursor: 'pointer', display: 'flex' }}
+              >
+                {step === 1 ? <Icon.x /> : <Icon.back />}
+              </button>
+              <h1 className="serif" style={{ fontSize: 24 }}>Nuevo gasto</h1>
+            </div>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600 }}>Paso {step} de 2</span>
+          </div>
+          {/* step dots */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <span style={{ width: 24, height: 5, borderRadius: 3, background: 'var(--clay)' }} />
+            <span style={{ width: 24, height: 5, borderRadius: 3, background: step >= 2 ? 'var(--clay)' : 'var(--line-2)' }} />
+          </div>
+
+          {step === 1 ? (
+            <>
+              <div style={{ textAlign: 'center', margin: '32px 0 26px' }}>
+                <Eyebrow style={{ marginBottom: 8 }}>Importe</Eyebrow>
+                <div>
+                  <span style={{ fontSize: 26, color: 'var(--ink-3)', verticalAlign: 'top' }}>€</span>
+                  <span style={{ fontSize: 66, fontWeight: 700, letterSpacing: '-.02em' }}>{calcDisplay(calc)}</span>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 9, flex: 1, minHeight: 0 }}>
+                {KEYS.map((k) => {
+                  const op = isOp(k) || k === '⌫';
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setCalc((s) => pressKey(s, k))}
+                      style={{ font: 'inherit', cursor: 'pointer', border: '1px solid var(--line)', minHeight: 52, background: op ? 'var(--inset)' : 'var(--surface-2)', color: op ? 'var(--ink-2)' : 'var(--ink)', borderRadius: 14, fontSize: op ? 18 : 22, fontWeight: 600, display: 'grid', placeItems: 'center' }}
+                    >
+                      {k}
+                    </button>
+                  );
+                })}
+              </div>
+              <Btn variant="primary" onClick={goToDetails} style={{ marginTop: 14, width: '100%', height: 52, fontSize: 16 }}>
+                Siguiente <Icon.fwd />
+              </Btn>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 18 }}>
+              {/* amount summary → editable (returns to step 1) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderRadius: 16, background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
+                <div>
+                  <Eyebrow style={{ marginBottom: 5 }}>Importe</Eyebrow>
+                  <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1 }}>{formatMoneyExact(numericAmount)}</div>
+                </div>
+                <Btn variant="ghost" onClick={() => setStep(1)} style={{ color: 'var(--clay)' }}><Icon.edit /> Editar</Btn>
+              </div>
+
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Descripción</label>
+                {descriptionField}
+              </div>
+
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
+                {categoryPicker(true)}
+              </div>
+
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Fecha</label>
+                {dateField}
+              </div>
+
+              {cycleNote}
+
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Tipo</label>
+                {typeToggle}
+              </div>
+
+              {eventSelector ? (
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Evento</label>
+                  {eventSelector}
+                </div>
+              ) : null}
+
+              {budgetImpact}
+
+              {repeatStepper}
+
+              <Btn variant="primary" onClick={handleSubmit} disabled={submitting} style={{ width: '100%', height: 54, fontSize: 16, marginTop: 4 }}>
+                <Icon.check /> {submitLabel}
+              </Btn>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
+  /* ── DESKTOP: a centred modal painted over the dashboard ───── */
   return (
-    <div className="add-expense">
-      <div className="add-expense__back-link" onClick={() => navigate(-1)}>
-        <ChevronLeftIcon />
-        Volver
-      </div>
-
-      <div className="topbar an d1">
-        <div><h1>Nuevo Gasto</h1></div>
-      </div>
-
-      <div style={{ maxWidth: 560, margin: '0 auto' }}>
-        <form onSubmit={handleSubmit}>
-          <div className="an d2" style={{ textAlign: 'center', padding: '32px 0 16px' }}>
-            <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--tm)', verticalAlign: 'super' }}>
-              &euro;
-            </span>
-            <span style={{
-              fontSize: hasOperator ? 32 : 56,
-              fontWeight: 700,
-              fontVariantNumeric: 'tabular-nums',
-              color: amount === '0' ? 'var(--tm)' : 'var(--text)',
-              transition: 'all .2s',
-              wordBreak: 'break-all',
-            }}>
-              {amount}
-            </span>
-            {computedResult !== null && (
-              <div style={{
-                fontSize: 14, color: 'var(--green)', marginTop: 6,
-                fontWeight: 600, fontVariantNumeric: 'tabular-nums',
-                transition: 'opacity .15s', opacity: 0.9,
-              }}>
-                = {formatMoneyExact(computedResult)}
-              </div>
-            )}
-          </div>
-
-          <div className="an d3" style={{ marginBottom: 24 }}>
-            <div className="label">Descripcion</div>
-            <input
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '1px solid var(--glass-border)',
-                borderRadius: 'var(--rs)',
-                fontSize: 15,
-                fontFamily: 'inherit',
-                background: 'var(--surface)',
-                color: 'var(--text)',
-                transition: 'all .2s',
-                outline: 'none',
-              }}
-              placeholder="En que gastaste?"
-              value={description}
-              onChange={(e) => { setDescription(e.target.value); if (error) setError(''); }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--green)';
-                e.currentTarget.style.boxShadow = '0 0 16px rgba(52,211,153,.15)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--glass-border)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
-          </div>
-
-          {/* Optional date — progressive disclosure */}
-          <div className="an d3" style={{ marginBottom: 16 }}>
-            {!showDatePicker ? (
-              <button
-                type="button"
-                className="expense-date-toggle"
-                onClick={() => setShowDatePicker(true)}
-              >
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <rect x="3" y="4" width="18" height="18" rx="2" />
-                  <path d="M16 2v4M8 2v4M3 10h18" />
-                </svg>
-                {formatDayLabel(expenseDate)}
-                {!isToday && <span className="expense-date-dot" />}
-              </button>
-            ) : (
-              <div className="expense-date-picker">
-                <div className="label">Fecha del gasto</div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input
-                    type="date"
-                    className="expense-date-input"
-                    value={expenseDate}
-                    onChange={e => { setExpenseDate(e.target.value); if (error) setError(''); }}
-                    max={todayISO()}
-                  />
-                  {!isToday && (
-                    <button
-                      type="button"
-                      className="expense-date-today"
-                      onClick={() => { setExpenseDate(todayISO()); setShowDatePicker(false); if (error) setError(''); }}
-                    >
-                      Hoy
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="expense-date-close"
-                    onClick={() => setShowDatePicker(false)}
-                  >
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                {cycleResolution.kind !== 'in-active' && activeCycle && (
-                  <div className="cycle-attribution">
-                    <div className="cycle-attribution__hint">
-                      {cycleResolution.kind === 'in-closed'
-                        ? 'Esta fecha cae fuera del ciclo actual'
-                        : 'No hay ciclo registrado en esa fecha'}
-                    </div>
-                    <div className="cycle-attribution__toggle">
-                      <button
-                        type="button"
-                        className={`type-sel ${targetCycleId !== activeCycle.id ? 'type-sel--active' : ''}`}
-                        disabled={cycleResolution.kind === 'no-cycle'}
-                        onClick={() => {
-                          if (cycleResolution.kind === 'in-closed') {
-                            setTargetCycleId(cycleResolution.cycle.id);
-                          }
-                        }}
-                      >
-                        {cycleResolution.kind === 'in-closed'
-                          ? `Ciclo ${cycleResolution.cycle.month ?? cycleResolution.cycle.start_date}`
-                          : 'Ciclo de esa fecha (sin datos)'}
-                      </button>
-                      <button
-                        type="button"
-                        className={`type-sel ${targetCycleId === activeCycle.id ? 'type-sel--active' : ''}`}
-                        onClick={() => setTargetCycleId(activeCycle.id)}
-                      >
-                        Ciclo actual
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="an d4" style={{ marginBottom: 24 }}>
-            <div className="label">Tipo de gasto</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div
-                className="type-sel"
-                onClick={() => setType('shared')}
-                style={type === 'shared'
-                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
-              >
-                Compartido
-              </div>
-              <div
-                className="type-sel"
-                onClick={() => setType('personal')}
-                style={type === 'personal'
-                  ? { border: '2px solid var(--green)', background: 'var(--gl)', color: 'var(--green)' }
-                  : { border: '1px solid var(--glass-border)', background: 'var(--surface)', color: 'var(--ts)' }}
-              >
-                Personal
-              </div>
+    <Portal>
+      <div
+        onClick={closeModal}
+        style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(43,38,32,.42)', backdropFilter: 'blur(3px)' }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nuevo gasto"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: 26,
+            width: '100%',
+            maxWidth: 860,
+            maxHeight: 'calc(100vh - 48px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 30px 70px rgba(43,38,32,.30)',
+            animation: 'nido-pop .18s cubic-bezier(.2,.9,.3,1.2)',
+          }}
+        >
+          {/* header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 26px', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ display: 'flex', color: 'var(--clay)' }}><Icon.plus /></span>
+              <h2 className="serif" style={{ fontSize: 24, lineHeight: 1 }}>Nuevo gasto</h2>
             </div>
-          </div>
-
-          <div className="an d3 cmd-palette" ref={cmdRef}>
-            <div className="label">Categoria</div>
-            <div className="cmd-input-wrap">
-              <TagIcon />
-              {category && (() => {
-                const catDef = getCategoryDef(category);
-                return (
-                  <span className="cmd-selected">
-                    <div className="cmd-icon" style={{
-                      background: catDef?.iconBg ?? 'var(--gl)',
-                      width: 20,
-                      height: 20,
-                    }}>
-                      <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
-                    </div>
-                    {category}
-                    <span
-                      className="cmd-x"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCategory('');
-                        if (error) setError('');
-                      }}
-                    >
-                      &times;
-                    </span>
-                  </span>
-                );
-              })()}
-              <input
-                className="cmd-input"
-                placeholder="Buscar categoría..."
-                value={categorySearch}
-                onFocus={() => setCmdOpen(true)}
-                onChange={(e) => {
-                  setCategorySearch(e.target.value);
-                  setCmdOpen(true);
-                }}
-              />
-            </div>
-            <div className={`cmd-dropdown ${cmdOpen ? 'open' : ''}`}>
-              <div className="cmd-list">
-                {filteredCategories.map((item) => (
-                  <div
-                    key={item.id ?? item.name}
-                    className={`cmd-option ${category === item.name ? 'selected' : ''}`}
-                    onClick={() => {
-                      setCategory(item.name);
-                      setCategorySearch('');
-                      setCmdOpen(false);
-                      if (error) setError('');
-                    }}
-                  >
-                    <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--gl)' }}>
-                      <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
-                    </div>
-                    {item.name}
-                  </div>
-                ))}
-              </div>
-              {categorySearch.trim() && !categories.some((item) => item.name.toLowerCase() === categorySearch.trim().toLowerCase()) && (
-                <div
-                  className="cmd-create"
-                  onClick={() => {
-                    const nextCategory = categorySearch.trim();
-                    setCategory(nextCategory);
-                    setCategorySearch('');
-                    setCmdOpen(false);
-                    showToast(`Usaremos “${nextCategory}” en este gasto. Si quieres, luego la registramos como categoría nueva.`);
-                    if (error) setError('');
-                  }}
-                >
-                  <PlusIcon /> Usar &ldquo;{categorySearch.trim()}&rdquo; en este gasto
-                </div>
-              )}
-            </div>
-          </div>
-
-          {events.length > 0 && (
-            <div className="an d4" style={{ marginBottom: 16 }}>
-              <div className="label">Evento (opcional)</div>
-              <div className="ev-select-wrap">
-                <select
-                  className="ev-select"
-                  value={selectedEventId ?? ''}
-                  onChange={e => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">Sin evento</option>
-                  {events.map(ev => (
-                    <option key={ev.id} value={ev.id}>{ev.emoji} {ev.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          <div className="an d5">
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 8,
-              maxWidth: 340,
-              margin: '0 auto',
-            }}>
-              {/* Row 1 */}
-              <button type="button" className="num-btn" onClick={() => handleKey('1')}>1</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('2')}>2</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('3')}>3</button>
-              <button type="button" className="num-btn action" onClick={() => handleKey('÷')}>÷</button>
-              {/* Row 2 */}
-              <button type="button" className="num-btn" onClick={() => handleKey('4')}>4</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('5')}>5</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('6')}>6</button>
-              <button type="button" className="num-btn action" onClick={() => handleKey('×')}>×</button>
-              {/* Row 3 */}
-              <button type="button" className="num-btn" onClick={() => handleKey('7')}>7</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('8')}>8</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('9')}>9</button>
-              <button type="button" className="num-btn action" onClick={() => handleKey('-')}>−</button>
-              {/* Row 4 */}
-              <button type="button" className="num-btn action" onClick={() => handleKey('.')}>.</button>
-              <button type="button" className="num-btn" onClick={() => handleKey('0')}>0</button>
-              <button type="button" className="num-btn action" onClick={() => handleKey('del')}>←</button>
-              <button type="button" className="num-btn action" onClick={() => handleKey('+')}>+</button>
-            </div>
-            {hasOperator && (
-              <button
-                type="button"
-                className="btn btn-outline"
-                style={{ maxWidth: 340, width: '100%', margin: '8px auto 0', display: 'block', padding: '10px 0', fontSize: 15, fontWeight: 600 }}
-                onClick={() => handleKey('=')}
-              >
-                = Calcular
-              </button>
-            )}
-
-            {/* Repeat toggle */}
-            <div style={{ maxWidth: 340, margin: '12px auto 0', display: 'flex', justifyContent: 'center' }}>
-              {repeatCount <= 1 ? (
-                <button
-                  type="button"
-                  className="expense-date-toggle"
-                  onClick={() => setRepeatCount(2)}
-                >
-                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" />
-                    <path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" />
-                  </svg>
-                  Repetir gasto
-                </button>
-              ) : (
-                <div className="expense-repeat-stepper">
-                  <button
-                    type="button"
-                    className="expense-repeat-btn"
-                    onClick={() => setRepeatCount(c => Math.max(1, c - 1))}
-                  >
-                    −
-                  </button>
-                  <span className="expense-repeat-value">
-                    ×{repeatCount}
-                  </span>
-                  <button
-                    type="button"
-                    className="expense-repeat-btn"
-                    onClick={() => setRepeatCount(c => Math.min(20, c + 1))}
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    className="expense-repeat-cancel"
-                    onClick={() => setRepeatCount(1)}
-                  >
-                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {error && <div className="add-expense__error-msg">{error}</div>}
-
             <button
-              type="submit"
-              className="btn btn-primary"
-              style={{
-                width: '100%',
-                maxWidth: 340,
-                margin: '16px auto 0',
-                display: 'block',
-                padding: 16,
-                fontSize: 16,
-              }}
-              disabled={loading}
+              type="button"
+              aria-label="Cerrar"
+              onClick={closeModal}
+              style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--surface-2)', color: 'var(--ink-2)', cursor: 'pointer' }}
             >
-              {loading ? 'Guardando...' : repeatCount > 1 ? `Añadir ${repeatCount} gastos` : 'Añadir Gasto'}
+              <Icon.x />
             </button>
           </div>
-        </form>
-      </div>
 
-      {showNewCatModal && (
-        <div className="modal-overlay open" onClick={() => { setShowNewCatModal(false); navigate('/'); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Registrar &ldquo;{category}&rdquo; como categoría</h3>
-            <p>El gasto ya se guardó. ¿Quieres registrar esta categoría para futuros gastos?</p>
-
-            <div className="form-row">
-              <label>Emoji</label>
-              <EmojiPicker value={newCatEmoji} onChange={setNewCatEmoji} />
+          {/* body: details (left) + amount keypad (right) */}
+          <div style={{ display: 'flex', minHeight: 0, overflowY: 'auto' }}>
+            <div style={{ flex: '1 1 0', minWidth: 0, background: 'var(--surface)', padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Descripción</label>
+                {descriptionField}
+              </div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: '0 0 148px', minWidth: 130 }}>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Fecha</label>
+                  {dateFieldModal}
+                </div>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Tipo</label>
+                  {typeToggle}
+                </div>
+              </div>
+              <div>
+                <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
+                {modalCategory}
+              </div>
+              {cycleNote}
+              {eventSelector ? (
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Evento</label>
+                  {eventSelector}
+                </div>
+              ) : null}
+              {budgetImpact}
             </div>
 
-            <div className="form-row">
-              <label>Color</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {COLOR_OPTIONS.map((c) => (
-                  <div key={c} onClick={() => setNewCatColor(c)} style={{
-                    width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
-                    border: `3px solid ${newCatColor === c ? 'var(--text)' : 'transparent'}`,
-                  }} />
-                ))}
+            <div style={{ flex: '0 0 332px', background: 'var(--inset)', display: 'flex', flexDirection: 'column', padding: '22px 24px', gap: 18 }}>
+              <div style={{ textAlign: 'right' }}>
+                <Eyebrow style={{ marginBottom: 6 }}>Importe</Eyebrow>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6 }}>
+                  <span style={{ fontSize: 26, color: 'var(--ink-3)' }}>€</span>
+                  <span style={{ fontSize: 52, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{calcDisplay(calc)}</span>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, flex: 1, minHeight: 0 }}>
+                {KEYS.map((k) => {
+                  const op = isOp(k) || k === '⌫';
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setCalc((s) => pressKey(s, k))}
+                      style={{ font: 'inherit', cursor: 'pointer', border: '1px solid var(--line)', minHeight: 56, background: op ? 'var(--inset)' : 'var(--surface-2)', color: op ? 'var(--ink-2)' : 'var(--ink)', borderRadius: 14, fontSize: op ? 19 : 22, fontWeight: 600, display: 'grid', placeItems: 'center' }}
+                    >
+                      {k}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          </div>
 
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => { setShowNewCatModal(false); navigate('/'); }}>
-                Omitir
-              </button>
+          {/* footer */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 26px', borderTop: '1px solid var(--line)' }}>
+            <div style={{ position: 'relative' }}>
               <button
-                className="btn btn-primary"
-                disabled={savingCat}
-                onClick={async () => {
-                  const emoji = newCatEmoji.trim() || '📂';
-                  try {
-                    setSavingCat(true);
-                    await Api.saveCategory({ name: category.trim(), emoji, color: newCatColor, context: type });
-                    cacheBus.invalidate(CACHE_KEYS.categories);
-                    showToast('Categoría registrada ✔', 'success');
-                    navigate('/');
-                  } catch (err) {
-                    handleApiError(err, 'Error al guardar la categoría');
-                  } finally {
-                    setSavingCat(false);
-                  }
-                }}
+                type="button"
+                disabled={recentExpenses.length === 0}
+                onClick={() => setRecentOpen((o) => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, font: 'inherit', fontSize: 13.5, fontWeight: 600, color: recentExpenses.length ? 'var(--ink-2)' : 'var(--ink-3)', background: 'none', border: 0, cursor: recentExpenses.length ? 'pointer' : 'default', padding: '6px 4px' }}
               >
-                {savingCat ? 'Guardando...' : 'Guardar categoría'}
+                <Icon.repeat /> Repetir un gasto anterior
               </button>
+              {recentOpen && recentExpenses.length ? (
+                <>
+                  <div onClick={() => setRecentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1 }} />
+                  <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 2, width: 300, maxHeight: 320, overflowY: 'auto', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 16, boxShadow: '0 18px 44px rgba(43,38,32,.22)', padding: 6 }}>
+                    {recentExpenses.map((e) => {
+                      const def = categories.find((c) => c.name === e.category);
+                      return (
+                        <button
+                          key={e.id}
+                          type="button"
+                          onClick={() => applyRecent(e)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left', font: 'inherit', background: 'none', border: 0, borderRadius: 11, padding: '9px 10px', cursor: 'pointer' }}
+                          onMouseEnter={(ev) => { ev.currentTarget.style.background = 'var(--inset)'; }}
+                          onMouseLeave={(ev) => { ev.currentTarget.style.background = 'none'; }}
+                        >
+                          <CatIcon color={def?.color} bg={def?.color ? `${def.color}1A` : 'var(--inset)'} size={32} radius={9}>
+                            <span style={{ fontSize: 16 }}>{def?.emoji ?? '🧾'}</span>
+                          </CatIcon>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: 'block', fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.description || e.category || 'Gasto'}</span>
+                            <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-3)' }}>{e.category || 'Sin categoría'}</span>
+                          </span>
+                          <span style={{ fontWeight: 700, fontSize: 14 }}>{formatMoney(e.amount)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
             </div>
+            <Btn variant="primary" onClick={handleSubmit} disabled={submitting} style={{ height: 50, fontSize: 15.5, paddingInline: 22 }}>
+              <Icon.check /> {submitLabel}
+            </Btn>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </Portal>
   );
 };

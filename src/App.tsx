@@ -5,11 +5,10 @@ import { Login } from './views/Login';
 import { Setup } from './views/Setup';
 import { Invite } from './views/Invite';
 import { PinPage } from './views/PinPage';
-import { BottomNav } from './components/BottomNav';
-import { Sidebar } from './components/Sidebar';
-import { MeshBackground } from './components/MeshBackground';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { LoadingScreen } from './components/LoadingScreen';
+import { NidoShell } from './components/nido/NidoShell';
+import { useIsMobile } from './hooks/useMediaQuery';
 import { Dashboard } from './views/Dashboard';
 import { History } from './views/History';
 import { Settings } from './views/Settings';
@@ -17,11 +16,27 @@ import { AddExpense } from './views/AddExpense';
 import { Analytics } from './views/Analytics';
 import { Goals } from './views/Goals';
 import { EventDetail } from './views/EventDetail';
-import './styles/global.css';
+import './styles/nido.css';
+import './styles/nido-modals.css';
+
+/* The toast host: showToast() writes into #global-toast / #global-toast-msg,
+   so this markup must be present in every layout branch. */
+const GlobalToast: React.FC = () => (
+  // Wrapped in `.nido nido-portal` so the `.nido .toast` paper rules apply
+  // (global.css is gone) without the 100vh min-height injecting a phantom band.
+  // The icon SVGs are inert — `.nido .toast-icon { display:none }` hides them;
+  // the paper toast reads as a calm text pill with a left accent per variant.
+  <div className="nido nido-portal">
+    <div className="toast" id="global-toast">
+      <span id="global-toast-msg"></span>
+    </div>
+  </div>
+);
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLocked, isLoading } = useAuth();
   const location = useLocation();
+  const isMobileViewport = useIsMobile();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const prevPath = React.useRef(location.pathname);
@@ -52,39 +67,113 @@ const AppRoutes: React.FC = () => {
     return <PinPage />;
   }
 
-  const isAddView = location.pathname === '/add';
+  // Redesigned routes render the warm paper UI and skip the legacy glass chrome.
+  // Un-migrated routes keep Sidebar/BottomNav. This grows one screen per PR
+  // until the cutover, when the glass branch below is deleted.
+  //
+  // Inicio uses the shared NidoShell (rail + tab bar). Nuevo gasto is a stacked
+  // screen that brings its own chrome (rail on desktop, no tab bar on mobile),
+  // so it renders bare.
+  if (location.pathname === '/') {
+    return (
+      <>
+        <NidoShell active="home">
+          <Dashboard key={refreshKey} />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
 
-  return (
-    <>
-    <MeshBackground />
-    <div className="app-layout">
-      <Sidebar />
-      <div className="content-area" key={location.pathname}>
-        <Routes>
-          <Route path="/" element={<Dashboard key={refreshKey} />} />
-          <Route path="/personal" element={<Navigate to="/" replace />} />
-          <Route path="/history" element={<History key={refreshKey} />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/add" element={<AddExpense />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/events/:id" element={<EventDetail />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-      {!isAddView && <BottomNav />}
-    </div>
-    <div id="confetti-container" className="confetti-container" />
-    <div className="toast" id="global-toast">
-      <div className="toast-icon">
-        <svg className="toast-icon__svg toast-icon__svg--success" width="16" height="16" fill="none" stroke="#34D399" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M5 13l4 4L19 7" /></svg>
-        <svg className="toast-icon__svg toast-icon__svg--error" width="16" height="16" fill="none" stroke="#F87171" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        <svg className="toast-icon__svg toast-icon__svg--info" width="16" height="16" fill="none" stroke="#60A5FA" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v5h1" /></svg>
-      </div>
-      <span id="global-toast-msg"></span>
-    </div>
-    </>
-  );
+  if (location.pathname === '/add') {
+    // Mobile keeps the full stacked 2-step keypad screen. On desktop, Nuevo
+    // gasto is a centred modal (AddExpense portals it to the body); we render
+    // the dashboard behind it so the rail + dimmed home show through, matching
+    // the approved design.
+    if (isMobileViewport) {
+      return (
+        <>
+          <AddExpense />
+          <div id="confetti-container" className="confetti-container" />
+          <GlobalToast />
+        </>
+      );
+    }
+    return (
+      <>
+        <NidoShell active="add"><Dashboard /></NidoShell>
+        <AddExpense />
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  if (location.pathname === '/history') {
+    return (
+      <>
+        <NidoShell active="hist">
+          <History key={refreshKey} />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  if (location.pathname === '/analytics') {
+    return (
+      <>
+        <NidoShell active="chart">
+          <Analytics />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  if (location.pathname === '/goals') {
+    return (
+      <>
+        <NidoShell active="goals">
+          <Goals />
+        </NidoShell>
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  // Configuración: stacked screen (own back-arrow header). On desktop it still
+  // sits inside the rail; on mobile it brings its own chrome and no tab bar.
+  if (location.pathname === '/settings') {
+    return (
+      <>
+        {isMobileViewport ? <Settings /> : <NidoShell active="set"><Settings /></NidoShell>}
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  // Event detail: dynamic route, brings its own chrome (rail on desktop, bare
+  // back-arrow screen on mobile), like Nuevo gasto.
+  if (location.pathname.startsWith('/events/')) {
+    return (
+      <>
+        <EventDetail />
+        <div id="confetti-container" className="confetti-container" />
+        <GlobalToast />
+      </>
+    );
+  }
+
+  // Every real route is handled by a redesigned branch above. Anything left
+  // (/personal, unknown paths) redirects home. The legacy glass shell
+  // (MeshBackground/Sidebar/BottomNav) is gone.
+  return <Navigate to="/" replace />;
 };
 
 const App: React.FC = () => {

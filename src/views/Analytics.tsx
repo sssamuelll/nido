@@ -1,428 +1,108 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { createChart, ColorType, AreaData, Time, AreaSeries } from 'lightweight-charts';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Api } from '../api';
 import { useContextSelector } from '../hooks/useContextSelector';
 import { useResource } from '../hooks/useResource';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { CACHE_KEYS } from '../lib/cacheBus';
 import { ErrorView } from '../components/ErrorView';
-import { ContextTabs } from '../components/ContextTabs';
-import { MonthNavigator } from '../components/MonthNavigator';
-import { CheckCircle, AlertTriangle, Lightbulb, TrendingDown, TrendingUp, X, type LucideIcon } from 'lucide-react';
+import { formatCycleLabel, formatCycleRange } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import { formatCycleLabel, MONTHS_ES_SHORT } from '../lib/dates';
 import type { CycleSummary } from '../api-types/cycles';
+import { Card, Eyebrow, Bar, CatIcon, Seg, Icon, CONTEXT_SEG_OPTIONS } from '../components/nido';
 
-/* ── constants ──────────────────────────────────────────── */
+interface Kpis { totalSpent: number; netSavings: number; avgTicket: number; totalExpenses: number; vsPrevPeriod: number }
+interface CatRow { name: string; amount: number; pct: number; color: string; emoji: string; budget: number }
+interface Insight { type: 'positive' | 'warning' | 'tip'; message: string }
 
-/* ── types ──────────────────────────────────────────────── */
+const num = (v: unknown, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
-interface KpisData {
-  totalSpent: number;
-  netSavings: number;
-  avgTicket: number;
-  totalExpenses: number;
-  vsPrevPeriod: number;
-}
-interface CategoryData { name: string; amount: number; pct: number; color: string; emoji: string; budget: number }
-interface InsightData { type: 'positive' | 'warning' | 'tip'; message: string }
-interface HouseholdBudgetData {
-  total_amount: number;
-  allocated: number;
-  unallocated: number;
-}
-interface DailyData { date: string; total: number }
-interface AnalyticsData {
-  daily: DailyData[];
-  kpis: KpisData;
-  categories: CategoryData[];
-  insights: InsightData[];
-  householdBudget: HouseholdBudgetData;
-}
-
-/* ── helpers ────────────────────────────────────────────── */
-
-// fmtCurrency removed — all sites in this view are KPIs/aggregates per the
-// "céntimos only on individual rows + balance" convention. avgTicket KPI
-// previously used decimals; now compact to match the convention.
-
-const INSIGHT_ICON: Record<string, LucideIcon> = {
-  positive: CheckCircle,
-  warning: AlertTriangle,
-  tip: Lightbulb,
-};
-
-const INSIGHT_COLORS: Record<string, { border: string; bg: string; icon: string }> = {
-  positive: { border: 'var(--green)', bg: 'var(--gl)', icon: 'var(--green)' },
-  warning: { border: 'var(--orange)', bg: 'var(--ol)', icon: 'var(--orange)' },
-  tip: { border: 'var(--blue)', bg: 'var(--bl)', icon: 'var(--blue)' },
-};
-
-/* ── TradingView Lightweight Chart component ───────────── */
-
-interface AreaChartProps {
-  data: Array<{ date: string; total: number }>;
-}
-
-const AreaChart: React.FC<AreaChartProps> = ({ data }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
-
-  useEffect(() => {
-    if (!containerRef.current || data.length === 0) return;
-
-    // Create chart
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255,255,255,0.3)',
-        fontSize: 11,
-      },
-      grid: {
-        vertLines: { visible: false },
-        horzLines: { color: 'rgba(255,255,255,0.04)' },
-      },
-      width: containerRef.current.clientWidth,
-      height: 300,
-      rightPriceScale: {
-        borderVisible: false,
-      },
-      timeScale: {
-        borderVisible: false,
-        tickMarkFormatter: (time: unknown) => {
-          if (typeof time === 'string') {
-            const [,m, d] = time.split('-');
-            return `${parseInt(d)} ${MONTHS_ES_SHORT[parseInt(m) - 1] || m}`;
-          }
-          return '';
-        },
-      },
-      localization: {
-        locale: 'es-ES',
-        priceFormatter: (price: number) => formatMoney(Math.round(price)),
-      },
-      crosshair: {
-        vertLine: {
-          color: 'rgba(52,211,153,0.3)',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: 'rgba(52,211,153,0.9)',
-        },
-        horzLine: {
-          color: 'rgba(52,211,153,0.3)',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: 'rgba(52,211,153,0.9)',
-        },
-      },
-      handleScale: false,
-      handleScroll: false,
-    });
-
-    // Add area series (v5 API)
-    const areaSeries = chart.addSeries(AreaSeries, {
-      lineColor: '#34D399',
-      lineWidth: 2,
-      topColor: 'rgba(52,211,153,0.35)',
-      bottomColor: 'rgba(52,211,153,0)',
-      crosshairMarkerVisible: true,
-      crosshairMarkerRadius: 6,
-      crosshairMarkerBackgroundColor: '#34D399',
-      crosshairMarkerBorderColor: '#34D399',
-      lastValueVisible: true,
-      priceLineVisible: true,
-      priceFormat: {
-        type: 'custom',
-        formatter: (price: number) => formatMoney(Math.round(price)),
-      },
-    });
-
-    // Transform data: date is already YYYY-MM-DD
-    const chartData: AreaData<Time>[] = data.map(d => ({
-      time: d.date as Time,
-      value: d.total,
-    }));
-
-    areaSeries.setData(chartData);
-    chart.timeScale().fitContent();
-
-    chartRef.current = chart;
-
-    // Resize observer
-    const observer = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        chart.applyOptions({ width: entry.contentRect.width });
-      }
-    });
-    observer.observe(containerRef.current);
-
-    return () => {
-      observer.disconnect();
-      chart.remove();
-      chartRef.current = null;
-    };
-  }, [data]);
-
-  return <div ref={containerRef} className="a7-tv-chart" />;
-};
-
-/* ── Category Bars component ────────────────────────────── */
-
-interface CategoryBarsProps {
-  categories: CategoryData[];
-  animated: boolean;
-  hoveredIdx: number | null;
-  onHover: (idx: number | null) => void;
-  onClick: (idx: number | null) => void;
-}
-
-const CategoryBars: React.FC<CategoryBarsProps> = ({ categories, animated, hoveredIdx, onHover, onClick }) => {
-  const sorted = useMemo(
-    () => [...categories].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 8),
-    [categories],
-  );
-  const maxAmt = useMemo(() => Math.max(...sorted.map(c => c.amount), 1), [sorted]);
-
+/* ── donut (own SVG, paper-themed; the prototype ships this, not a chart lib) ── */
+const Donut: React.FC<{ slices: Array<{ pct: number; color: string }>; centerValue: string; centerLabel: string; size?: number }> = ({ slices, centerValue, centerLabel, size = 180 }) => {
+  const r = (size / 2) - 20;
+  const c = 2 * Math.PI * r;
+  const cx = size / 2;
+  const cy = size / 2;
+  let acc = 0;
   return (
-    <div className="a7-catbars">
-      {sorted.map((cat, i) => {
-        const widthPct = (cat.amount / maxAmt) * 100;
-        const isActive = hoveredIdx === i;
-        const isDimmed = hoveredIdx !== null && !isActive;
-        return (
-          <div
-            key={cat.name}
-            className={`a7-catbar ${animated ? 'a7-catbar--visible' : ''} ${isActive ? 'a7-catbar--active' : ''} ${isDimmed ? 'a7-catbar--dimmed' : ''}`}
-            style={{ '--catbar-delay': `${i * 50}ms` } as React.CSSProperties}
-            onMouseEnter={() => onHover(i)}
-            onMouseLeave={() => onHover(null)}
-            onClick={() => onClick(i)}
-          >
-            <div className="a7-catbar__label">
-              <span className="a7-catbar__emoji">{cat.emoji}</span>
-              <span className="a7-catbar__name">{cat.name}</span>
-            </div>
-            <div className="a7-catbar__track">
-              <div
-                className="a7-catbar__fill"
-                style={{
-                  '--bar-width': `${widthPct}%`,
-                  '--bar-color': cat.color,
-                } as React.CSSProperties}
-              />
-            </div>
-            <div className="a7-catbar__meta">
-              <span className="a7-catbar__amount">{formatMoney(cat.amount)}</span>
-              <span className="a7-catbar__pct" style={{ '--catbar-pct-color': cat.color } as React.CSSProperties}>{cat.pct}%</span>
-            </div>
-          </div>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--inset)" strokeWidth={20} />
+      {slices.map((s, i) => {
+        // Clamp the SAME value used for both dash length and the running offset,
+        // so a dirty pct (negative, or slices summing past 100) can't make a
+        // slice's drawn arc and the next slice's start position disagree.
+        const clampedPct = Math.max(0, Math.min(100, s.pct));
+        const dash = (clampedPct / 100) * c;
+        const el = (
+          <circle
+            key={i}
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke={s.color}
+            strokeWidth={20}
+            strokeDasharray={`${dash} ${c - dash}`}
+            strokeDashoffset={-(acc / 100) * c}
+            transform={`rotate(-90 ${cx} ${cy})`}
+          />
         );
+        acc += clampedPct;
+        return el;
       })}
-    </div>
+      <text x={cx} y={cy - 2} textAnchor="middle" className="serif" style={{ fontSize: 28, fill: 'var(--ink)' }}>{centerValue}</text>
+      <text x={cx} y={cy + 18} textAnchor="middle" style={{ fontSize: 11.5, fill: 'var(--ink-3)' }}>{centerLabel}</text>
+    </svg>
   );
 };
 
-/* ── Spending Donut component ──────────────────────────── */
-
-interface SpendingDonutProps {
-  categories: Array<{ name: string; emoji: string; amount: number; color: string; pct: number }>;
-  animated: boolean;
-  hoveredIdx: number | null;
-  onHover: (idx: number | null) => void;
-  onClick: (idx: number | null) => void;
-}
-
-const MAX_DONUT_SLICES = 6;
-const RING_R = 70;
-const RING_STROKE = 24;
-const RING_C = 2 * Math.PI * RING_R;
-const BADGE_R = RING_R + RING_STROKE / 2 + 24;
-const VIEW_SIZE = 280; // larger to fit badges
-const CENTER = VIEW_SIZE / 2;
-
-function collapseSlices(cats: SpendingDonutProps['categories']): SpendingDonutProps['categories'] {
-  const filtered = cats.filter(c => c.amount > 0);
-  if (filtered.length <= MAX_DONUT_SLICES) return filtered;
-  const sorted = [...filtered].sort((a, b) => b.amount - a.amount);
-  const keep = sorted.slice(0, MAX_DONUT_SLICES - 1);
-  const rest = sorted.slice(MAX_DONUT_SLICES - 1);
-  const restTotal = rest.reduce((s, r) => s + r.amount, 0);
-  const total = filtered.reduce((s, r) => s + r.amount, 0);
-  keep.push({
-    name: 'Otros', emoji: '📦', color: '#a89e94',
-    amount: restTotal, pct: total > 0 ? Math.round((restTotal / total) * 100) : 0,
-  });
-  return keep;
-}
-
-const SpendingDonut: React.FC<SpendingDonutProps> = ({ categories, animated, hoveredIdx, onHover, onClick }) => {
-  const slices = useMemo(() => collapseSlices(categories), [categories]);
-  const totalSpent = slices.reduce((s, c) => s + c.amount, 0);
-  const safeTotal = Math.max(totalSpent, 1);
-
-  // Build arcs — spending per category as % of total spent
-  const arcs = useMemo(() => {
-    const result: Array<{ offset: number; length: number; color: string; idx: number }> = [];
-    let cum = 0;
-    slices.forEach((s, i) => {
-      const len = (s.amount / safeTotal) * RING_C;
-      result.push({ offset: cum, length: len, color: s.color, idx: i });
-      cum += len;
-    });
-    return result;
-  }, [slices, safeTotal]);
-
-  // Spread badges to avoid overlap on small segments
-  const badgePositions = useMemo(() => {
-    const MIN_ANGLE_GAP = 0.45; // ~26 degrees minimum between badges
-    const rawAngles = arcs.map(arc => ((arc.offset + arc.length / 2) / RING_C) * 2 * Math.PI - Math.PI / 2);
-    const adjusted = [...rawAngles];
-    for (let pass = 0; pass < 3; pass++) {
-      for (let i = 1; i < adjusted.length; i++) {
-        const gap = adjusted[i] - adjusted[i - 1];
-        if (gap < MIN_ANGLE_GAP) {
-          const shift = (MIN_ANGLE_GAP - gap) / 2;
-          adjusted[i - 1] -= shift;
-          adjusted[i] += shift;
-        }
-      }
-    }
-    return adjusted.map(angle => ({
-      x: CENTER + Math.cos(angle) * BADGE_R,
-      y: CENTER + Math.sin(angle) * BADGE_R,
-    }));
-  }, [arcs]);
-
-  if (totalSpent === 0) return null;
-
+/* ── cumulative-spend area (own SVG, clay stroke) ── */
+const AreaChart: React.FC<{ values: number[]; height?: number }> = ({ values, height = 200 }) => {
+  if (values.length < 2) {
+    return <div style={{ height, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', fontSize: 13 }}>Aún no hay suficiente recorrido para una curva.</div>;
+  }
+  const W = 620;
+  const H = height;
+  const pad = 10;
+  const max = Math.max(...values, 1);
+  const dx = (W - pad * 2) / (values.length - 1);
+  const xy = values.map((p, i) => [pad + i * dx, H - pad - (p / max) * (H - pad * 2)] as const);
+  const line = xy.map((p, i) => (i === 0 ? 'M' : 'L') + p[0] + ' ' + p[1]).join(' ');
+  const area = `${line} L${xy[xy.length - 1][0]} ${H - pad} L${xy[0][0]} ${H - pad} Z`;
   return (
-    <div className="a7-donut-wrap">
-      <div className="a7-donut-svg-wrap">
-        <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className="a7-donut-svg" onMouseLeave={() => onHover(null)} onClick={(e) => { if ((e.target as SVGElement).tagName === 'svg') onClick(null); }}>
-          {/* Spending ring */}
-          {arcs.map((arc, i) => {
-            const isHovered = arc.idx === hoveredIdx;
-            return (
-              <circle
-                key={`a-${i}`}
-                cx={CENTER} cy={CENTER} r={RING_R}
-                fill="none" stroke={arc.color} strokeWidth={RING_STROKE}
-                strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
-                strokeDashoffset={animated ? -(arc.offset - RING_C / 4) : RING_C}
-                strokeLinecap="butt"
-                className={`a7-donut-arc${hoveredIdx !== null && !isHovered ? ' a7-donut-arc--dimmed' : ''}`}
-                style={{ '--arc-delay': `${i * 60}ms` } as React.CSSProperties}
-                onMouseEnter={() => onHover(arc.idx)}
-                onTouchStart={() => onHover(arc.idx)}
-              />
-            );
-          })}
-
-          {/* Touch targets */}
-          {arcs.map((arc, i) => (
-            <circle
-              key={`t-${i}`}
-              cx={CENTER} cy={CENTER} r={RING_R}
-              fill="none" stroke="transparent"
-              strokeWidth={Math.max(RING_STROKE + 20, 44)}
-              strokeDasharray={`${arc.length} ${RING_C - arc.length}`}
-              strokeDashoffset={-(arc.offset - RING_C / 4)} strokeLinecap="butt"
-              className="a7-donut-touch"
-              onMouseEnter={() => onHover(arc.idx)}
-              onTouchStart={() => onHover(arc.idx)}
-              onClick={() => onClick(arc.idx)}
-            />
-          ))}
-
-          {/* Emoji badges — spread to avoid overlap */}
-          {arcs.map((arc, i) => {
-            const s = slices[arc.idx];
-            const pos = badgePositions[i];
-            const pct = Math.round((s.amount / safeTotal) * 100);
-            const isHovered = arc.idx === hoveredIdx;
-            return (
-              <foreignObject key={`fb-${i}`} x={pos.x - 22} y={pos.y - 22} width={44} height={44} className="a7-donut-fo">
-                <div
-                  className={`a7-donut-badge${isHovered ? ' a7-donut-badge--active' : ''}`}
-                  style={{ '--badge-color': s.color } as React.CSSProperties}
-                  onMouseEnter={() => onHover(arc.idx)}
-                  onClick={() => onClick(arc.idx)}
-                >
-                  <span className="a7-donut-badge__emoji">{s.emoji}</span>
-                  <span className="a7-donut-badge__pct">{pct}%</span>
-                </div>
-              </foreignObject>
-            );
-          })}
-
-          {/* Center total */}
-          <text x={CENTER} y={CENTER - 4} textAnchor="middle" dominantBaseline="auto"
-            className="a7-donut-center-value">
-            {formatMoney(totalSpent)}
-          </text>
-          <text x={CENTER} y={CENTER + 14} textAnchor="middle" dominantBaseline="auto"
-            className="a7-donut-center-label">
-            gastado
-          </text>
-        </svg>
-      </div>
-    </div>
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="nido-area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--clay)" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="var(--clay)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#nido-area)" />
+      <path d={line} fill="none" stroke="var(--clay)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 };
 
-/* ── Category section — donut + bars with shared hover ─── */
-
-const CategoryDonutSection: React.FC<{ categories: CategoryData[]; animated: boolean }> = ({ categories, animated }) => {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [lockedIdx, setLockedIdx] = useState<number | null>(null);
-
-  const activeIdx = lockedIdx ?? hoveredIdx;
-
-  const handleHover = useCallback((idx: number | null) => {
-    if (lockedIdx === null) setHoveredIdx(idx);
-  }, [lockedIdx]);
-
-  const handleClick = useCallback((idx: number | null) => {
-    setLockedIdx(prev => prev === idx ? null : idx);
-    setHoveredIdx(null);
-  }, []);
-
-  return (
-    <>
-      <SpendingDonut categories={categories} animated={animated} hoveredIdx={activeIdx} onHover={handleHover} onClick={handleClick} />
-      <CategoryBars categories={categories} animated={animated} hoveredIdx={activeIdx} onHover={handleHover} onClick={handleClick} />
-    </>
-  );
+const INSIGHT_TONE: Record<Insight['type'], { bg: string; border: string; ink: string; accent: string; Icon: React.FC }> = {
+  positive: { bg: 'var(--pine-tint)', border: '#bcd0bf', ink: 'var(--pine-2)', accent: 'var(--pine)', Icon: Icon.check },
+  warning: { bg: 'var(--honey-tint)', border: '#e6d3a0', ink: '#7a5512', accent: 'var(--honey)', Icon: Icon.info },
+  tip: { bg: 'var(--clay-tint)', border: '#e6c6b8', ink: 'var(--clay-2)', accent: 'var(--clay)', Icon: Icon.spark },
 };
-
-/* ── Main component ─────────────────────────────────────── */
 
 export const Analytics: React.FC = () => {
   const { activeContext, setActiveContext } = useContextSelector();
-  const [chartAnimated, setChartAnimated] = useState(false);
-  const [insightDismissed, setInsightDismissed] = useState(false);
+  const isMobile = useIsMobile();
+  const [showAllCats, setShowAllCats] = useState(false);
 
-  // Cycle-based navigation (same pattern as History.tsx)
   const loadCyclesFn = useCallback(async () => {
     const data = await Api.listCycles();
     return Array.isArray(data) ? data : [];
   }, []);
-  const { data: cyclesData } = useResource<CycleSummary[]>(loadCyclesFn, {
-    fallbackMessage: 'Error al cargar ciclos',
-    invalidationKey: CACHE_KEYS.cycles,
-  });
+  const { data: cyclesData } = useResource<CycleSummary[]>(loadCyclesFn, { invalidationKey: CACHE_KEYS.cycles });
   const cycles = cyclesData ?? [];
   const [cycleIndex, setCycleIndex] = useState(0);
+  const currentCycle = cycles.length > 0 ? cycles[Math.min(cycleIndex, cycles.length - 1)] : null;
 
-  const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
-
-  const getCycleLabel = () => {
-    if (!currentCycle) return 'Todos los gastos';
-    if (cycleIndex === 0 && currentCycle.status === 'active') return 'Ciclo actual';
-    if (!currentCycle.start_date) return 'Ciclo';
-    return formatCycleLabel(currentCycle.start_date);
-  };
-
-  const loadAnalytics = useCallback(async () => {
+  const loadAnalyticsFn = useCallback(async () => {
     const params: { context: string; start_date?: string; end_date?: string } = { context: activeContext };
     if (currentCycle?.start_date) {
       params.start_date = currentCycle.start_date;
@@ -430,215 +110,235 @@ export const Analytics: React.FC = () => {
     }
     return Api.getAnalytics(params);
   }, [activeContext, currentCycle?.id, currentCycle?.start_date, currentCycle?.end_date]);
+  const { data: analyticsRaw, loading, error, reload } = useResource(loadAnalyticsFn, {
+    fallbackMessage: 'Error al cargar analíticas',
+    invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.budget, CACHE_KEYS.categories],
+  });
+  const analytics = analyticsRaw as any;
 
-  const { data, loading, error, reload: fetchData } =
-    useResource<AnalyticsData>(loadAnalytics, {
-      fallbackMessage: 'Error al cargar analíticas',
-      invalidationKeys: [CACHE_KEYS.expenses, CACHE_KEYS.budget, CACHE_KEYS.categories],
-    });
+  const kpis: Kpis = useMemo(() => {
+    const k = analytics?.kpis ?? {};
+    return {
+      totalSpent: num(k.totalSpent),
+      netSavings: num(k.netSavings),
+      avgTicket: num(k.avgTicket),
+      totalExpenses: num(k.totalExpenses),
+      vsPrevPeriod: num(k.vsPrevPeriod),
+    };
+  }, [analytics]);
 
-  // Reset chart animation + insight visibility when params change (deps mirror loadAnalytics).
-  useEffect(() => {
-    setChartAnimated(false);
-    setInsightDismissed(false);
-  }, [activeContext, currentCycle?.id]);
+  const categories: CatRow[] = useMemo(() => {
+    const list = Array.isArray(analytics?.categories) ? analytics.categories : [];
+    return list
+      .map((c: any) => ({
+        name: c.name ?? c.category ?? 'Otros',
+        amount: num(c.amount ?? c.total),
+        pct: num(c.pct),
+        color: c.color ?? 'var(--clay)',
+        emoji: c.emoji ?? '📂',
+        budget: num(c.budget),
+      }))
+      .sort((a: CatRow, b: CatRow) => b.amount - a.amount);
+  }, [analytics]);
 
-  // Trigger chart fade-in once data lands. Two rAFs let the DOM commit before the transition starts.
-  useEffect(() => {
-    if (!data) return;
-    const handle = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setChartAnimated(true));
-    });
-    return () => cancelAnimationFrame(handle);
-  }, [data]);
+  const insights: Insight[] = useMemo(() => {
+    const list = Array.isArray(analytics?.insights) ? analytics.insights : [];
+    return list.map((i: any) => ({ type: (i.type ?? 'tip') as Insight['type'], message: i.message ?? String(i) }));
+  }, [analytics]);
 
-  const chartTitle = activeContext === 'shared'
-    ? 'Gasto acumulado — Compartido'
-    : 'Gasto acumulado — Personal';
+  // The backend returns per-day totals (`daily`); the mockup's chart is the
+  // running total ("Gasto acumulado"), so accumulate real daily spend.
+  const chartValues: number[] = useMemo(() => {
+    const series = Array.isArray(analytics?.daily) ? analytics.daily : [];
+    let acc = 0;
+    return series.map((p: any) => { acc += num(p.total ?? p.value); return acc; });
+  }, [analytics]);
 
-  /* ── KPI data ── */
-  const kpis = useMemo(() => {
-    if (!data) return [];
-    const { kpis: k } = data;
-    return [
-      {
-        value: formatMoney(k.totalSpent),
-        label: 'Total gastado',
-        delta: k.vsPrevPeriod,
-        deltaInvert: true, // lower is better
-        valueColor: undefined,
-      },
-      {
-        value: formatMoney(k.netSavings),
-        label: 'Ahorro neto',
-        delta: undefined,
-        deltaInvert: false,
-        valueColor: k.netSavings >= 0 ? 'var(--green)' : 'var(--red)',
-      },
-      {
-        value: formatMoney(k.avgTicket),
-        label: 'Ticket medio',
-        delta: undefined,
-        deltaInvert: false,
-        valueColor: undefined,
-      },
-      {
-        value: String(k.totalExpenses),
-        label: 'Nº de gastos',
-        delta: undefined,
-        deltaInvert: false,
-        valueColor: undefined,
-      },
-    ];
-  }, [data]);
+  // derived calm-overspend metric (real): sum of per-category overspend
+  const overspend = useMemo(() => {
+    let sum = 0; let count = 0;
+    for (const c of categories) {
+      if (c.budget > 0 && c.amount > c.budget) { sum += c.amount - c.budget; count += 1; }
+    }
+    return { sum, count };
+  }, [categories]);
 
-  /* Pick the single most relevant insight */
-  const topInsight = useMemo(() => {
-    if (!data?.insights.length) return null;
-    return data.insights.find(i => i.type === 'warning')
-      || data.insights.find(i => i.type === 'tip')
-      || data.insights[0];
-  }, [data?.insights]);
+  const hasData = !loading && !error && kpis.totalExpenses > 0;
 
-  if (error) return <ErrorView message={error} onRetry={fetchData} />;
+  const cycleLabel = currentCycle?.start_date
+    ? (cycleIndex === 0 && currentCycle.status === 'active' ? 'Ciclo actual' : formatCycleLabel(currentCycle.start_date))
+    : 'Ciclo actual';
+  const cycleRange = currentCycle?.start_date
+    ? formatCycleRange(currentCycle.start_date, currentCycle.end_date ?? new Date().toISOString().slice(0, 10))
+    : '';
+
+  const cycleNav = (
+    <div className="seg" style={{ padding: 4, ...(isMobile ? { width: '100%' } : null) }}>
+      <button type="button" onClick={() => setCycleIndex((i) => Math.min(cycles.length - 1, i + 1))} disabled={cycleIndex >= cycles.length - 1} style={{ padding: '8px 12px', opacity: cycleIndex >= cycles.length - 1 ? 0.35 : 1 }} aria-label="Ciclo anterior"><Icon.back /></button>
+      <button type="button" className="on" style={{ flex: isMobile ? 1 : undefined, justifyContent: 'center', gap: 8 }}>
+        <Icon.cal /><span>{cycleLabel}</span>{!isMobile && cycleRange ? <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>· {cycleRange}</span> : null}
+      </button>
+      <button type="button" onClick={() => setCycleIndex((i) => Math.max(0, i - 1))} disabled={cycleIndex <= 0} style={{ padding: '8px 12px', opacity: cycleIndex <= 0 ? 0.35 : 1 }} aria-label="Ciclo siguiente"><Icon.fwd /></button>
+    </div>
+  );
+
+  const header = (
+    <div style={{ marginBottom: isMobile ? 14 : 20 }}>
+      <h1 className={isMobile ? 'serif' : 'ptitle'} style={isMobile ? { fontSize: 26, lineHeight: 1 } : undefined}>Analítica</h1>
+      <div className="psub" style={isMobile ? { fontSize: 12, marginTop: 2 } : undefined}>Cómo se mueve el dinero del nido</div>
+    </div>
+  );
+
+  const navRow = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: isMobile ? 12 : 18, flexWrap: 'wrap' }}>
+      {cycleNav}
+      <Seg value={activeContext} options={CONTEXT_SEG_OPTIONS} onChange={setActiveContext} full={isMobile} />
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <>
+        {header}{navRow}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+          {[0, 1, 2, 3].map((i) => <div key={i} className="card" style={{ height: 92, opacity: 0.5 - i * 0.08 }} />)}
+        </div>
+        <div className="card" style={{ height: 320, opacity: 0.4 }} />
+      </>
+    );
+  }
+
+  if (error) {
+    return (<>{header}{navRow}<ErrorView message={error} onRetry={reload} /></>);
+  }
+
+  if (!hasData) {
+    return (
+      <>
+        {header}{navRow}
+        <Card pad style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ fontSize: 15, color: 'var(--ink-2)', fontWeight: 600, marginBottom: 4 }}>Aún no hay datos para este ciclo</div>
+          <div style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>Cuando registréis gastos, aquí veréis en qué se va el dinero.</div>
+        </Card>
+      </>
+    );
+  }
+
+  const kpiCards = [
+    { label: 'Total gastado', value: formatMoney(kpis.totalSpent), sub: kpis.vsPrevPeriod === 0 ? 'igual que el anterior' : `${kpis.vsPrevPeriod > 0 ? '+' : ''}${kpis.vsPrevPeriod}% vs anterior`, color: 'var(--ink)' },
+    overspend.sum > 0
+      ? { label: 'Sobre presupuesto', value: formatMoney(overspend.sum), sub: `en ${overspend.count} ${overspend.count === 1 ? 'categoría' : 'categorías'}`, color: 'var(--honey)' }
+      : { label: 'Ahorro neto', value: formatMoney(Math.max(0, kpis.netSavings)), sub: 'disponible', color: 'var(--pine-2)' },
+    { label: 'Ticket medio', value: formatMoney(kpis.avgTicket), sub: 'por gasto', color: 'var(--ink)' },
+    { label: 'Nº de gastos', value: String(kpis.totalExpenses), sub: 'este ciclo', color: 'var(--ink)' },
+  ];
+
+  const insightStrip = insights.length > 0 ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+      {insights.map((ins, i) => {
+        const tone = INSIGHT_TONE[ins.type] ?? INSIGHT_TONE.tip;
+        const TIcon = tone.Icon;
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '13px 15px', borderRadius: 14, background: tone.bg, border: `1px solid ${tone.border}` }}>
+            <span style={{ color: tone.accent, flex: '0 0 auto', marginTop: 1, display: 'flex' }}><TIcon /></span>
+            <div style={{ fontSize: 13, color: tone.ink, lineHeight: 1.4 }}>{ins.message}</div>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
+  const kpiGrid = (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+      {kpiCards.map((kpi, i) => (
+        <Card key={i} style={{ padding: '15px 16px' }}>
+          <Eyebrow style={{ fontSize: 10.5 }}>{kpi.label}</Eyebrow>
+          <div style={{ fontSize: isMobile ? 24 : 26, fontWeight: 700, marginTop: 5, color: kpi.color }}>{kpi.value}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 1 }}>{kpi.sub}</div>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const donutCard = (
+    <Card pad style={{ padding: '18px 20px' }}>
+      <h3 className="serif" style={{ fontSize: 20, marginBottom: 6 }}>Por categoría</h3>
+      <div style={{ display: 'grid', placeItems: 'center', marginBottom: 6 }}>
+        <Donut
+          slices={categories.map((c) => ({ pct: c.pct, color: c.color }))}
+          centerValue={formatMoney(kpis.totalSpent)}
+          centerLabel={cycleIndex === 0 ? 'este ciclo' : cycleLabel.toLowerCase()}
+        />
+      </div>
+      <div>
+        {categories.slice(0, showAllCats ? undefined : 5).map((c, i) => (
+          <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color, flex: '0 0 auto' }} />
+            <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{c.name}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-3)', minWidth: 34, textAlign: 'right' }}>{c.pct}%</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, minWidth: 56, textAlign: 'right' }}>{formatMoney(c.amount)}</span>
+          </div>
+        ))}
+        {categories.length > 5 ? (
+          <button type="button" onClick={() => setShowAllCats((v) => !v)} style={{ marginTop: 10, background: 'none', border: 0, color: 'var(--clay)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {showAllCats ? 'Ver menos' : `Ver todas (${categories.length})`}
+          </button>
+        ) : null}
+      </div>
+    </Card>
+  );
+
+  const whereCard = (
+    <Card pad style={{ padding: '18px 20px' }}>
+      <h3 className="serif" style={{ fontSize: 20, marginBottom: 14 }}>Dónde se va el dinero</h3>
+      {categories.slice(0, 6).map((c) => {
+        const widthPct = categories[0]?.amount > 0 ? (c.amount / categories[0].amount) * 100 : 0;
+        return (
+          <div key={c.name} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+              <CatIcon color={c.color} bg={`${c.color}1A`} size={24} radius={7}><span style={{ fontSize: 13 }}>{c.emoji}</span></CatIcon>
+              <span style={{ flex: 1, fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
+              <span style={{ fontWeight: 700, fontSize: 13.5 }}>{formatMoney(c.amount)}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', minWidth: 34, textAlign: 'right' }}>{c.pct}%</span>
+            </div>
+            <Bar pct={widthPct} color={c.color} thin />
+          </div>
+        );
+      })}
+    </Card>
+  );
+
+  const trendCard = (
+    <Card pad style={{ padding: '18px 20px' }}>
+      <h3 className="serif" style={{ fontSize: 20, marginBottom: 2 }}>Gasto acumulado</h3>
+      <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 12 }}>
+        {cycleRange ? `${cycleRange} · ` : ''}<b style={{ color: 'var(--pine-2)' }}>{formatMoney(kpis.totalSpent)}</b>
+      </div>
+      <AreaChart values={chartValues} />
+    </Card>
+  );
 
   return (
-    <div className="a7">
-      {/* ── Header ── */}
-      <div className="a7-header an d1">
-        <div>
-          <h1 className="a7-title">Analítica</h1>
-          <p className="a7-subtitle">Análisis detallado de gastos</p>
+    <>
+      {header}
+      {navRow}
+      {insightStrip}
+      {kpiGrid}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {donutCard}
+          {whereCard}
+          {trendCard}
         </div>
-      </div>
-
-      {/* ── Context tabs ── */}
-      <ContextTabs
-        active={activeContext}
-        onChange={setActiveContext}
-        className="a7-ctx an d1"
-      />
-
-      {/* ── Cycle navigator ── */}
-      <MonthNavigator
-        label={getCycleLabel()}
-        onPrev={() => setCycleIndex(i => Math.min(cycles.length - 1, i + 1))}
-        onNext={() => setCycleIndex(i => Math.max(0, i - 1))}
-        className="an d1"
-      />
-
-      {/* ── Insight banner ── */}
-      {topInsight && !insightDismissed && !loading && (
-        <div
-          className="a7-insight-banner an d2"
-          style={{
-            '--insight-border': INSIGHT_COLORS[topInsight.type]?.border ?? 'var(--blue)',
-            '--insight-bg': INSIGHT_COLORS[topInsight.type]?.bg ?? 'var(--bl)',
-            '--insight-icon-color': INSIGHT_COLORS[topInsight.type]?.icon ?? 'var(--blue)',
-          } as React.CSSProperties}
-        >
-          <div className="a7-insight-banner__icon">
-            {React.createElement(INSIGHT_ICON[topInsight.type] || Lightbulb, { size: 16 })}
-          </div>
-          <p className="a7-insight-banner__msg">{topInsight.message}</p>
-          <button
-            className="a7-insight-banner__close"
-            onClick={() => setInsightDismissed(true)}
-            aria-label="Cerrar"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* ── Loading ── */}
-      {loading && (
-        <div className="a7-kpis an d2">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="a7-kpi a7-kpi--skeleton">
-              <div className="a7-kpi__value-skel" />
-              <div className="a7-kpi__label-skel" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Error ── */}
-      {error && !loading && (
-        <div className="a7-error an d2">
-          <AlertTriangle size={20} />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* ── Data ── */}
-      {data && !loading && (
+      ) : (
         <>
-          {/* KPI cards */}
-          <div className="a7-kpis an d2">
-            {kpis.map(kpi => (
-              <div key={kpi.label} className="a7-kpi">
-                <div
-                  className="a7-kpi__value"
-                  style={kpi.valueColor ? { '--kpi-color': kpi.valueColor } as React.CSSProperties : undefined}
-                >
-                  {kpi.value}
-                </div>
-                <div className="a7-kpi__label">{kpi.label}</div>
-                {kpi.delta !== undefined && kpi.delta !== 0 && (
-                  <div
-                    className={`a7-kpi__delta ${
-                      (kpi.deltaInvert ? kpi.delta < 0 : kpi.delta > 0) ? 'a7-kpi__delta--good' : 'a7-kpi__delta--bad'
-                    }`}
-                  >
-                    {kpi.delta > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                    {Math.abs(Math.round(kpi.delta))}% vs anterior
-                  </div>
-                )}
-              </div>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20, alignItems: 'start' }}>
+            {donutCard}
+            {whereCard}
           </div>
-
-          {/* Category breakdown — donut + bars */}
-          <div className="a7-card a7-card--mb an d3">
-            <div className="a7-card__head">
-              <span className="a7-card__title">Por categoría</span>
-            </div>
-            {data.categories.length > 0 ? (
-              <CategoryDonutSection categories={data.categories} animated={chartAnimated} />
-            ) : (
-              <div className="a7-empty">Sin gastos este periodo</div>
-            )}
-          </div>
-
-          {/* Area chart — full width */}
-          <div className="a7-card a7-card--mb an d3">
-            <div className="a7-card__head">
-              <span className="a7-card__title">{chartTitle}</span>
-            </div>
-            {data.daily.length > 0 ? (
-              <AreaChart data={data.daily} />
-            ) : (
-              <div className="a7-empty">Sin datos para el periodo seleccionado</div>
-            )}
-          </div>
-
-          {/* Category bars fallback when no budget */}
-          {data.householdBudget.total_amount <= 0 && (
-            <div className="a7-card a7-card--mb an d3">
-              <div className="a7-card__head">
-                <span className="a7-card__title">Por categoría</span>
-              </div>
-              {data.categories.length > 0 ? (
-                <CategoryDonutSection categories={data.categories} animated={chartAnimated} />
-              ) : (
-                <div className="a7-empty">Sin gastos este periodo</div>
-              )}
-            </div>
-          )}
-
+          {trendCard}
         </>
       )}
-    </div>
+    </>
   );
 };

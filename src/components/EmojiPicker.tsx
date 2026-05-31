@@ -208,7 +208,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ value, onChange }) => 
           </button>
         )}
         <div className="ep-search">
-          <svg width="14" height="14" fill="none" stroke="var(--tm)" viewBox="0 0 24 24" strokeWidth={2}>
+          <svg width="14" height="14" fill="none" stroke="var(--ink-3)" viewBox="0 0 24 24" strokeWidth={2}>
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
           </svg>
           <input
