@@ -5,6 +5,7 @@ import { Api } from '../api';
 import { VisibleExpense } from './privacy';
 import { useCountUp } from '../hooks/useCountUp';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { useTheme } from '../hooks/useTheme';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
 import { useContextSelector } from '../hooks/useContextSelector';
@@ -104,10 +105,97 @@ const CategoryRow: React.FC<{
   );
 };
 
+/* ── stacked composition bar (Variant B hero of the budget section) ──
+   One coloured segment per spending category, sized by its share of total
+   spend, with a vertical marker where the shared cap sits. */
+const SEG_PALETTE = ['var(--clay)', 'var(--pine)', 'var(--honey)', 'var(--plum)', 'var(--berry)', '#9C9384'];
+
+const StackedComposition: React.FC<{
+  segments: { name: string; value: number; color: string }[];
+  budget: number;
+}> = ({ segments, budget }) => {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  if (total <= 0) return null;
+  const budgetPct = (budget / total) * 100;
+  return (
+    <div>
+      <div style={{ display: 'flex', height: 14, borderRadius: 8, overflow: 'hidden', position: 'relative', background: 'var(--inset)' }}>
+        {segments.map((c, i) => (
+          <div key={`${c.name}-${i}`} style={{ width: `${(c.value / total) * 100}%`, background: c.color }} title={c.name} />
+        ))}
+        {budget > 0 && budgetPct <= 100 ? (
+          <div style={{ position: 'absolute', left: `${budgetPct}%`, top: -4, bottom: -4, width: 2, background: 'var(--ink)', borderRadius: 2 }} />
+        ) : null}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12.5, color: 'var(--ink-2)', flexWrap: 'wrap', gap: 8 }}>
+        <span><b style={{ color: 'var(--ink)' }}>{formatMoney(total)}</b> gastado en {segments.length} {segments.length === 1 ? 'categoría' : 'categorías'}</span>
+        {budget > 0 ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 10, height: 2, background: 'var(--ink)', display: 'inline-block' }} /> tope compartido {formatMoney(budget)}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+/* ── compact category card (Variant B grid) ──
+   Icon + name + pct on top, spent / limit underneath, thin coloured bar.
+   Whole card clicks through to the filtered history. */
+const BudgetMiniCard: React.FC<{
+  name: string;
+  emoji?: string;
+  color?: string;
+  spent: number;
+  budget: number;
+  onClick?: () => void;
+}> = ({ name, emoji, color, spent, budget, onClick }) => {
+  const noLimit = budget <= 0;
+  const pct = noLimit ? 0 : Math.round((spent / budget) * 100);
+  const over = !noLimit && spent > budget;
+  const fillW = noLimit ? 100 : Math.min(100, pct);
+  return (
+    <div className="card" style={{ padding: '15px 17px', cursor: onClick ? 'pointer' : undefined }} onClick={onClick}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 11 }}>
+        <CatIcon
+          icon={emoji ? undefined : Icon.dots}
+          color={color}
+          bg={color ? `${color}1A` : undefined}
+          tone={color ? undefined : 'ink'}
+          size={32}
+          radius={9}
+        >
+          {emoji ? <span style={{ fontSize: 16 }}>{emoji}</span> : undefined}
+        </CatIcon>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ flex: '1 1 auto', minWidth: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 700, flex: '0 0 auto', color: noLimit ? 'var(--ink-3)' : over ? 'var(--honey)' : 'var(--pine)' }}>
+              {noLimit ? 'libre' : `${pct}%`}
+            </span>
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 1 }}>
+            <b style={{ color: 'var(--ink)', fontSize: 14 }}>{formatMoney(spent)}</b> {noLimit ? '· sin tope' : `/ ${formatMoney(budget)}`}
+          </div>
+        </div>
+      </div>
+      <Bar pct={fillW} over={over} thin faded={noLimit} color={color} />
+    </div>
+  );
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { resolved: theme, toggle: toggleTheme } = useTheme();
+  const [headerSearch, setHeaderSearch] = useState('');
+
+  const submitHeaderSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = headerSearch.trim();
+    navigate('/history', { state: { initialContext: activeContext, ...(term ? { initialSearch: term } : {}) } });
+  };
 
   const loadCurrentCycleFn = useCallback(() => Api.getCurrentCycle(), []);
   const { data: activeCycle, loading: cycleLoading } = useResource<CycleDetail | null>(loadCurrentCycleFn, {
@@ -353,6 +441,80 @@ export const Dashboard: React.FC = () => {
     </>
   );
 
+  /* ── desktop budget section (Variant B): full-width card with a stacked
+        composition bar + a 3-column grid of compact category cards ── */
+  const budgetCategories = categoryBreakdown.filter((c) => toNum(c.budget) > 0 || toNum(c.total) > 0);
+  const stackedSegments = budgetCategories
+    .filter((c) => toNum(c.total) > 0)
+    .map((c, i) => ({
+      name: c.category,
+      value: toNum(c.total),
+      color: getCategoryDef(c.category)?.color || SEG_PALETTE[i % SEG_PALETTE.length],
+    }));
+
+  const budgetSectionDesktop = (
+    <Card pad style={{ marginBottom: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <h3 className="serif" style={{ fontSize: 23, whiteSpace: 'nowrap' }}>
+          {activeContext === 'shared' ? 'Presupuesto compartido' : 'Presupuesto personal'}
+        </h3>
+        <button type="button" onClick={openAddCategory} style={{ fontSize: 13, color: 'var(--clay)', fontWeight: 600, cursor: 'pointer', background: 'none', border: 0 }}>
+          Ajustar topes
+        </button>
+      </div>
+
+      {stackedSegments.length > 0 ? <StackedComposition segments={stackedSegments} budget={budgetTotal} /> : null}
+
+      {overCount > 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', margin: '14px 0 0' }}>
+          {overCount} {overCount === 1 ? 'categoría supera su tope' : 'categorías superan su tope'} este ciclo. Quizá conviene recalibrarlas.
+        </p>
+      ) : null}
+
+      {budgetCategories.length === 0 && recentEvents.length === 0 ? (
+        <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 14 }}>
+          Aún no hay categorías con gasto este ciclo.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 20 }}>
+          {recentEvents.map((ev) => (
+            <BudgetMiniCard
+              key={`event-${ev.id}`}
+              name={ev.name}
+              emoji={ev.emoji || '📅'}
+              color={ev.color || 'var(--plum)'}
+              spent={toNum(ev.total_spent)}
+              budget={toNum(ev.budget_amount)}
+              onClick={() => navigate(`/events/${ev.id}`)}
+            />
+          ))}
+          {budgetCategories.map((c) => {
+            const def = getCategoryDef(c.category);
+            return (
+              <BudgetMiniCard
+                key={c.category}
+                name={c.category}
+                emoji={def?.emoji}
+                color={def?.color}
+                spent={toNum(c.total)}
+                budget={toNum(c.budget)}
+                onClick={() => navigate('/history', { state: { initialContext: activeContext, initialCategory: c.category } })}
+              />
+            );
+          })}
+          <button
+            type="button"
+            onClick={openAddCategory}
+            className="card"
+            style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, color: 'var(--clay)', fontWeight: 600, fontSize: 14, border: '1px dashed var(--line-2)', background: 'transparent', cursor: 'pointer' }}
+          >
+            <Icon.plusS /> Añadir
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+
   const goalPeekCard = nearestGoal ? (
     <Card pad style={{ background: 'linear-gradient(150deg, var(--surface), var(--pine-tint))', cursor: 'pointer' }}>
       <div onClick={() => navigate('/goals')}>
@@ -450,9 +612,34 @@ export const Dashboard: React.FC = () => {
         <h1 className="serif" style={{ fontSize: isMobile ? 24 : 34, lineHeight: 1 }}>El Nido</h1>
         <div className="psub" style={{ marginTop: 3, fontSize: isMobile ? 12 : 13.5 }}>María &amp; tú</div>
       </div>
-      <IconBtn aria-label="Notificaciones" badge={unreadCount > 0 ? unreadCount : undefined} onClick={() => setShowNotifications(true)} style={isMobile ? { width: 38, height: 38 } : undefined}>
-        <Icon.bell />
-      </IconBtn>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
+        {!isMobile ? (
+          <form className="search" onSubmit={submitHeaderSearch} role="search">
+            <Icon.search />
+            <input
+              type="search"
+              placeholder="Buscar gasto…"
+              value={headerSearch}
+              onChange={(e) => setHeaderSearch(e.target.value)}
+              aria-label="Buscar gasto"
+            />
+          </form>
+        ) : (
+          <IconBtn aria-label="Buscar gasto" onClick={() => navigate('/history', { state: { initialContext: activeContext } })} style={{ width: 38, height: 38 }}>
+            <Icon.search />
+          </IconBtn>
+        )}
+        <IconBtn
+          aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          onClick={toggleTheme}
+          style={isMobile ? { width: 38, height: 38 } : undefined}
+        >
+          {theme === 'dark' ? <Icon.sun /> : <Icon.moon />}
+        </IconBtn>
+        <IconBtn aria-label="Notificaciones" badge={unreadCount > 0 ? unreadCount : undefined} onClick={() => setShowNotifications(true)} style={isMobile ? { width: 38, height: 38 } : undefined}>
+          <Icon.bell />
+        </IconBtn>
+      </div>
     </div>
   );
 
@@ -599,12 +786,10 @@ export const Dashboard: React.FC = () => {
       {header}
       {contextRow}
       {heroDesktop}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 22, marginBottom: 22, alignItems: 'start' }}>
-        <Card pad>{budgetCardInner}</Card>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-          <RecurringSection userId={user?.id ?? 0} />
-          {goalPeekCard}
-        </div>
+      {budgetSectionDesktop}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, marginBottom: 22, alignItems: 'start' }}>
+        <RecurringSection userId={user?.id ?? 0} />
+        {goalPeekCard}
       </div>
       {recentCard}
       {modals}

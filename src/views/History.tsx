@@ -31,7 +31,7 @@ export const History: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const incomingState = (location.state ?? {}) as { initialContext?: 'shared' | 'personal'; initialCategory?: string };
+  const incomingState = (location.state ?? {}) as { initialContext?: 'shared' | 'personal'; initialCategory?: string; initialSearch?: string };
   const { activeContext, setActiveContext } = useContextSelector(incomingState.initialContext ?? 'shared');
   const { categories, getCategoryDef } = useCategoryManagement(activeContext);
 
@@ -53,7 +53,7 @@ export const History: React.FC = () => {
   const currentCycle = cycles.length > 0 ? cycles[cycleIndex] : null;
 
   // controls
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(incomingState.initialSearch ?? '');
   const [selectedCategory, setSelectedCategory] = useState<string>(incomingState.initialCategory ?? '');
   const [groupMode, setGroupMode] = useState<GroupMode>('day');
   const [sortKey, setSortKey] = useState<SortKey>('date');

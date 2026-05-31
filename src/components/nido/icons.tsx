@@ -24,6 +24,7 @@ export const Icon = {
   search: () => <svg viewBox="0 0 24 24" {...S}><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>,
   bell:   () => <svg viewBox="0 0 24 24" {...S}><path d="M18 8a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 14 18 8Z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>,
   moon:   () => <svg viewBox="0 0 24 24" {...S}><path d="M20 13.5A8 8 0 1 1 10.5 4 6.4 6.4 0 0 0 20 13.5Z"/></svg>,
+  sun:    () => <svg viewBox="0 0 24 24" {...S}><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.1 5.1l1.8 1.8M17.1 17.1l1.8 1.8M18.9 5.1l-1.8 1.8M6.9 17.1l-1.8 1.8"/></svg>,
   back:   () => <svg viewBox="0 0 24 24" {...S}><path d="m14 6-6 6 6 6"/></svg>,
   fwd:    () => <svg viewBox="0 0 24 24" {...S}><path d="m10 6 6 6-6 6"/></svg>,
   edit:   () => <svg viewBox="0 0 24 24" {...S}><path d="M12 20h8"/><path d="M16.5 4.5a2 2 0 0 1 3 3L8 19l-4 1 1-4Z"/></svg>,
