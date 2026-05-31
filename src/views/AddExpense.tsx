@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Api } from '../api';
 import { showToast } from '../components/Toast';
@@ -291,6 +291,30 @@ export const AddExpense: React.FC = () => {
     </label>
   );
 
+  // Compact, centred date field for the desktop modal. The label opens the
+  // native picker (showPicker) so back-dating a gasto is one click; the overlay
+  // input stays as a fallback for browsers without showPicker.
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const dateFieldModal = (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => dateInputRef.current?.showPicker?.()}
+        style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', color: 'var(--ink)', font: 'inherit', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}
+      >
+        <Icon.cal /> {formatDayLabel(date)}
+      </button>
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        aria-label="Fecha del gasto"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 0, cursor: 'pointer' }}
+      />
+    </div>
+  );
+
   const typeToggle = (
     <Seg value={type} options={CONTEXT_SEG_OPTIONS} onChange={setType} full />
   );
@@ -580,17 +604,17 @@ export const AddExpense: React.FC = () => {
 
           {/* body: details (left) + amount keypad (right) */}
           <div style={{ display: 'flex', minHeight: 0, overflowY: 'auto' }}>
-            <div style={{ flex: '1 1 0', minWidth: 0, background: 'var(--inset)', padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ flex: '1 1 0', minWidth: 0, background: 'var(--surface)', padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
                 <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Descripción</label>
                 {descriptionField}
               </div>
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 150 }}>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: '0 0 148px', minWidth: 130 }}>
                   <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Fecha</label>
-                  {dateField}
+                  {dateFieldModal}
                 </div>
-                <div style={{ flex: 1, minWidth: 150 }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
                   <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Tipo</label>
                   {typeToggle}
                 </div>
@@ -609,7 +633,7 @@ export const AddExpense: React.FC = () => {
               {budgetImpact}
             </div>
 
-            <div style={{ flex: '0 0 332px', display: 'flex', flexDirection: 'column', padding: '22px 24px', gap: 18 }}>
+            <div style={{ flex: '0 0 332px', background: 'var(--inset)', display: 'flex', flexDirection: 'column', padding: '22px 24px', gap: 18 }}>
               <div style={{ textAlign: 'right' }}>
                 <Eyebrow style={{ marginBottom: 6 }}>Importe</Eyebrow>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6 }}>
