@@ -773,7 +773,7 @@ export const Dashboard: React.FC = () => {
         {contextRow}
         {heroMobile}
         <Card pad style={{ marginBottom: 16 }}>{budgetCardInner}</Card>
-        <div style={{ marginBottom: 16 }}><RecurringSection userId={user?.id ?? 0} /></div>
+        <div style={{ marginBottom: 16 }}><RecurringSection userId={user?.id ?? 0} cycle={activeCycle} /></div>
         <div style={{ marginBottom: 16 }}>{goalPeekCard}</div>
         {recentCard}
         {modals}
@@ -788,7 +788,7 @@ export const Dashboard: React.FC = () => {
       {heroDesktop}
       {budgetSectionDesktop}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, marginBottom: 22, alignItems: 'start' }}>
-        <RecurringSection userId={user?.id ?? 0} />
+        <RecurringSection userId={user?.id ?? 0} cycle={activeCycle} />
         {goalPeekCard}
       </div>
       {recentCard}
