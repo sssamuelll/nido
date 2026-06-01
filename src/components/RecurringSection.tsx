@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Api } from '../api';
-import { Portal } from './nido';
+import { Portal, Seg, Btn, FilterChip, CatIcon, Icon, CONTEXT_SEG_OPTIONS } from './nido';
 import { showToast } from './Toast';
 import { EmojiPicker } from './EmojiPicker';
 import { useCategoryManagement } from '../hooks/useCategoryManagement';
+import type { CategoryDef } from '../hooks/useCategoryManagement';
 import { useAsyncEffect } from '../hooks/useResource';
 import { formatMoneyExact } from '../lib/money';
 import { handleApiError } from '../lib/handleApiError';
@@ -27,12 +28,6 @@ interface RecurringSectionProps {
   onCycleApproved?: () => void;
 }
 
-const TagIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="var(--ink-3)" viewBox="0 0 24 24" strokeWidth={2}>
-    <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-  </svg>
-);
-
 export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved }) => {
   const [items, setItems] = useState<RecurringItem[]>([]);
   const [cycle, setCycle] = useState<CycleDetail | null>(null);
@@ -49,27 +44,10 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   const [everyNCycles, setEveryNCycles] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  // Category cmd-palette state
-  const { categories, getCategoryDef } = useCategoryManagement(formType);
+  // Category picker (chips + search/create — mirrors the Nuevo gasto modal)
+  const { categories } = useCategoryManagement(formType);
   const [categorySearch, setCategorySearch] = useState('');
-  const [cmdOpen, setCmdOpen] = useState(false);
-  const cmdRef = useRef<HTMLDivElement>(null);
-
-  const filteredCategories = useMemo(() => {
-    return categories.filter((item) =>
-      item.name.toLowerCase().includes(categorySearch.toLowerCase()) || categorySearch === ''
-    );
-  }, [categories, categorySearch]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (cmdRef.current && !cmdRef.current.contains(e.target as Node)) {
-        setCmdOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const [catExpanded, setCatExpanded] = useState(false);
 
   const loadData = useCallback(async () => {
     const [recurring, currentCycle] = await Promise.all([
@@ -89,6 +67,28 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     fallbackMessage: 'Error al cargar recurrentes',
     invalidationKeys: [CACHE_KEYS.recurring, CACHE_KEYS.cycles],
   });
+
+  const closeModal = useCallback(() => {
+    setEditItem(null);
+    setShowAddModal(false);
+    setCatExpanded(false);
+    setCategorySearch('');
+  }, []);
+
+  // Modal chrome parity with the Nuevo gasto modal: lock background scroll and
+  // close on Escape while the add/edit modal is open.
+  const modalOpen = editItem !== null || showAddModal;
+  useEffect(() => {
+    if (!modalOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') closeModal(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [modalOpen, closeModal]);
 
   const activeItems = items.filter(i => !i.paused);
   const total = activeItems.reduce((sum, i) => sum + i.amount, 0);
@@ -121,7 +121,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setFormNotes(item.notes || '');
     setEveryNCycles(item.every_n_cycles ?? 1);
     setCategorySearch('');
-    setCmdOpen(false);
+    setCatExpanded(false);
     setShowAddModal(false);
   };
 
@@ -135,14 +135,8 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     setFormNotes('');
     setEveryNCycles(1);
     setCategorySearch('');
-    setCmdOpen(false);
+    setCatExpanded(false);
     setShowAddModal(true);
-  };
-
-  const closeModal = () => {
-    setEditItem(null);
-    setShowAddModal(false);
-    setCmdOpen(false);
   };
 
   const handleSave = async () => {
@@ -234,6 +228,64 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     }
   };
 
+  /* ── category picker (chips + search/create), mirrored from AddExpense ── */
+  const trimmedCatSearch = categorySearch.trim();
+  const filteredCats = categories.filter((c) => c.name.toLowerCase().includes(trimmedCatSearch.toLowerCase()));
+  const customSelected = formCategory !== '' && !categories.some((c) => c.name === formCategory);
+  const canCreateCat = trimmedCatSearch !== '' && !categories.some((c) => c.name.toLowerCase() === trimmedCatSearch.toLowerCase());
+
+  const categoryChip = (c: CategoryDef, onPick: () => void) => (
+    <FilterChip key={c.name} on={formCategory === c.name} hasIcon onClick={onPick}>
+      <CatIcon color={c.color} bg={c.color ? `${c.color}1A` : undefined} size={24} radius={7}>
+        <span style={{ fontSize: 14 }}>{c.emoji}</span>
+      </CatIcon>
+      {c.name}
+    </FilterChip>
+  );
+
+  const customChip = customSelected ? (
+    <FilterChip on hasIcon onClick={() => {}}>
+      <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.tag /></span>
+      {formCategory}
+    </FilterChip>
+  ) : null;
+
+  const categoryPicker = (
+    <div>
+      <input
+        value={categorySearch}
+        onChange={(e) => setCategorySearch(e.target.value)}
+        placeholder="Buscar o crear categoría…"
+        style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'inherit', fontSize: 14, outline: 'none', marginBottom: 10 }}
+      />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+        {customChip}
+        {filteredCats.map((c: CategoryDef) => categoryChip(c, () => { setFormCategory(c.name); setCategorySearch(''); }))}
+        {canCreateCat && trimmedCatSearch.toLowerCase() !== formCategory.toLowerCase() ? (
+          <FilterChip hasIcon onClick={() => { setFormCategory(trimmedCatSearch); setCategorySearch(''); }} style={{ borderStyle: 'dashed' }}>
+            <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.plusS /></span>
+            Crear «{trimmedCatSearch}»
+          </FilterChip>
+        ) : null}
+        {categories.length === 0 && !trimmedCatSearch ? (
+          <span style={{ fontSize: 13, color: 'var(--ink-3)', padding: '7px 4px' }}>Escribe el nombre de una categoría para crearla.</span>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  // Compact chip row (first 6 + "Más") that reveals the full search-or-create picker.
+  const modalCategory = catExpanded ? categoryPicker : (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+      {customChip}
+      {categories.slice(0, 6).map((c: CategoryDef) => categoryChip(c, () => setFormCategory(c.name)))}
+      <FilterChip hasIcon onClick={() => setCatExpanded(true)} style={{ borderStyle: 'dashed' }}>
+        <span style={{ display: 'grid', placeItems: 'center', width: 22, height: 22 }}><Icon.plusS /></span>
+        Más
+      </FilterChip>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="card an d4 recurring-card">
@@ -242,7 +294,7 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
     );
   }
 
-  const isModalOpen = editItem !== null || showAddModal;
+  const saveDisabled = saving || !formName.trim() || !formAmount || parseFloat(formAmount) <= 0;
 
   return (
     <>
@@ -354,149 +406,149 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
         </div>
       </div>
 
-      {/* Edit / Add Modal — portaled to body so it escapes the .nido cascade
-          (this card renders inside the paper Dashboard). */}
-      {isModalOpen && (
+      {/* Edit / Add modal — paper style, mirrored from the Nuevo gasto modal.
+          Portaled to <body> so it escapes the .nido cascade of this card. */}
+      {modalOpen && (
         <Portal>
-        <div className="modal-overlay open" onClick={closeModal}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}</h3>
-            <p>{editItem ? 'Modifica los datos del gasto recurrente' : 'Añade un gasto que se repite cada mes'}</p>
-
-            {/* Name + Emoji */}
-            <div className="form-row">
-              <label>Nombre</label>
-              <input className="form-input" type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ej: Alquiler, Netflix..." style={{ flex: 1 }} />
-              <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
-            </div>
-
-            {/* Amount */}
-            <div className="form-row">
-              <label>Importe</label>
-              <span style={{ color: 'var(--ink-3)' }}>€</span>
-              <input className="form-input" type="number" inputMode="decimal" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="900" min="0" step="0.01" style={{ width: 120, textAlign: 'right' }} />
-            </div>
-
-            {/* Type */}
-            <div className="form-row">
-              <label>Tipo</label>
-              <div style={{ display: 'flex', gap: 8, flex: 1 }}>
-                <div
-                  className={`type-sel${formType === 'shared' ? ' type-sel--active' : ''}`}
-                  onClick={() => setFormType('shared')}
-                >
-                  Compartido
+          <div
+            onClick={closeModal}
+            style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(43,38,32,.42)', backdropFilter: 'blur(3px)' }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--line)',
+                borderRadius: 26,
+                width: '100%',
+                maxWidth: 520,
+                maxHeight: 'calc(100vh - 40px)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: '0 30px 70px rgba(43,38,32,.30)',
+                animation: 'nido-pop .18s cubic-bezier(.2,.9,.3,1.2)',
+              }}
+            >
+              {/* header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 26px', borderBottom: '1px solid var(--line)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                  <span style={{ display: 'flex', color: 'var(--clay)' }}><Icon.repeat /></span>
+                  <h2 className="serif" style={{ fontSize: 24, lineHeight: 1 }}>{editItem ? 'Editar gasto fijo' : 'Nuevo gasto fijo'}</h2>
                 </div>
-                <div
-                  className={`type-sel${formType === 'personal' ? ' type-sel--active' : ''}`}
-                  onClick={() => setFormType('personal')}
+                <button
+                  type="button"
+                  aria-label="Cerrar"
+                  onClick={closeModal}
+                  style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 999, border: '1px solid var(--line)', background: 'var(--surface-2)', color: 'var(--ink-2)', cursor: 'pointer' }}
                 >
-                  Personal
-                </div>
+                  <Icon.x />
+                </button>
               </div>
-            </div>
 
-            {/* Category — smart cmd-palette */}
-            <div className="form-row" style={{ marginBottom: 14, position: 'relative' }} ref={cmdRef}>
-              <label>Categoría</label>
-              <div className="cmd-palette" style={{ flex: 1, marginBottom: 0 }}>
-                <div className="cmd-input-wrap">
-                  <TagIcon />
-                  {formCategory && (() => {
-                    const catDef = getCategoryDef(formCategory);
-                    return (
-                      <span className="cmd-selected">
-                        <div className="cmd-icon" style={{ background: catDef?.iconBg ?? 'var(--inset)', width: 20, height: 20 }}>
-                          <span style={{ fontSize: 12 }}>{catDef?.emoji ?? '📂'}</span>
-                        </div>
-                        {formCategory}
-                        <span className="cmd-x" onClick={(e) => { e.stopPropagation(); setFormCategory(''); }}>&times;</span>
-                      </span>
-                    );
-                  })()}
+              {/* body */}
+              <div style={{ minHeight: 0, overflowY: 'auto', padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Nombre</label>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <input
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder="Ej: Alquiler, Netflix…"
+                      style={{ flex: 1, minWidth: 0, padding: '14px 16px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 15, fontFamily: 'inherit', outline: 'none' }}
+                    />
+                    <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Importe</label>
+                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', background: 'var(--surface-2)' }}>
+                    <span style={{ padding: '14px 15px', color: 'var(--ink-3)', borderRight: '1px solid var(--line)' }}>€</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={formAmount}
+                      onChange={(e) => setFormAmount(e.target.value)}
+                      placeholder="900"
+                      style={{ flex: 1, minWidth: 0, padding: '14px 16px', fontSize: 15, fontWeight: 600, border: 0, background: 'transparent', outline: 'none', fontFamily: 'inherit', color: 'var(--ink)', width: '100%' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Tipo</label>
+                  <Seg value={formType} options={CONTEXT_SEG_OPTIONS} onChange={setFormType} full />
+                </div>
+
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Categoría</label>
+                  {modalCategory}
+                </div>
+
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>Notas</label>
                   <input
-                    className="cmd-input"
-                    placeholder="Buscar categoría..."
-                    value={categorySearch}
-                    onFocus={() => setCmdOpen(true)}
-                    onChange={(e) => { setCategorySearch(e.target.value); setCmdOpen(true); }}
+                    value={formNotes}
+                    onChange={(e) => setFormNotes(e.target.value)}
+                    placeholder="Opcional…"
+                    style={{ width: '100%', padding: '14px 16px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 15, fontFamily: 'inherit', outline: 'none' }}
                   />
                 </div>
-                <div className={`cmd-dropdown${cmdOpen ? ' open' : ''}`}>
-                  <div className="cmd-list">
-                    {filteredCategories.map((item, idx) => (
-                      <div
-                        key={`${item.id ?? ''}-${item.name}-${idx}`}
-                        className={`cmd-option${formCategory === item.name ? ' selected' : ''}`}
-                        onClick={() => { setFormCategory(item.name); setCategorySearch(''); setCmdOpen(false); }}
-                      >
-                        <div className="cmd-icon" style={{ background: item.iconBg ?? 'var(--inset)' }}>
-                          <span style={{ fontSize: 14 }}>{item.emoji ?? '📂'}</span>
-                        </div>
-                        {item.name}
-                      </div>
-                    ))}
-                    {categorySearch.trim() && !filteredCategories.some(c => c.name.toLowerCase() === categorySearch.toLowerCase()) && (
-                      <div className="cmd-create" onClick={() => { setFormCategory(categorySearch.trim()); setCategorySearch(''); setCmdOpen(false); }}>
-                        + Crear &ldquo;{categorySearch.trim()}&rdquo;
-                      </div>
-                    )}
+
+                <div>
+                  <label className="eyebrow" style={{ display: 'block', marginBottom: 10 }}>Se repite cada</label>
+                  <div className="cycle-stepper">
+                    <button
+                      type="button"
+                      className="cycle-stepper__btn"
+                      onClick={() => setEveryNCycles(v => Math.max(1, v - 1))}
+                      disabled={everyNCycles <= 1}
+                    >
+                      −
+                    </button>
+                    <span className="cycle-stepper__value">{everyNCycles}</span>
+                    <button
+                      type="button"
+                      className="cycle-stepper__btn"
+                      onClick={() => setEveryNCycles(v => Math.min(24, v + 1))}
+                    >
+                      +
+                    </button>
+                    <span className="cycle-stepper__label">
+                      {everyNCycles === 1 ? 'ciclo (siempre)' : 'ciclos'}
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Notes */}
-            <div className="form-row">
-              <label>Notas</label>
-              <input className="form-input" value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Opcional..." style={{ flex: 1 }} />
-            </div>
-
-            {/* Cycle frequency — stepper buttons */}
-            <div className="form-row">
-              <label>Se repite cada</label>
-              <div className="cycle-stepper">
-                <button
-                  type="button"
-                  className="cycle-stepper__btn"
-                  onClick={() => setEveryNCycles(v => Math.max(1, v - 1))}
-                  disabled={everyNCycles <= 1}
-                >
-                  −
-                </button>
-                <span className="cycle-stepper__value">{everyNCycles}</span>
-                <button
-                  type="button"
-                  className="cycle-stepper__btn"
-                  onClick={() => setEveryNCycles(v => Math.min(24, v + 1))}
-                >
-                  +
-                </button>
-                <span className="cycle-stepper__label">
-                  {everyNCycles === 1 ? 'ciclo (siempre)' : 'ciclos'}
-                </span>
+              {/* footer */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 26px', borderTop: '1px solid var(--line)' }}>
+                <div>
+                  {editItem ? (
+                    <Btn variant="ghost" onClick={handleDelete} disabled={saving} style={{ borderColor: 'var(--berry)', color: 'var(--berry)', background: 'transparent' }}>
+                      Eliminar
+                    </Btn>
+                  ) : null}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {editItem ? (
+                    <Btn variant="ghost" onClick={handleTogglePause} disabled={saving}>
+                      {editItem.paused ? 'Activar' : 'Pausar'}
+                    </Btn>
+                  ) : null}
+                  <Btn variant="primary" onClick={handleSave} disabled={saveDisabled}>
+                    <Icon.check /> {saving ? 'Guardando…' : 'Guardar'}
+                  </Btn>
+                </div>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="modal-actions">
-              {editItem && (
-                <button className="btn btn-outline" onClick={handleTogglePause} disabled={saving}>
-                  {editItem.paused ? 'Activar' : 'Pausar'}
-                </button>
-              )}
-              {editItem && (
-                <button className="btn btn-danger-outline" onClick={handleDelete} disabled={saving} style={{ marginRight: 'auto' }}>
-                  Eliminar
-                </button>
-              )}
-              <button className="btn btn-outline" onClick={closeModal}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving || !formName.trim() || !formAmount || parseFloat(formAmount) <= 0}>
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
           </div>
-        </div>
         </Portal>
       )}
     </>
