@@ -291,15 +291,27 @@ export const AddExpense: React.FC = () => {
     </label>
   );
 
-  // Compact, centred date field for the desktop modal. The label opens the
-  // native picker (showPicker) so back-dating a gasto is one click; the overlay
-  // input stays as a fallback for browsers without showPicker.
+  // Compact, centred date field for the desktop modal. The button opens the
+  // native picker (showPicker) so back-dating a gasto is one click. The overlay
+  // input only holds the value and is pointer-events:none, so it never swallows
+  // the click meant for the button (a zero-opacity date input still receives
+  // pointer events and won't open its own picker on a body click). Falls back to
+  // focusing the input where showPicker is unavailable.
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const openDatePicker = () => {
+    const el = dateInputRef.current;
+    if (!el) return;
+    if (typeof el.showPicker === 'function') {
+      try { el.showPicker(); return; } catch { /* unsupported in this context */ }
+    }
+    el.focus();
+  };
   const dateFieldModal = (
     <div style={{ position: 'relative' }}>
       <button
         type="button"
-        onClick={() => dateInputRef.current?.showPicker?.()}
+        onClick={openDatePicker}
+        aria-label={`Fecha del gasto: ${formatDayLabel(date)}`}
         style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface-2)', color: 'var(--ink)', font: 'inherit', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}
       >
         <Icon.cal /> {formatDayLabel(date)}
@@ -309,8 +321,8 @@ export const AddExpense: React.FC = () => {
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-        aria-label="Fecha del gasto"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 0, cursor: 'pointer' }}
+        tabIndex={-1}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, border: 0, pointerEvents: 'none' }}
       />
     </div>
   );
