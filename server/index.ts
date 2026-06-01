@@ -9,7 +9,6 @@ import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import path from 'path';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import './config.js'; // Validate environment first
@@ -32,6 +31,7 @@ import cyclesRouter from './routes/cycles.js';
 import eventsRouter from './routes/events.js';
 import { port, appSessionCookieName, allowedOrigins, isProduction, appBaseUrl } from './config.js';
 import { logger, httpLogger } from './logger.js';
+import { createApiLimiter } from './rate-limit.js';
 import {
   pinSchema, validate, categoryUpsertSchema, CategoryUpsertInput,
   validateQuery, contextOnlyQuerySchema, ContextOnlyQuery,
@@ -136,15 +136,9 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
-// General rate limit for all authenticated API routes
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 120,
-  keyGenerator: (req) => (req as AuthRequest).user?.id?.toString() || req.ip || 'unknown',
-  message: { error: 'Demasiadas peticiones, intenta de nuevo en un momento' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// General rate limit for all authenticated API routes. Config-tunable and
+// per-user; see server/rate-limit.ts for the default-sizing rationale.
+const apiLimiter = createApiLimiter();
 
 app.use('/api/expenses', authenticateToken, apiLimiter, expensesRouter);
 app.use('/api/household/budget', authenticateToken, apiLimiter, householdBudgetRouter);

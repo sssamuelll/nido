@@ -30,6 +30,13 @@ const envSchema = z.object({
   // CORS – required in production to prevent wildcard origin with credentials
   ALLOWED_ORIGINS: z.string().min(1).optional(),
 
+  // Rate limiting – authenticated API, per user. The original 120/min rejected
+  // ordinary navigation: one screen (Dashboard) legitimately fires ~10 parallel
+  // requests, views re-fetch on every switch, and dev StrictMode doubles it.
+  // 600/min keeps ~5x headroom while still catching a runaway client; tune per env.
+  RATE_LIMIT_MAX: z.string().regex(/^\d+$/).transform(Number).default('600'),
+  RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).transform(Number).default('60000'),
+
   // Logging – pino level. If unset, logger.ts picks a per-NODE_ENV default.
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 
@@ -61,6 +68,8 @@ class Config {
         APP_SESSION_DAYS: process.env.APP_SESSION_DAYS,
         APP_SESSION_COOKIE_NAME: process.env.APP_SESSION_COOKIE_NAME,
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+        RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
+        RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
         LOG_LEVEL: process.env.LOG_LEVEL,
         SENTRY_DSN_SERVER: process.env.SENTRY_DSN_SERVER,
       };
@@ -138,6 +147,14 @@ class Config {
       : undefined;
   }
 
+  get rateLimitMax(): number {
+    return this.config.RATE_LIMIT_MAX;
+  }
+
+  get rateLimitWindowMs(): number {
+    return this.config.RATE_LIMIT_WINDOW_MS;
+  }
+
   get logLevel(): EnvConfig['LOG_LEVEL'] {
     return this.config.LOG_LEVEL;
   }
@@ -172,5 +189,7 @@ export const {
   appSessionDays,
   appSessionCookieName,
   allowedOrigins,
+  rateLimitMax,
+  rateLimitWindowMs,
   logLevel,
 } = config;
