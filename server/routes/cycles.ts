@@ -204,30 +204,56 @@ router.get('/current', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // First try: most recent active cycle
-    let cycle = await db.get<{ id: number }>(
+    // The operational cycle: most recent active one. Dashboard / AddExpense /
+    // RecurringSection rely on /current returning this (it has a start_date).
+    const activeCycle = await db.get<{ id: number }>(
       `SELECT id FROM billing_cycles
        WHERE household_id = ? AND status = 'active'
        ORDER BY COALESCE(start_date, created_at) DESC LIMIT 1`,
       user.household_id
     );
 
-    // Second try: any pending cycle
-    if (!cycle) {
-      cycle = await db.get<{ id: number }>(
-        `SELECT id FROM billing_cycles
-         WHERE household_id = ? AND status = 'pending'
-         ORDER BY created_at DESC LIMIT 1`,
-        user.household_id
-      );
+    // A restart awaiting approval is a SEPARATE row with status='pending' that
+    // coexists with the still-active cycle. We must not let it shadow the active
+    // one (it would break the consumers above), nor let the active one hide it
+    // (the partner could never approve). Surface it as `pending_restart`, mirroring
+    // how household-budget exposes `pending_approval`.
+    const pendingCycle = await db.get<{ id: number }>(
+      `SELECT id FROM billing_cycles
+       WHERE household_id = ? AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`,
+      user.household_id
+    );
+
+    // Bootstrap: no cycle has ever been started. Return the pending one at top
+    // level (Settings renders its own approval UI from status === 'pending').
+    if (!activeCycle) {
+      if (!pendingCycle) {
+        return res.json(null);
+      }
+      const detailedPending = await getCycleWithApprovalState(db, pendingCycle.id, req.user!.id);
+      return res.json(detailedPending ? { ...detailedPending, pending_restart: null } : null);
     }
 
-    if (!cycle) {
+    const detailedActive = await getCycleWithApprovalState(db, activeCycle.id, req.user!.id);
+    if (!detailedActive) {
       return res.json(null);
     }
 
-    const detailedCycle = await getCycleWithApprovalState(db, cycle.id, req.user!.id);
-    res.json(detailedCycle);
+    let pendingRestart = null;
+    if (pendingCycle) {
+      const detailedPending = await getCycleWithApprovalState(db, pendingCycle.id, req.user!.id);
+      if (detailedPending) {
+        pendingRestart = {
+          id: detailedPending.id,
+          requested_by_user_id: detailedPending.requested_by_user_id,
+          requested_by_username: detailedPending.requested_by_username,
+          approvals: detailedPending.approvals,
+        };
+      }
+    }
+
+    res.json({ ...detailedActive, pending_restart: pendingRestart });
   } catch (error) {
     req.log.error({ err: error }, 'current cycle fetch failed');
     res.status(500).json({ error: 'Error al obtener ciclo de facturación actual' });
