@@ -26,11 +26,22 @@ interface RecurringItem {
 interface RecurringSectionProps {
   userId: number;
   onCycleApproved?: () => void;
+  /**
+   * Current billing cycle, when the parent already loads it (Dashboard does).
+   * Passing it avoids a duplicate GET /cycles/current and a redundant `cycles`
+   * subscription — the parent owns refresh and feeds the fresh value down.
+   * Omit it for standalone use and the component fetches its own.
+   */
+  cycle?: CycleDetail | null;
 }
 
-export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved }) => {
+export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCycleApproved, cycle: cycleProp }) => {
+  // `undefined` means the parent didn't pass a cycle (fetch our own);
+  // `null` or a value means it owns the cycle and we mustn't fetch it.
+  const cycleProvided = cycleProp !== undefined;
   const [items, setItems] = useState<RecurringItem[]>([]);
-  const [cycle, setCycle] = useState<CycleDetail | null>(null);
+  const [internalCycle, setInternalCycle] = useState<CycleDetail | null>(null);
+  const cycle: CycleDetail | null = cycleProvided ? (cycleProp ?? null) : internalCycle;
   const [editItem, setEditItem] = useState<RecurringItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -50,6 +61,12 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
   const [catExpanded, setCatExpanded] = useState(false);
 
   const loadData = useCallback(async () => {
+    if (cycleProvided) {
+      // Parent owns the cycle; only the recurring list is ours to fetch.
+      const recurring = await Api.getRecurring();
+      setItems(Array.isArray(recurring) ? recurring : []);
+      return;
+    }
     const [recurring, currentCycle] = await Promise.all([
       Api.getRecurring(),
       Api.getCurrentCycle().catch((err) => {
@@ -60,12 +77,14 @@ export const RecurringSection: React.FC<RecurringSectionProps> = ({ userId, onCy
       }),
     ]);
     setItems(Array.isArray(recurring) ? recurring : []);
-    setCycle(currentCycle);
-  }, []);
+    setInternalCycle(currentCycle);
+  }, [cycleProvided]);
 
   const { loading } = useAsyncEffect(loadData, {
     fallbackMessage: 'Error al cargar recurrentes',
-    invalidationKeys: [CACHE_KEYS.recurring, CACHE_KEYS.cycles],
+    // When the parent owns the cycle we only watch `recurring`; otherwise we
+    // also refetch our own cycle on `cycles` invalidations.
+    invalidationKeys: cycleProvided ? [CACHE_KEYS.recurring] : [CACHE_KEYS.recurring, CACHE_KEYS.cycles],
   });
 
   const closeModal = useCallback(() => {
