@@ -23,6 +23,25 @@ const cycleSummarySchema = z
   })
   .passthrough();
 
+const cycleApprovalsSchema = z.object({
+  total_members: z.number().int().nonnegative(),
+  approved_count: z.number().int().nonnegative(),
+  approved_user_ids: z.array(z.number().int().positive()),
+  current_user_has_approved: z.boolean(),
+  all_approved: z.boolean(),
+});
+
+// When a restart is requested while a cycle is still active, GET /cycles/current
+// returns the active cycle AND nests the pending restart here so the partner can
+// approve it. Null when no restart is pending. Mirrors household-budget's
+// pending_approval shape.
+const pendingRestartSchema = z.object({
+  id: z.number().int().finite().positive(),
+  requested_by_user_id: z.number().int().finite().positive(),
+  requested_by_username: z.string().nullable(),
+  approvals: cycleApprovalsSchema,
+});
+
 // /api/cycles/{current,request,approve} go through getCycleWithApprovalState
 // on the server and always include requester identity + approvals state.
 // Modeled as a strict superset of the summary so consumers that only need
@@ -32,13 +51,8 @@ const cycleDetailSchema = cycleSummarySchema
     requested_by_user_id: z.number().int().finite().positive(),
     requested_by_username: z.string().nullable(),
     approved_by_user_id: z.number().int().finite().positive().nullable(),
-    approvals: z.object({
-      total_members: z.number().int().nonnegative(),
-      approved_count: z.number().int().nonnegative(),
-      approved_user_ids: z.array(z.number().int().positive()),
-      current_user_has_approved: z.boolean(),
-      all_approved: z.boolean(),
-    }),
+    approvals: cycleApprovalsSchema,
+    pending_restart: pendingRestartSchema.nullable().optional(),
   })
   .passthrough();
 

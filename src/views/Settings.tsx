@@ -225,10 +225,9 @@ export const Settings: React.FC = () => {
     catch (err) { handleApiError(err, 'Error al solicitar ciclo'); }
     finally { setSaving(false); }
   };
-  const handleApproveCycle = async () => {
-    if (!currentCycle) return;
+  const handleApproveCycle = async (cycleId: number) => {
     if (!confirm('¿Aprobar ciclo de facturación? Se registrarán los gastos recurrentes.')) return;
-    try { setSaving(true); await Api.approveCycle(currentCycle.id); cacheBus.invalidate(CACHE_KEYS.cycles, CACHE_KEYS.summary); showToast('Ciclo aprobado. Gastos recurrentes registrados.', 'success'); loadCycle(); }
+    try { setSaving(true); await Api.approveCycle(cycleId); cacheBus.invalidate(CACHE_KEYS.cycles, CACHE_KEYS.summary); showToast('Ciclo aprobado. Gastos recurrentes registrados.', 'success'); loadCycle(); }
     catch (err) { handleApiError(err, 'Error al aprobar ciclo'); }
     finally { setSaving(false); }
   };
@@ -290,6 +289,8 @@ export const Settings: React.FC = () => {
   const partnerName = formatDisplayName(partner?.username);
   const requesterName = formatDisplayName(budget.pending_approval?.requested_by_username);
   const isPendingByMe = budget.pending_approval?.requested_by_user_id === user?.id;
+  const pendingRestart = currentCycle?.pending_restart ?? null;
+  const restartRequestedByMe = pendingRestart?.requested_by_user_id === user?.id;
 
   const profileCard = (
     <Card pad style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 13, background: 'linear-gradient(140deg, var(--surface) 55%, var(--clay-tint))' }}>
@@ -355,7 +356,19 @@ export const Settings: React.FC = () => {
             </div>
           ) : null}
           {currentCycle.status === 'pending' && !currentCycle.approvals?.current_user_has_approved ? (
-            <Btn variant="primary" onClick={handleApproveCycle} disabled={saving}><Icon.check /> {saving ? 'Aprobando…' : 'Aprobar reinicio'}</Btn>
+            <Btn variant="primary" onClick={() => handleApproveCycle(currentCycle.id)} disabled={saving}><Icon.check /> {saving ? 'Aprobando…' : 'Aprobar reinicio'}</Btn>
+          ) : currentCycle.status === 'active' && pendingRestart ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '12px 14px', borderRadius: 12, background: 'var(--honey-tint)', border: '1px solid #e6d3a0' }}>
+                <span style={{ color: 'var(--honey)', flex: '0 0 auto', marginTop: 1 }}><Icon.clock /></span>
+                <div style={{ fontSize: 12.5, color: '#7a5512', lineHeight: 1.4 }}>
+                  {restartRequestedByMe ? `Pendiente · esperando aprobación de ${partnerName}` : `${formatDisplayName(pendingRestart.requested_by_username)} pidió reiniciar el ciclo`}
+                </div>
+              </div>
+              {!pendingRestart.approvals.current_user_has_approved ? (
+                <Btn variant="primary" onClick={() => handleApproveCycle(pendingRestart.id)} disabled={saving} style={{ width: 'fit-content' }}><Icon.check /> {saving ? 'Aprobando…' : 'Aprobar reinicio'}</Btn>
+              ) : null}
+            </div>
           ) : currentCycle.status === 'active' ? (
             <SetRow icon={<Icon.refresh />} title="Reiniciar ciclo" sub="Cierra el actual y empieza uno nuevo" action={<Btn variant="ghost" onClick={handleRequestCycle} style={{ padding: '7px 12px' }}>Reiniciar</Btn>} />
           ) : null}
