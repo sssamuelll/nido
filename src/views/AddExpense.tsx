@@ -31,7 +31,7 @@ const toNum = (v: unknown, fallback = 0) => (Number.isFinite(Number(v)) ? Number
    a dot-decimal numeric string only at submit. */
 type Op = '+' | '−' | '×' | '÷';
 interface CalcState { acc: number | null; op: Op | null; entry: string }
-const CALC_ZERO: CalcState = { acc: null, op: null, entry: '' };
+export const CALC_ZERO: CalcState = { acc: null, op: null, entry: '' };
 const isOp = (k: string): k is Op => k === '+' || k === '−' || k === '×' || k === '÷';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -43,7 +43,7 @@ const applyOp = (a: number, op: Op, b: number): number => {
 };
 const entryToNum = (entry: string) => parseFloat(entry.replace(',', '.')) || 0;
 
-const calcValue = (s: CalcState): number => {
+export const calcValue = (s: CalcState): number => {
   if (s.entry !== '') {
     const e = entryToNum(s.entry);
     return s.acc !== null && s.op ? applyOp(s.acc, s.op, e) : e;
@@ -51,7 +51,7 @@ const calcValue = (s: CalcState): number => {
   return s.acc ?? 0;
 };
 
-const pressKey = (s: CalcState, k: string): CalcState => {
+export const pressKey = (s: CalcState, k: string): CalcState => {
   if (k === '⌫') {
     if (s.entry !== '') return { ...s, entry: s.entry.slice(0, -1) };
     if (s.op) return { ...s, op: null };
@@ -88,6 +88,22 @@ const calcDisplay = (s: CalcState): string => {
 };
 
 const KEYS = ['1', '2', '3', '÷', '4', '5', '6', '×', '7', '8', '9', '−', ',', '0', '⌫', '+'];
+
+/* Map a physical-keyboard key (KeyboardEvent.key) to its keypad equivalent, or
+   null when it isn't one we drive the calculator with. Covers main-row and
+   numpad digits, both decimal separators (',' on es-ES, '.' on the US numpad),
+   the four operators, and Backspace. Used by the desktop modal so the monto can
+   be typed instead of clicked (parity with the pre-redesign behaviour). */
+export const mapPhysicalKey = (key: string): string | null => {
+  if (/^[0-9]$/.test(key)) return key;
+  if (key === 'Backspace') return '⌫';
+  if (key === '.' || key === ',') return ',';
+  if (key === '+') return '+';
+  if (key === '-') return '−';
+  if (key === '*') return '×';
+  if (key === '/') return '÷';
+  return null;
+};
 
 export const AddExpense: React.FC = () => {
   const navigate = useNavigate();
@@ -256,6 +272,38 @@ export const AddExpense: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  // Desktop only: drive the amount keypad from the physical keyboard, so the
+  // monto can be typed on a computer instead of clicked (this existed before the
+  // redesign). We keep the latest submit handler in a ref so the listener stays
+  // stable across renders.
+  const submitRef = useRef(handleSubmit);
+  submitRef.current = handleSubmit;
+  useEffect(() => {
+    if (isMobile) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      // Let a focused text field own its keystrokes (Descripción, búsqueda de
+      // categoría) — only intercept when typing isn't going into an input.
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return;
+      if (ev.key === 'Enter') {
+        // Don't double-fire when a button/link is focused — let it click itself.
+        if (tag === 'BUTTON' || tag === 'A') return;
+        ev.preventDefault();
+        void submitRef.current();
+        return;
+      }
+      const mapped = mapPhysicalKey(ev.key);
+      if (mapped !== null) {
+        ev.preventDefault(); // stop '/' quick-find, Backspace back-nav, etc.
+        setCalc((s) => pressKey(s, mapped));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isMobile]);
 
   const goToDetails = () => {
     if (!validate()) return;
