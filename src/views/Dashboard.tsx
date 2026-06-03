@@ -599,15 +599,9 @@ export const Dashboard: React.FC = () => {
     </Card>
   );
 
-  /* The household header (brand + search + bell), shared shape, scales by device. */
+  /* The household header (title + search + bell), shared shape, scales by device. */
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 11 : 16, marginBottom: isMobile ? 18 : 24 }}>
-      <div
-        className="brand-mark"
-        style={{ width: isMobile ? 44 : 52, height: isMobile ? 44 : 52, borderRadius: 16, background: 'linear-gradient(150deg, var(--pine), var(--clay))', display: 'grid', placeItems: 'center', color: '#fff', flex: '0 0 auto' }}
-      >
-        <Icon.heart />
-      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <h1 className="serif" style={{ fontSize: isMobile ? 24 : 34, lineHeight: 1 }}>El Nido</h1>
         <div className="psub" style={{ marginTop: 3, fontSize: isMobile ? 12 : 13.5 }}>María &amp; tú</div>
